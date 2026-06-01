@@ -1,0 +1,49 @@
+# ── Credenciales y secretos ───────────────────────────────────────
+.env
+.env.*
+credentials/
+*.json.secret
+
+# ── Base de datos local ───────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Salidas generadas en tiempo de ejecución ──────────────────────
+output/
+
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# ── Entornos virtuales ────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── IDEs y editores ───────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Playwright ────────────────────────────────────────────────────
+playwright-report/
+test-results/
+
+# ── Logs ──────────────────────────────────────────────────────────
+*.log
+logs/
