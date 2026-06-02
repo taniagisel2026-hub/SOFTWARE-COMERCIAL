@@ -68,6 +68,8 @@ class EmailService:
                 f"mailto:{os.getenv('EMPRESA_EMAIL', '')}?"
                 f"subject=Exclusión Base de Datos - {empresa.razon_social}"
             ),
+            sector_economico=empresa.sector_economico or "",
+            num_empleados=empresa.num_empleados,
             valor_cotizacion=cotizacion.valor_total_proyecto if cotizacion else None,
             fecha_vencimiento_cotizacion=(
                 cotizacion.fecha_vencimiento.strftime("%d/%m/%Y")
@@ -79,16 +81,21 @@ class EmailService:
         asunto, html_body = self._templates.renderizar(tipo_plantilla, ctx)
         plain_text = self._templates.renderizar_texto_plano(tipo_plantilla, ctx)
 
-        # 6 ── Enviar vía Gmail API
+        # 6 ── Generar token de tracking e incrustar pixel (si TRACKING_URL configurado)
+        from ...modules.tracking.pixel_tracker import generar_token, incrustar_pixel
+        token = generar_token()
+        html_con_pixel = incrustar_pixel(html_body, token)
+
+        # 7 ── Enviar vía Gmail API
         mensaje_id = self._gmail.send(
             to=empresa.email_contacto,
             subject=asunto,
-            html_body=html_body,
+            html_body=html_con_pixel,
             plain_text=plain_text,
         )
 
-        # 7 ── Registrar en HistorialInteracciones
-        self._log(
+        # 8 ── Registrar en HistorialInteracciones con token de tracking
+        id_interaccion = self._log(
             id_empresa=empresa.id_empresa,
             id_cotizacion=cotizacion.id_cotizacion if cotizacion else None,
             asunto=asunto,
@@ -96,6 +103,7 @@ class EmailService:
             tipo_plantilla=tipo_plantilla,
             responsable=creado_por,
             delay_s=delay,
+            tracking_token=token,
         )
 
         return mensaje_id
@@ -109,9 +117,13 @@ class EmailService:
         tipo_plantilla: str,
         responsable: str,
         delay_s: float,
-    ) -> None:
+        tracking_token: str = "",
+    ) -> int:
+        notas = f"Plantilla: {tipo_plantilla} | Delay: {delay_s}s"
+        if tracking_token:
+            notas += f" | TRACK:{tracking_token}"
         with get_session() as session:
-            session.add(HistorialInteracciones(
+            rec = HistorialInteracciones(
                 id_empresa=id_empresa,
                 id_cotizacion=id_cotizacion if id_cotizacion else None,
                 tipo_interaccion="EMAIL_SALIENTE",
@@ -121,5 +133,8 @@ class EmailService:
                 estado_respuesta="ENVIADO",
                 fecha_interaccion=datetime.now(),
                 responsable=responsable,
-                notas_seguimiento=f"Plantilla: {tipo_plantilla} | Delay: {delay_s}s",
-            ))
+                notas_seguimiento=notas,
+            )
+            session.add(rec)
+            session.flush()
+            return rec.id_interaccion

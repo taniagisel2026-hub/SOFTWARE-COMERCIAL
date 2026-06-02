@@ -9,6 +9,8 @@ Configuración inicial (una sola vez):
      y se creará credentials/gmail_token.json automáticamente
 """
 import base64
+import email as _email_lib
+from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -21,7 +23,10 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
-_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly",
+]
 
 
 class GmailAuthError(Exception):
@@ -106,3 +111,42 @@ class GmailClient:
             return result["id"]
         except HttpError as exc:
             raise GmailSendError(f"Error enviando a {to}: {exc}") from exc
+
+    def listar_respuestas(self, desde_dias: int = 30) -> list[dict]:
+        """
+        Busca correos entrantes (INBOX) en los últimos N días que provengan
+        de direcciones que no sean el propio remitente (es decir, respuestas).
+        Retorna lista de dicts con from_email, subject, date.
+        """
+        if self._service is None:
+            self.authenticate()
+
+        desde_dt = datetime.now() - timedelta(days=desde_dias)
+        query = f"in:inbox after:{desde_dt.strftime('%Y/%m/%d')} -from:me"
+        try:
+            result = self._service.users().messages().list(
+                userId="me", q=query, maxResults=100
+            ).execute()
+        except HttpError:
+            return []
+
+        mensajes = result.get("messages", [])
+        respuestas = []
+        for m in mensajes:
+            try:
+                msg = self._service.users().messages().get(
+                    userId="me", id=m["id"], format="metadata",
+                    metadataHeaders=["From", "Subject", "Date"]
+                ).execute()
+                headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
+                raw_from = headers.get("From", "")
+                from_email = _email_lib.utils.parseaddr(raw_from)[1].lower()
+                respuestas.append({
+                    "from_email": from_email,
+                    "subject":    headers.get("Subject", ""),
+                    "date":       headers.get("Date", ""),
+                })
+            except HttpError:
+                continue
+
+        return respuestas

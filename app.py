@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 from src.frontend.styles import aplicar_estilos
-from src.frontend.pages import dashboard, cotizador, scraper, campanas
+from src.frontend.pages import dashboard, cotizador, scraper, campanas, analitica, contenido
 
 aplicar_estilos()
 
@@ -50,6 +50,8 @@ with st.sidebar:
             "🧮 Cotizador Inteligente",
             "🕵️ Motor de Prospección",
             "✉️ Campañas y Habeas Data",
+            "📈 Analítica y Conversión",
+            "🎨 Fábrica de Contenido",
         ],
         label_visibility="collapsed",
     )
@@ -73,3 +75,7 @@ elif pagina == "🕵️ Motor de Prospección":
     scraper.render()
 elif pagina == "✉️ Campañas y Habeas Data":
     campanas.render()
+elif pagina == "📈 Analítica y Conversión":
+    analitica.render()
+elif pagina == "🎨 Fábrica de Contenido":
+    contenido.render()

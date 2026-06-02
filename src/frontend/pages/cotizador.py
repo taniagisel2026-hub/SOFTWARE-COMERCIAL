@@ -66,6 +66,13 @@ def render() -> None:
             nombre_contacto = st.text_input("Nombre del contacto",
                                             placeholder="Gerente o responsable HSEQ")
 
+            st.markdown("**Servicios adicionales** *(opcional)*")
+            svc_higiene  = st.checkbox("🔬 Mediciones Ambientales e Higiene Industrial")
+            svc_apt      = st.checkbox("🪑 Análisis de Puestos de Trabajo (APT)")
+            svc_bateria  = st.checkbox("🧠 Batería de Riesgo Psicosocial")
+            svc_pesv     = st.checkbox("🚗 Plan Estratégico de Seguridad Vial (PESV)")
+            svc_iso      = st.checkbox("🏅 Sistema de Gestión ISO 45001:2018")
+
             calcular = st.form_submit_button("⚡ Calcular Cotización",
                                              type="primary",
                                              use_container_width=True)
@@ -85,6 +92,15 @@ def render() -> None:
                 st.error("La Razón Social es obligatoria.")
         else:
             nivel_riesgo_str = nivel_label.split(" ")[0]
+            servicios_extra = [
+                k for k, sel in [
+                    ("HIGIENE_INDUSTRIAL", svc_higiene),
+                    ("APT",               svc_apt),
+                    ("BATERIA_PSICOSOCIAL", svc_bateria),
+                    ("PESV",              svc_pesv),
+                    ("ISO_45001",         svc_iso),
+                ] if sel
+            ]
             with col_result:
                 with st.spinner("Calculando y generando PDF..."):
                     try:
@@ -92,6 +108,7 @@ def render() -> None:
                             razon_social.strip(), nit, ciudad, sector,
                             int(num_empleados), nivel_riesgo_str,
                             email_contacto, nombre_contacto,
+                            servicios_extra,
                         )
                         # Generar PDF inmediatamente y guardar bytes en memory
                         pdf_bytes, pdf_nombre = _generar_pdf_bytes(
@@ -124,7 +141,8 @@ def render() -> None:
 
 def _calcular_backend(razon_social, nit, ciudad, sector,
                       num_empleados, nivel_riesgo_str,
-                      email_contacto, nombre_contacto):
+                      email_contacto, nombre_contacto,
+                      servicios_extra: list[str] | None = None):
     from src.domain.entities import EmpresaProspecto, NivelRiesgo
     from src.modules.cotizador import CotizadorService
 
@@ -139,7 +157,11 @@ def _calcular_backend(razon_social, nit, ciudad, sector,
         email_contacto=email_contacto,
         nombre_contacto=nombre_contacto,
     )
-    return CotizadorService().generar_cotizacion(empresa, creado_por="Asesor")
+    svc = CotizadorService()
+    cotizacion = svc.generar_cotizacion(empresa, creado_por="Asesor")
+    if servicios_extra:
+        cotizacion = svc.agregar_servicios_adicionales(cotizacion, servicios_extra)
+    return cotizacion
 
 
 def _generar_pdf_bytes(cotizacion, razon_social: str, ciudad: str) -> tuple[bytes, str]:

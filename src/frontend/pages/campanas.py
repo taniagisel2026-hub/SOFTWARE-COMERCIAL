@@ -178,6 +178,337 @@ def _registrar_optin(id_empresa: int) -> tuple[bool, str]:
         return False, str(exc)
 
 
+# ── Ficha Centralizada del Cliente ────────────────────────────────────────────
+
+@st.cache_data(ttl=30)
+def _cargar_ficha_empresa(id_empresa: int) -> dict:
+    """Carga datos completos de una empresa para la Ficha Centralizada."""
+    try:
+        from src.database.connection import get_session
+        from src.database.models import (
+            Cotizacion,
+            EmpresaProspecto,
+            HistorialInteracciones,
+        )
+
+        with get_session() as session:
+            emp = session.get(EmpresaProspecto, id_empresa)
+            if not emp:
+                return {"ok": False, "error": "Empresa no encontrada"}
+
+            interacciones = (
+                session.query(HistorialInteracciones)
+                .filter(HistorialInteracciones.id_empresa == id_empresa)
+                .order_by(HistorialInteracciones.fecha_interaccion.desc())
+                .all()
+            )
+            cotizaciones = (
+                session.query(Cotizacion)
+                .filter(Cotizacion.id_empresa == id_empresa)
+                .order_by(Cotizacion.fecha_emision.desc())
+                .all()
+            )
+
+            return {
+                "ok": True,
+                "empresa": {
+                    "razon_social":     emp.razon_social,
+                    "nit":              emp.nit,
+                    "ciudad":           emp.ciudad,
+                    "departamento":     emp.departamento,
+                    "nivel_riesgo_arl": emp.nivel_riesgo_arl,
+                    "sector_economico": emp.sector_economico or "—",
+                    "email_contacto":   emp.email_contacto or "—",
+                    "telefono":         emp.telefono or "—",
+                    "nombre_contacto":  emp.nombre_contacto or "—",
+                    "cargo_contacto":   emp.cargo_contacto or "—",
+                    "num_empleados":    emp.num_empleados,
+                    "estado_prospecto": emp.estado_prospecto,
+                    "fuente_origen":    emp.fuente_origen or "—",
+                    "fecha_registro":   str(emp.fecha_registro),
+                },
+                "interacciones": [
+                    {
+                        "fecha":       str(i.fecha_interaccion)[:16],
+                        "canal":       (i.canal or "—").upper(),
+                        "tipo":        i.tipo_interaccion,
+                        "asunto":      i.asunto or "—",
+                        "estado":      i.estado_respuesta or "—",
+                        "responsable": i.responsable or "—",
+                    }
+                    for i in interacciones
+                ],
+                "cotizaciones": [
+                    {
+                        "id":            c.id_cotizacion,
+                        "codigo":        c.codigo_cotizacion,
+                        "fecha":         str(c.fecha_emision),
+                        "nivel":         c.nivel_estandares,
+                        "empleados":     c.num_empleados_cotizados,
+                        "total_proyecto": float(c.valor_total_proyecto),
+                        "total_mensual": float(c.valor_total_mensual),
+                        "estado":        c.estado_cotizacion,
+                        "url_pdf":       c.url_documento_pdf or "",
+                    }
+                    for c in cotizaciones
+                ],
+            }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@st.cache_data(ttl=3600)
+def _regenerar_pdf_bytes(id_cotizacion: int) -> bytes | None:
+    """Reconstruye la cotización desde BD y genera el PDF en memoria."""
+    try:
+        import tempfile
+        from decimal import Decimal
+        from pathlib import Path as _Path
+
+        from src.database.connection import get_session
+        from src.database.models import (
+            Cotizacion as ORM_C,
+            EmpresaProspecto as ORM_E,
+        )
+        from src.domain.entities import (
+            Cotizacion as DomCotizacion,
+            EmpresaProspecto as DomEmpresa,
+            EstadoCotizacion,
+            EstadoProspecto,
+            NivelEstandares,
+            NivelRiesgo,
+            ServicioCotizado,
+        )
+        from src.modules.cotizador.pdf_exporter import exportar_pdf
+
+        with get_session() as session:
+            c = session.get(ORM_C, id_cotizacion)
+            if not c:
+                return None
+            e = session.get(ORM_E, c.id_empresa)
+            if not e:
+                return None
+
+            servicios = [
+                ServicioCotizado(
+                    nombre=svc.get("nombre", ""),
+                    descripcion=svc.get("descripcion", ""),
+                    cantidad_horas=int(svc.get("cantidad_horas", 0)),
+                    valor_unitario=Decimal(str(svc.get("valor_unitario", "0"))),
+                )
+                for svc in (c.servicios_incluidos or [])
+            ]
+
+            cot_dom = DomCotizacion(
+                id_cotizacion=c.id_cotizacion,
+                id_empresa=c.id_empresa,
+                codigo_cotizacion=c.codigo_cotizacion,
+                version=c.version,
+                nivel_estandares=NivelEstandares(c.nivel_estandares),
+                num_empleados_cotizados=c.num_empleados_cotizados,
+                nivel_riesgo=NivelRiesgo(c.nivel_riesgo),
+                servicios_incluidos=servicios,
+                valor_viaticos=Decimal(str(c.valor_viaticos)),
+                moneda=c.moneda,
+                estado_cotizacion=EstadoCotizacion(c.estado_cotizacion),
+                fecha_emision=c.fecha_emision,
+                fecha_vencimiento=c.fecha_vencimiento,
+                url_documento_pdf=c.url_documento_pdf or "",
+                creado_por=c.creado_por,
+            )
+
+            emp_dom = DomEmpresa(
+                id_empresa=e.id_empresa,
+                razon_social=e.razon_social,
+                nit=e.nit,
+                ciudad=e.ciudad,
+                departamento=e.departamento,
+                num_empleados=e.num_empleados,
+                nivel_riesgo_arl=NivelRiesgo(e.nivel_riesgo_arl),
+                sector_economico=e.sector_economico or "",
+                direccion=e.direccion or "",
+                telefono=e.telefono or "",
+                email_contacto=e.email_contacto or "",
+                nombre_contacto=e.nombre_contacto or "",
+                cargo_contacto=e.cargo_contacto or "",
+                estado_prospecto=EstadoProspecto(e.estado_prospecto),
+                fuente_origen=e.fuente_origen or "",
+                fecha_registro=e.fecha_registro,
+                fecha_ultima_actualizacion=e.fecha_ultima_actualizacion,
+            )
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp_path = _Path(tmp.name)
+        exportar_pdf(cot_dom, emp_dom, output_path=tmp_path)
+        data = tmp_path.read_bytes()
+        tmp_path.unlink(missing_ok=True)
+        return data
+
+    except Exception:
+        return None
+
+
+def _render_ficha_cliente(id_empresa: int) -> None:
+    """Renderiza la Ficha Centralizada del Cliente."""
+    ficha = _cargar_ficha_empresa(id_empresa)
+
+    if not ficha["ok"]:
+        st.error(f"Error al cargar ficha: {ficha['error']}")
+        return
+
+    emp = ficha["empresa"]
+
+    st.markdown(
+        "<div style='background:#EEF2F9;border-left:4px solid #1B3A6B;"
+        "border-radius:8px;padding:14px 22px 10px;margin:10px 0 4px;'>"
+        "<span style='font-size:17px;font-weight:700;color:#1B3A6B;'>"
+        "🗂️ Ficha Centralizada del Cliente</span></div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Datos generales y contacto ────────────────────────────────────────────
+    col_gen, col_ctc = st.columns(2)
+
+    with col_gen:
+        separador_seccion("Datos generales")
+        st.markdown(
+            f"<b style='font-size:15px;color:#1B3A6B;'>{emp['razon_social']}</b>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"📋 **NIT:** `{emp['nit']}`  \n"
+            f"📍 **Ciudad:** {emp['ciudad']}, {emp['departamento']}  \n"
+            f"⚠️ **Riesgo ARL:** Clase {emp['nivel_riesgo_arl']}  \n"
+            f"🏭 **Sector:** {emp['sector_economico']}  \n"
+            f"👥 **Empleados:** {emp['num_empleados']}  \n"
+            f"🔗 **Fuente:** {emp['fuente_origen']}  \n"
+            f"📅 **Registro:** {emp['fecha_registro']}"
+        )
+
+    with col_ctc:
+        separador_seccion("Contacto y estado CRM")
+        st.markdown(
+            f"👤 **{emp['nombre_contacto']}** — {emp['cargo_contacto']}  \n"
+            f"📧 {emp['email_contacto']}  \n"
+            f"📞 {emp['telefono']}"
+        )
+        _COLOR_ESTADO = {
+            "NUEVO":              "#1D4ED8",
+            "EN_SEGUIMIENTO":     "#7C3AED",
+            "COTIZACION_ENVIADA": "#D97706",
+            "NEGOCIACION":        "#EA580C",
+            "CERRADO_GANADO":     "#10B981",
+            "CERRADO_PERDIDO":    "#EF4444",
+        }
+        estado = emp["estado_prospecto"]
+        color  = _COLOR_ESTADO.get(estado, "#6B7280")
+        st.markdown(
+            f"**Estado en embudo:**&nbsp;"
+            f"<span style='background:{color};color:white;padding:3px 10px;"
+            f"border-radius:12px;font-size:12px;font-weight:600;'>{estado}</span>",
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
+    # ── Historial de interacciones ────────────────────────────────────────────
+    separador_seccion("Historial de interacciones — Email y WhatsApp")
+    hist_canal = [
+        i for i in ficha["interacciones"]
+        if i["canal"] in ("EMAIL", "WHATSAPP")
+    ]
+
+    if not hist_canal:
+        st.info("Sin interacciones por Email o WhatsApp registradas aún.")
+    else:
+        df_hist = pd.DataFrame(hist_canal).rename(columns={
+            "fecha": "Fecha", "canal": "Canal", "tipo": "Tipo",
+            "asunto": "Asunto", "estado": "Respuesta",
+        })
+        st.dataframe(
+            df_hist[["Fecha", "Canal", "Tipo", "Asunto", "Respuesta"]],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.divider()
+
+    # ── Cotizaciones históricas ───────────────────────────────────────────────
+    separador_seccion("Cotizaciones históricas")
+    cotizaciones = ficha["cotizaciones"]
+
+    if not cotizaciones:
+        st.info("No hay cotizaciones generadas para esta empresa.")
+    else:
+        _COLOR_COT = {
+            "BORRADOR":  "#94A3B8",
+            "ENVIADA":   "#3B82F6",
+            "ACEPTADA":  "#10B981",
+            "RECHAZADA": "#EF4444",
+            "VENCIDA":   "#F59E0B",
+        }
+        for cot in cotizaciones:
+            col_cot, col_dl = st.columns([5, 1])
+
+            with col_cot:
+                est_c = cot["estado"]
+                col_c = _COLOR_COT.get(est_c, "#94A3B8")
+                total_fmt   = f"$ {cot['total_proyecto']:,.0f}".replace(",", ".")
+                mensual_fmt = f"$ {cot['total_mensual']:,.0f}".replace(",", ".")
+                st.markdown(
+                    f"**{cot['codigo']}** &nbsp;"
+                    f"<span style='background:{col_c};color:white;padding:2px 9px;"
+                    f"border-radius:10px;font-size:11px;'>{est_c}</span>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f"<small style='color:#6B7280;'>"
+                    f"📅 {cot['fecha']} &nbsp;·&nbsp; 📊 {cot['nivel']} "
+                    f"&nbsp;·&nbsp; 👥 {cot['empleados']} emp. "
+                    f"&nbsp;·&nbsp; 💰 {total_fmt} COP/año "
+                    f"&nbsp;·&nbsp; 📆 {mensual_fmt} COP/mes"
+                    f"</small>",
+                    unsafe_allow_html=True,
+                )
+
+            with col_dl:
+                # Leer PDF guardado en disco; si no existe, regenerar desde BD
+                pdf_bytes: bytes | None = None
+                url = cot["url_pdf"]
+                if url:
+                    from pathlib import Path as _P
+                    p = _P(url)
+                    if p.exists():
+                        pdf_bytes = p.read_bytes()
+                if pdf_bytes is None:
+                    with st.spinner(""):
+                        pdf_bytes = _regenerar_pdf_bytes(cot["id"])
+
+                if pdf_bytes:
+                    st.download_button(
+                        "⬇️ PDF",
+                        data=pdf_bytes,
+                        file_name=f"{cot['codigo']}.pdf",
+                        mime="application/pdf",
+                        key=f"pdf_dl_{cot['id']}",
+                        use_container_width=True,
+                    )
+                else:
+                    st.button(
+                        "📄 Sin PDF",
+                        key=f"nopdf_{cot['id']}",
+                        disabled=True,
+                        use_container_width=True,
+                    )
+
+            st.markdown(
+                "<hr style='margin:6px 0;border:none;border-top:1px solid #E2E8F0;'>",
+                unsafe_allow_html=True,
+            )
+
+    st.divider()
+
+
 # ── Página principal ──────────────────────────────────────────────────────────
 
 def render() -> None:
@@ -219,6 +550,19 @@ def _render_prospectos() -> None:
     if not datos:
         st.info("📭 No hay prospectos registrados aún. Usa el **Motor de Prospección** para comenzar.")
         return
+
+    # ── Ficha Centralizada ────────────────────────────────────────────────────
+    st.divider()
+    separador_seccion("Ficha Centralizada del Cliente")
+    _nombres_emp = [p["Empresa"] for p in datos]
+    _sel_empresa = st.selectbox(
+        "Selecciona una empresa para ver su ficha completa",
+        options=["— Ninguna seleccionada —"] + _nombres_emp,
+        key="selectbox_ficha_cliente",
+    )
+    if _sel_empresa != "— Ninguna seleccionada —":
+        _id_ficha = next(p["ID"] for p in datos if p["Empresa"] == _sel_empresa)
+        _render_ficha_cliente(_id_ficha)
 
     # ── Filtros ────────────────────────────────────────────────────────────────
     st.divider()

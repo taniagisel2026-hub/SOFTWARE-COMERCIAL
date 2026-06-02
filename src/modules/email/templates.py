@@ -22,6 +22,8 @@ class EmailContext:
     empresa_remitente: str
     email_remitente: str
     opt_out_url: str
+    sector_economico: str = ""
+    num_empleados: int = 0
     valor_cotizacion: Optional[Decimal] = None
     fecha_vencimiento_cotizacion: Optional[str] = None
 
@@ -226,16 +228,40 @@ class EmailTemplateEngine:
     TIPOS_DISPONIBLES = list(_PLANTILLAS.keys())
 
     def renderizar(self, tipo: str, ctx: EmailContext) -> tuple[str, str]:
-        """Retorna (asunto, html_body) con todas las variables sustituidas."""
+        """
+        Retorna (asunto, html_body).
+        Intenta generar el body con IA (Claude); si falla o no hay API key,
+        usa la plantilla estática Jinja2 como fallback transparente.
+        """
         if tipo not in _PLANTILLAS:
             raise ValueError(
                 f"Plantilla '{tipo}' no existe. Disponibles: {self.TIPOS_DISPONIBLES}"
             )
+
+        # ── Intentar generación con IA ────────────────────────────────────────
+        from .ai_generator import generar_cuerpo_ia
+        body_ia = generar_cuerpo_ia(
+            tipo=tipo,
+            razon_social=ctx.razon_social,
+            nombre_contacto=ctx.nombre_contacto,
+            ciudad=ctx.ciudad,
+            departamento=ctx.departamento,
+            sector=ctx.sector_economico,
+            num_empleados=ctx.num_empleados,
+            nivel_riesgo=ctx.nivel_riesgo,
+            articulo_resolucion=ctx.articulo_resolucion,
+            num_estandares=ctx.num_estandares,
+            empresa_remitente=ctx.empresa_remitente,
+        )
+
+        # ── Asunto siempre desde plantilla (consistencia) ─────────────────────
         asunto_tpl, body_tpl = _PLANTILLAS[tipo]
         data = ctx.__dict__
-
         asunto = _jinja.from_string(asunto_tpl).render(**data)
-        body_rendered = _jinja.from_string(body_tpl).render(**data)
+
+        # ── Body: IA si disponible, estático si no ────────────────────────────
+        body_rendered = body_ia if body_ia else _jinja.from_string(body_tpl).render(**data)
+
         html = _jinja.from_string(_BASE_HTML).render(
             body=body_rendered,
             empresa_remitente=ctx.empresa_remitente,

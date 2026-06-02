@@ -6,6 +6,40 @@ from ...domain.resolution_0312 import ESPECIFICACIONES, EspecificacionNivel, cla
 from .viaticos import ViaticosCalculator
 
 
+SERVICIOS_ADICIONALES: dict[str, dict] = {
+    "HIGIENE_INDUSTRIAL": {
+        "nombre": "Mediciones Ambientales e Higiene Industrial",
+        "descripcion": "Mediciones higiénicas: ruido, iluminación, material particulado y agentes químicos",
+        "horas_base": 16,
+        "factor_por_empleado": Decimal("0.10"),
+    },
+    "APT": {
+        "nombre": "Análisis de Puestos de Trabajo (APT)",
+        "descripcion": "Análisis ergonómico y evaluación de condiciones por cargo (APT)",
+        "horas_base": 16,
+        "factor_por_empleado": Decimal("0.30"),
+    },
+    "BATERIA_PSICOSOCIAL": {
+        "nombre": "Batería de Riesgo Psicosocial",
+        "descripcion": "Aplicación e interpretación de la Batería de Instrumentos para Evaluación de Riesgo Psicosocial (Min. Trabajo)",
+        "horas_base": 12,
+        "factor_por_empleado": Decimal("0.25"),
+    },
+    "PESV": {
+        "nombre": "Plan Estratégico de Seguridad Vial (PESV)",
+        "descripcion": "Diseño e implementación del PESV según Ley 1503/2011 y Resolución 40595/2022",
+        "horas_base": 40,
+        "factor_por_empleado": Decimal("0.20"),
+    },
+    "ISO_45001": {
+        "nombre": "Sistema de Gestión ISO 45001:2018",
+        "descripcion": "Implementación del SG-SST bajo la norma ISO 45001:2018 con preparación para certificación",
+        "horas_base": 80,
+        "factor_por_empleado": Decimal("0.50"),
+    },
+}
+
+
 class CotizadorService:
     """
     Genera cotizaciones de diseño del SG-SST aplicando la Resolución 0312/2019.
@@ -69,6 +103,28 @@ class CotizadorService:
         exceso = max(0, num_empleados - 10)
         horas_extra = int(exceso * float(spec.factor_por_empleado_cop) / float(self.VALOR_HORA_COP))
         return spec.horas_base + horas_extra
+
+    def agregar_servicios_adicionales(
+        self,
+        cotizacion: Cotizacion,
+        claves: list[str],
+    ) -> Cotizacion:
+        """Añade servicios especializados opcionales a una cotización existente."""
+        for clave in claves:
+            info = SERVICIOS_ADICIONALES.get(clave)
+            if not info:
+                continue
+            horas = int(
+                info["horas_base"]
+                + float(info["factor_por_empleado"]) * cotizacion.num_empleados_cotizados
+            )
+            cotizacion.servicios_incluidos.append(ServicioCotizado(
+                nombre=info["nombre"],
+                descripcion=info["descripcion"],
+                cantidad_horas=max(1, horas),
+                valor_unitario=self.VALOR_HORA_COP,
+            ))
+        return cotizacion
 
     @staticmethod
     def describir_clasificacion(empresa: EmpresaProspecto) -> str:

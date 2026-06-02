@@ -36,7 +36,7 @@ def get_config() -> AppConfig:
             empresa_nombre=os.getenv("EMPRESA_NOMBRE", "Medina SST Empresarial SAS"),
             empresa_nit=os.getenv("EMPRESA_NIT", ""),
             empresa_telefono=os.getenv("EMPRESA_TELEFONO", ""),
-            empresa_email=os.getenv("EMPRESA_EMAIL", "taniagisel2026@gmail.com"),
+            empresa_email=os.getenv("EMPRESA_EMAIL", ""),
             output_dir=Path(os.getenv("OUTPUT_DIR", str(BASE_DIR / "output"))),
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
             anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),

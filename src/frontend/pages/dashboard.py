@@ -57,6 +57,45 @@ def _cargar_datos() -> dict:
                 )
                 .count()
             )
+            total_abiertos = (
+                session.query(HistorialInteracciones)
+                .filter(HistorialInteracciones.estado_respuesta == "ABIERTO")
+                .count()
+            )
+
+            # KPI: % prospectos que llegaron a cotización o más
+            estados_conversion = ["COTIZACION_ENVIADA", "NEGOCIACION",
+                                   "CERRADO_GANADO", "CERRADO_PERDIDO"]
+            total_convertidos = (
+                session.query(EmpresaProspecto)
+                .filter(
+                    EmpresaProspecto.opt_out == False,
+                    EmpresaProspecto.estado_prospecto.in_(estados_conversion),
+                )
+                .count()
+            )
+
+            # KPI: promedio de días desde registro hasta primera cotización (SQLite)
+            primera_cot = (
+                session.query(
+                    Cotizacion.id_empresa,
+                    func.min(Cotizacion.fecha_emision).label("primera"),
+                )
+                .group_by(Cotizacion.id_empresa)
+                .subquery()
+            )
+            avg_dias_raw = (
+                session.query(
+                    func.avg(
+                        func.julianday(primera_cot.c.primera)
+                        - func.julianday(EmpresaProspecto.fecha_registro)
+                    )
+                )
+                .join(primera_cot,
+                      EmpresaProspecto.id_empresa == primera_cot.c.id_empresa)
+                .scalar()
+            )
+            avg_dias_cotizacion = round(float(avg_dias_raw), 1) if avg_dias_raw else None
 
             # Distribución por ciudad (top 8)
             por_ciudad = (
@@ -101,6 +140,9 @@ def _cargar_datos() -> dict:
             "total_prospectos": total_prospectos,
             "total_cotizaciones": total_cotizaciones,
             "total_emails": total_emails,
+            "total_abiertos": total_abiertos,
+            "total_convertidos": total_convertidos,
+            "avg_dias_cotizacion": avg_dias_cotizacion,
             "total_cerrados": estados.get("CERRADO_GANADO", 0),
             "por_ciudad": [{"Ciudad": c, "Prospectos": n} for c, n in por_ciudad],
             "actividad": actividad,
@@ -136,7 +178,7 @@ def render() -> None:
             "o añade empresas desde el **Cotizador**."
         )
 
-    # ── KPIs ───────────────────────────────────────────────────────────────────
+    # ── KPIs fila 1: volumen ───────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         tarjeta_kpi("Total Prospectos", str(datos["total_prospectos"]),
@@ -150,6 +192,61 @@ def render() -> None:
     with c4:
         tarjeta_kpi("Cierres Ganados", str(datos["total_cerrados"]),
                     icono="✅", color="#10B981")
+
+    # ── KPIs fila 2: rendimiento (KPIs del PDF) ────────────────────────────────
+    import os
+    total_emails   = datos["total_emails"]
+    total_abiertos = datos["total_abiertos"]
+    total_conv     = datos["total_convertidos"]
+    total_prosp    = datos["total_prospectos"]
+    avg_dias       = datos["avg_dias_cotizacion"]
+    cerrados       = datos["total_cerrados"]
+
+    open_rate  = f"{total_abiertos/total_emails*100:.1f}%" if total_emails else "—"
+    conv_rate  = f"{total_conv/total_prosp*100:.1f}%" if total_prosp else "—"
+    vel_cot    = f"{avg_dias} días" if avg_dias is not None else "< 3 min"
+
+    # ROI: configurable vía .env
+    valor_cto  = float(os.getenv("VALOR_CONTRATO_PROMEDIO_COP", "0") or 0)
+    costo_dev  = float(os.getenv("COSTO_DESARROLLO_SOFTWARE_COP", "0") or 0)
+    if valor_cto > 0 and costo_dev > 0:
+        ingresos = cerrados * valor_cto
+        roi_val  = (ingresos - costo_dev) / costo_dev * 100
+        roi_str  = f"{roi_val:+.0f}%"
+    elif valor_cto > 0:
+        roi_str  = f"$ {cerrados * valor_cto:,.0f}".replace(",", ".")
+    else:
+        roi_str  = "Configura .env"
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        tarjeta_kpi(
+            "Open Rate correos",
+            open_rate,
+            icono="👁️",
+            color="#1D4ED8" if total_abiertos else "#94A3B8",
+        )
+    with k2:
+        tarjeta_kpi(
+            "Conversión a cotización",
+            conv_rate,
+            icono="📊",
+            color="#7C3AED",
+        )
+    with k3:
+        tarjeta_kpi(
+            "Velocidad cotización",
+            vel_cot,
+            icono="⚡",
+            color="#10B981",
+        )
+    with k4:
+        tarjeta_kpi(
+            "ROI / Ingresos CRM",
+            roi_str,
+            icono="💰",
+            color="#E65C00",
+        )
 
     st.divider()
 
