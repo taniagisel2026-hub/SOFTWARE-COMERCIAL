@@ -180,7 +180,7 @@ def _render_generador() -> None:
         tiene_key = bool(os.getenv("GEMINI_API_KEY", "").strip())
         st.markdown(
             f"<small style='color:{'#10B981' if tiene_key else '#EF4444'};'>"
-            f"{'✅ Claude API lista' if tiene_key else '❌ GEMINI_API_KEY no configurada'}"
+            f"{'✅ Gemini API lista' if tiene_key else '❌ GEMINI_API_KEY no configurada'}"
             f"</small>",
             unsafe_allow_html=True,
         )
