@@ -105,7 +105,7 @@ class ArticuloGenerado:
 
 class ContentGeneratorService:
 
-    MODEL = "gemini-2.0-flash"
+    MODEL = "gemini-1.5-flash"
 
     def __init__(self, api_key: Optional[str] = None):
         import google.generativeai as genai
