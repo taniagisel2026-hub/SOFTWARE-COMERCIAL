@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 from src.frontend.styles import aplicar_estilos
-from src.frontend.pages import dashboard, servicios, scraper, campanas, analitica, contenido
+from src.frontend.pages import dashboard, cotizador, scraper, campanas, analitica, contenido
 
 aplicar_estilos()
 
@@ -47,7 +47,7 @@ with st.sidebar:
         "Navegación",
         options=[
             "📊 Panel de Control",
-            "📂 Catálogo de Servicios",
+            "🧮 Cotizador",
             "🕵️ Motor de Prospección",
             "✉️ Campañas y Habeas Data",
             "📈 Analítica y Conversión",
@@ -69,8 +69,8 @@ with st.sidebar:
 # ── Enrutamiento de páginas ────────────────────────────────────────────────────
 if pagina == "📊 Panel de Control":
     dashboard.render()
-elif pagina == "📂 Catálogo de Servicios":
-    servicios.render()
+elif pagina == "🧮 Cotizador":
+    cotizador.render()
 elif pagina == "🕵️ Motor de Prospección":
     scraper.render()
 elif pagina == "✉️ Campañas y Habeas Data":
