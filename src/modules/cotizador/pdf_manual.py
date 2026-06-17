@@ -119,7 +119,16 @@ def generar_pdf_manual(
     # ── ENCABEZADO CON LOGO ────────────────────────────────────────────────────
     logo_cell = ""
     if _LOGO_PATH.exists():
-        logo_cell = Image(str(_LOGO_PATH), width=2.8 * cm, height=2.8 * cm)
+        from PIL import Image as PILImage
+        with PILImage.open(_LOGO_PATH) as im:
+            orig_w, orig_h = im.size
+        max_dim = 2.5 * cm
+        ratio = orig_w / orig_h
+        if ratio >= 1:
+            logo_w, logo_h = max_dim, max_dim / ratio
+        else:
+            logo_w, logo_h = max_dim * ratio, max_dim
+        logo_cell = Image(str(_LOGO_PATH), width=logo_w, height=logo_h)
 
     cabecera = Table(
         [[

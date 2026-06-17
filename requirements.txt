@@ -10,6 +10,7 @@ alembic>=1.13.0
 
 # ── Generación de documentos ──────────────────────────────────────
 reportlab>=4.0.0
+Pillow>=10.0.0
 
 # ── Configuración ─────────────────────────────────────────────────
 python-dotenv>=1.0.0
