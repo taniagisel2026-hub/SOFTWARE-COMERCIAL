@@ -125,13 +125,13 @@ def generar_cuerpo_ia(
     )
 
     try:
-        import google.generativeai as genai
+        from google import genai
 
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+            contents=prompt,
         )
-        response = model.generate_content(prompt)
         return response.text.strip()
 
     except Exception:

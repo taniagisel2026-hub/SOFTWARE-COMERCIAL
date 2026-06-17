@@ -105,28 +105,32 @@ class ArticuloGenerado:
 
 class ContentGeneratorService:
 
-    MODEL = "gemini-1.5-flash"
+    MODEL = "gemini-2.0-flash"
 
     def __init__(self, api_key: Optional[str] = None):
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
         key = api_key or os.getenv("GEMINI_API_KEY")
         if not key:
             raise EnvironmentError(
                 "GEMINI_API_KEY no definida. Añádela al archivo .env"
             )
-        genai.configure(api_key=key)
-        self._model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", self.MODEL),
-            system_instruction=_SYSTEM_PROMPT,
-        )
+        self._client = genai.Client(api_key=key)
         self._output_dir = get_config().output_dir / "contenido" / "articulos"
 
     def generar(self, tema: Optional[TemaSSTInfo] = None, dia: Optional[date] = None) -> ArticuloGenerado:
         """Genera el artículo del día con rotación automática de temas."""
+        from google.genai import types
         tema_activo = tema or obtener_tema_del_dia(dia)
         user_prompt = self._construir_prompt_usuario(tema_activo)
 
-        response = self._model.generate_content(user_prompt)
+        response = self._client.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", self.MODEL),
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=_SYSTEM_PROMPT,
+            ),
+        )
         raw_text = response.text
 
         articulo = self._parsear_respuesta(raw_text, tema_activo)
