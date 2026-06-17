@@ -15,8 +15,8 @@ class AppConfig:
     empresa_telefono: str
     empresa_email: str
     output_dir: Path
-    anthropic_api_key: str
-    anthropic_model: str
+    gemini_api_key: str
+    gemini_model: str
 
 
 _config: AppConfig | None = None
@@ -30,7 +30,7 @@ def get_config() -> AppConfig:
             from dotenv import load_dotenv
             load_dotenv(_dotenv)
         _config = AppConfig(
-            db_url=os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'comercial.db'}"),
+            db_url=os.getenv("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'comercial.db'}",
             ciudad_base=os.getenv("CIUDAD_BASE", "Bogotá D.C."),
             departamento_base=os.getenv("DEPARTAMENTO_BASE", "Cundinamarca"),
             empresa_nombre=os.getenv("EMPRESA_NOMBRE", "Medina SST Empresarial SAS"),
@@ -38,7 +38,7 @@ def get_config() -> AppConfig:
             empresa_telefono=os.getenv("EMPRESA_TELEFONO", ""),
             empresa_email=os.getenv("EMPRESA_EMAIL", ""),
             output_dir=Path(os.getenv("OUTPUT_DIR", str(BASE_DIR / "output"))),
-            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
-            anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+            gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
+            gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
         )
     return _config

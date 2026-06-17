@@ -96,11 +96,11 @@ def generar_cuerpo_ia(
     empresa_remitente: str,
 ) -> Optional[str]:
     """
-    Genera el cuerpo HTML del correo con Claude Haiku (rápido y económico).
+    Genera el cuerpo HTML del correo con Gemini Flash (gratuito).
     Retorna None si no hay API key o si la llamada falla — el llamador
     debe hacer fallback a la plantilla estática correspondiente.
     """
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         return None
 
@@ -125,15 +125,14 @@ def generar_cuerpo_ia(
     )
 
     try:
-        import anthropic
+        import google.generativeai as genai
 
-        client = anthropic.Anthropic(api_key=api_key, timeout=12.0)
-        msg = client.messages.create(
-            model=os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
-            max_tokens=450,
-            messages=[{"role": "user", "content": prompt}],
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
         )
-        return msg.content[0].text.strip()
+        response = model.generate_content(prompt)
+        return response.text.strip()
 
     except Exception:
         return None

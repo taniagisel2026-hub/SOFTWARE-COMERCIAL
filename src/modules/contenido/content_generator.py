@@ -1,10 +1,6 @@
 """
-ContentGeneratorService — genera artículos SST diarios usando la API de Claude.
-
-Optimizaciones de costo aplicadas:
-  · Prompt caching ephemeral en el system prompt (se reutiliza por 5 minutos,
-    ahorra ~90% del costo de tokens de entrada en llamadas repetidas del mismo día)
-  · Modelo recomendado: claude-sonnet-4-6 (mejor balance calidad/costo)
+ContentGeneratorService — genera artículos SST diarios usando la API de Gemini (gratuita).
+Modelo: gemini-2.0-flash
 """
 import json
 import os
@@ -13,8 +9,6 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Optional
-
-import anthropic
 
 from ...config import get_config
 from .topics import TemaSSTInfo, obtener_tema_del_dia
@@ -82,7 +76,7 @@ class ArticuloGenerado:
     modelo_usado: str = "claude-sonnet-4-6"
     tokens_entrada: int = 0
     tokens_salida: int = 0
-    cache_hit: bool = False
+    cache_hit: bool = False  # no aplica con Gemini, se mantiene por compatibilidad
 
     @property
     def copy_combinado(self) -> str:
@@ -111,48 +105,32 @@ class ArticuloGenerado:
 
 class ContentGeneratorService:
 
-    MODEL = "claude-sonnet-4-6"
-    MAX_TOKENS = 4096
+    MODEL = "gemini-2.0-flash"
 
     def __init__(self, api_key: Optional[str] = None):
-        key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        import google.generativeai as genai
+        key = api_key or os.getenv("GEMINI_API_KEY")
         if not key:
             raise EnvironmentError(
-                "ANTHROPIC_API_KEY no definida. Añádela al archivo .env"
+                "GEMINI_API_KEY no definida. Añádela al archivo .env"
             )
-        self._client = anthropic.Anthropic(api_key=key)
+        genai.configure(api_key=key)
+        self._model = genai.GenerativeModel(
+            model_name=os.getenv("GEMINI_MODEL", self.MODEL),
+            system_instruction=_SYSTEM_PROMPT,
+        )
         self._output_dir = get_config().output_dir / "contenido" / "articulos"
 
     def generar(self, tema: Optional[TemaSSTInfo] = None, dia: Optional[date] = None) -> ArticuloGenerado:
-        """
-        Genera el artículo del día.
-        Si no se especifica tema, usa la rotación automática por día del año.
-        """
+        """Genera el artículo del día con rotación automática de temas."""
         tema_activo = tema or obtener_tema_del_dia(dia)
         user_prompt = self._construir_prompt_usuario(tema_activo)
 
-        response = self._client.messages.create(
-            model=self.MODEL,
-            max_tokens=self.MAX_TOKENS,
-            system=[
-                {
-                    "type": "text",
-                    "text": _SYSTEM_PROMPT,
-                    # Cache el system prompt: ahorra ~90% de tokens de entrada en
-                    # llamadas repetidas del mismo día (TTL 5 minutos por defecto)
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": user_prompt}],
-        )
+        response = self._model.generate_content(user_prompt)
+        raw_text = response.text
 
-        raw_text = response.content[0].text
         articulo = self._parsear_respuesta(raw_text, tema_activo)
-
-        # Enriquecer con métricas de uso
-        articulo.tokens_entrada = response.usage.input_tokens
-        articulo.tokens_salida = response.usage.output_tokens
-        articulo.cache_hit = getattr(response.usage, "cache_read_input_tokens", 0) > 0
+        articulo.modelo_usado = os.getenv("GEMINI_MODEL", self.MODEL)
 
         self._persistir_json(articulo)
         return articulo
