@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 from src.frontend.styles import aplicar_estilos
-from src.frontend.pages import dashboard, cotizador, scraper, campanas, analitica, contenido
+from src.frontend.pages import dashboard, cotizador, scraper, campanas, analitica, contenido, compecer
 
 aplicar_estilos()
 
@@ -52,6 +52,7 @@ with st.sidebar:
             "✉️ Campañas y Habeas Data",
             "📈 Analítica y Conversión",
             "🎨 Fábrica de Contenido",
+            "🤝 Alianza Compecer",
         ],
         label_visibility="collapsed",
     )
@@ -79,3 +80,5 @@ elif pagina == "📈 Analítica y Conversión":
     analitica.render()
 elif pagina == "🎨 Fábrica de Contenido":
     contenido.render()
+elif pagina == "🤝 Alianza Compecer":
+    compecer.render()

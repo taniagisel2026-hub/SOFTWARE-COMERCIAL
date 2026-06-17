@@ -8,7 +8,7 @@ from pathlib import Path
 from sqlalchemy import inspect, text
 
 from .connection import engine, get_session
-from .models import Base, EmpresaProspecto
+from .models import Base, EmpresaProspecto, ReferidoCompecer
 from ..config import get_config
 
 
@@ -90,7 +90,13 @@ def seed_demo_data() -> None:
     print("[OK] 3 empresas de demo insertadas.")
 
 
+def migrate_add_referido_compecer() -> None:
+    """Crea la tabla referido_compecer si no existe."""
+    Base.metadata.create_all(bind=engine)
+
+
 if __name__ == "__main__":
     create_tables()
     migrate_add_opt_out()
+    migrate_add_referido_compecer()
     seed_demo_data()

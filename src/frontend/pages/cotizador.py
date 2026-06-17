@@ -14,6 +14,19 @@ _CIUDADES = [
     "Montería", "Sincelejo", "Valledupar", "Popayán", "Tunja",
 ]
 
+_SERVICIOS_COMPECER = [
+    "ISO 9001:2015 — Gestión de la Calidad",
+    "ISO 45001:2018 — Seguridad y Salud en el Trabajo",
+    "ISO 14001:2015 — Gestión Ambiental",
+    "ISO 27001:2022 — Seguridad de la Información",
+    "ISO 37001:2016 — Gestión Antisoborno",
+    "ISO 21001:2018 — Organizaciones Educativas",
+    "ISO 20000-1:2018 — Gestión de Servicios TI",
+    "ISO 50001:2018 — Gestión de la Energía",
+    "ISO 22000:2018 — Gestión de Inocuidad Alimentaria",
+    "ISO 56002:2019 — Gestión de la Innovación",
+]
+
 _SERVICIOS = [
     "Implementación y administración SG-SST",
     "Mediciones Ambientales (Luxometría, Sonometría, Dosimetría, Estrés Térmico, Gases y Vapores, Material Particulado)",
@@ -74,6 +87,20 @@ def render() -> None:
                 )
                 seleccionados.append({"nombre": nombre, "precio": float(precio)})
 
+        separador_seccion("Servicios Compecer (Alianza)")
+        st.caption("Certificaciones ISO gestionadas por Compecer. Se incluyen en el PDF como sección separada.")
+        seleccionados_compecer: list[dict] = []
+        for nombre in _SERVICIOS_COMPECER:
+            key_check = f"chk_comp_{nombre[:20]}"
+            key_price = f"prc_comp_{nombre[:20]}"
+            checked = st.checkbox(nombre, key=key_check)
+            if checked:
+                precio = st.number_input(
+                    f"Precio — {nombre[:45]}...",
+                    min_value=0, step=50000, format="%d", key=key_price,
+                )
+                seleccionados_compecer.append({"nombre": nombre, "precio": float(precio)})
+
         separador_seccion("Ajustes")
         descuento = st.number_input("Descuento (opcional)", min_value=0, step=50000,
                                     format="%d", help="Valor a restar del total")
@@ -93,7 +120,7 @@ def render() -> None:
     if generar:
         if not razon_social.strip():
             st.error("La Razón Social es obligatoria.")
-        elif not seleccionados:
+        elif not seleccionados and not seleccionados_compecer:
             st.error("Selecciona al menos un servicio.")
         else:
             with col_result:
@@ -110,17 +137,19 @@ def render() -> None:
                             telefono=telefono,
                             email_contacto=email_contacto,
                             servicios=seleccionados,
+                            servicios_compecer=seleccionados_compecer,
                             descuento=float(descuento),
                             elaborado_por=elaborado_por or "Asesor",
                             condiciones_pago=condiciones_pago,
                         )
                         st.session_state[_KEY] = {
-                            "razon_social": razon_social.strip(),
-                            "servicios":    seleccionados,
-                            "descuento":    float(descuento),
-                            "pdf_bytes":    pdf_bytes,
-                            "pdf_nombre":   pdf_nombre,
-                            "codigo":       codigo,
+                            "razon_social":       razon_social.strip(),
+                            "servicios":          seleccionados,
+                            "servicios_compecer": seleccionados_compecer,
+                            "descuento":          float(descuento),
+                            "pdf_bytes":          pdf_bytes,
+                            "pdf_nombre":         pdf_nombre,
+                            "codigo":             codigo,
                         }
                     except Exception as exc:
                         st.session_state.pop(_KEY, None)
@@ -137,8 +166,8 @@ def render() -> None:
 
 def _generar_pdf(
     codigo, razon_social, nit, nombre_contacto, cargo_contacto,
-    ciudad, telefono, email_contacto, servicios, descuento,
-    elaborado_por, condiciones_pago,
+    ciudad, telefono, email_contacto, servicios, servicios_compecer,
+    descuento, elaborado_por, condiciones_pago,
 ) -> tuple[bytes, str]:
     from src.modules.cotizador.pdf_manual import generar_pdf_manual
 
@@ -152,6 +181,7 @@ def _generar_pdf(
         telefono=telefono,
         email_contacto=email_contacto,
         servicios=servicios,
+        servicios_compecer=servicios_compecer,
         descuento=descuento,
         elaborado_por=elaborado_por,
         condiciones_pago=condiciones_pago,

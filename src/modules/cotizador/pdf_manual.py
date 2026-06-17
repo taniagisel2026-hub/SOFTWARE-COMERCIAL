@@ -89,7 +89,8 @@ def generar_pdf_manual(
     ciudad: str,
     telefono: str,
     email_contacto: str,
-    servicios: list[dict],   # [{"nombre": str, "precio": float}, ...]
+    servicios: list[dict],
+    servicios_compecer: Optional[list[dict]] = None,
     descuento: float = 0.0,
     elaborado_por: str = "Asesor",
     condiciones_pago: str = "50% al inicio · 50% contra entrega",
@@ -232,17 +233,82 @@ def generar_pdf_manual(
     story.append(tbl_svc)
     story.append(Spacer(1, 0.35 * cm))
 
+    # ── SERVICIOS COMPECER (si aplica) ─────────────────────────────────────────
+    _MORADO = colors.HexColor("#4B2D8F")
+    _MORADO_CLARO = colors.HexColor("#EDE9F6")
+
+    if servicios_compecer:
+        # Barra Compecer
+        tbl_comp_hdr = Table(
+            [[Paragraph("CERTIFICACIONES ISO — EN ALIANZA CON COMPECER®", s["enc_col"])]],
+            colWidths=[17.0 * cm],
+        )
+        tbl_comp_hdr.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), _MORADO),
+            ("TOPPADDING",    (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+        ]))
+        story.append(tbl_comp_hdr)
+        story.append(Spacer(1, 0.2 * cm))
+
+        story.append(Paragraph(
+            "Las siguientes certificaciones son gestionadas por <b>COMPECER®</b>, "
+            "Organismo Internacional de Certificación con doble acreditación internacional "
+            "(EMA · IAF), aliado estratégico de Medina SST Empresarial SAS.",
+            s["cuerpo"],
+        ))
+        story.append(Spacer(1, 0.15 * cm))
+
+        enc_comp = [
+            Paragraph("Norma ISO", s["enc_col"]),
+            Paragraph("Valor", s["enc_r"]),
+        ]
+        filas_comp = [enc_comp]
+        subtotal_comp = 0.0
+        for i, svc in enumerate(servicios_compecer):
+            precio = float(svc.get("precio", 0))
+            subtotal_comp += precio
+            filas_comp.append([
+                Paragraph(svc["nombre"], s["cuerpo"]),
+                Paragraph(_cop(precio), s["cuerpo_r"]),
+            ])
+
+        tbl_comp = Table(filas_comp, colWidths=[13.0 * cm, 4.0 * cm])
+        row_bgs_c = [colors.white if i % 2 == 0 else _MORADO_CLARO for i in range(len(filas_comp) - 1)]
+        tbl_comp.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, 0), _MORADO),
+            ("ROWBACKGROUNDS",(0, 1), (-1, -1), row_bgs_c),
+            ("GRID",          (0, 0), (-1, -1), 0.3, colors.HexColor("#C4B5E8")),
+            ("TOPPADDING",    (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        story.append(tbl_comp)
+        story.append(Paragraph(
+            "* Contacto Compecer: Karen Mildred García · karen.garcia@compecer.com · 315 219 5958 · www.compecer.com",
+            s["pequeno"],
+        ))
+        story.append(Spacer(1, 0.35 * cm))
+    else:
+        subtotal_comp = 0.0
+
     # ── RESUMEN ECONÓMICO ──────────────────────────────────────────────────────
     story.append(_barra("RESUMEN ECONÓMICO", s))
     story.append(Spacer(1, 0.2 * cm))
 
-    total = subtotal - descuento
+    gran_total = subtotal + subtotal_comp - descuento
     filas_res = [
-        ("Subtotal servicios:", subtotal, False),
+        ("Subtotal servicios Medina SST:", subtotal, False),
     ]
+    if servicios_compecer:
+        filas_res.append(("Subtotal certificaciones Compecer®:", subtotal_comp, False))
     if descuento > 0:
         filas_res.append(("Descuento:", -descuento, False))
-    filas_res.append(("VALOR TOTAL (IVA no incluido):", total, True))
+    filas_res.append(("VALOR TOTAL (IVA no incluido):", gran_total, True))
+    total = gran_total
 
     tbl_res = Table(
         [[Paragraph(label, s["cuerpo_b"] if es_t else s["cuerpo"]),

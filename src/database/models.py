@@ -88,6 +88,26 @@ class HistorialInteracciones(Base):
     cotizacion: Mapped[Optional["Cotizacion"]] = relationship(back_populates="interacciones")
 
 
+class ReferidoCompecer(Base):
+    __tablename__ = "referido_compecer"
+
+    id_referido: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    razon_social: Mapped[str] = mapped_column(String(200), nullable=False)
+    nit: Mapped[Optional[str]] = mapped_column(String(20))
+    nombre_contacto: Mapped[Optional[str]] = mapped_column(String(150))
+    email_contacto: Mapped[Optional[str]] = mapped_column(String(150))
+    telefono: Mapped[Optional[str]] = mapped_column(String(30))
+    ciudad: Mapped[Optional[str]] = mapped_column(String(100))
+    norma_iso: Mapped[str] = mapped_column(String(50), nullable=False)
+    fecha_referido: Mapped[date] = mapped_column(Date, nullable=False)
+    # ENVIADO | EN_NEGOCIACION | CONTRATO_FIRMADO | BONIFICACION_COBRADA | PERDIDO
+    estado: Mapped[str] = mapped_column(String(30), nullable=False, default="ENVIADO")
+    valor_bonificacion: Mapped[Optional[float]] = mapped_column(Numeric(15, 2))
+    notas: Mapped[Optional[str]] = mapped_column(Text)
+    registrado_por: Mapped[Optional[str]] = mapped_column(String(100))
+    fecha_cierre: Mapped[Optional[date]] = mapped_column(Date)
+
+
 class ContenidoRedes(Base):
     __tablename__ = "contenido_redes"
 
