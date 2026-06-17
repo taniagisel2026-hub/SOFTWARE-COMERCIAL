@@ -245,8 +245,10 @@ def generar_pdf_manual(
         with PILImage.open(_LOGO_COMPECER) as im:
             cw, ch = im.size
         ratio = cw / ch
-        logo_h = 1.2 * cm
-        logo_w = logo_h * ratio
+        max_w = 3.8 * cm
+        max_h = 1.1 * cm
+        logo_w = min(max_w, max_h * ratio)
+        logo_h = logo_w / ratio
         comp_logo_cell = Image(str(_LOGO_COMPECER), width=logo_w, height=logo_h)
 
     alianza_tbl = Table(
@@ -260,7 +262,7 @@ def generar_pdf_manual(
                 s["pequeno"],
             ),
         ]],
-        colWidths=[4.5 * cm, 12.5 * cm],
+        colWidths=[4.2 * cm, 12.8 * cm],
     )
     alianza_tbl.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, -1), _MORADO_CLARO),
