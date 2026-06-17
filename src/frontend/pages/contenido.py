@@ -108,9 +108,9 @@ def render() -> None:
     st.caption("Módulo 5 — Generación automática de artículos SST con Claude + imágenes IA")
 
     # Verificación de API key
-    if not os.getenv("ANTHROPIC_API_KEY", "").strip():
+    if not os.getenv("GEMINI_API_KEY", "").strip():
         st.warning(
-            "⚠️ **`ANTHROPIC_API_KEY` no configurada.** "
+            "⚠️ **`GEMINI_API_KEY` no configurada.** "
             "Añádela en `.env` para habilitar la generación de contenido."
         )
 
@@ -177,10 +177,10 @@ def _render_generador() -> None:
 
     col_btn, col_info = st.columns([2, 3])
     with col_info:
-        tiene_key = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
+        tiene_key = bool(os.getenv("GEMINI_API_KEY", "").strip())
         st.markdown(
             f"<small style='color:{'#10B981' if tiene_key else '#EF4444'};'>"
-            f"{'✅ Claude API lista' if tiene_key else '❌ ANTHROPIC_API_KEY no configurada'}"
+            f"{'✅ Claude API lista' if tiene_key else '❌ GEMINI_API_KEY no configurada'}"
             f"</small>",
             unsafe_allow_html=True,
         )
@@ -553,10 +553,10 @@ def _render_estadisticas() -> None:
 
     with col3:
         st.markdown("**🤖 Claude (artículos)**")
-        tiene_claude = bool(os.getenv("ANTHROPIC_API_KEY", "").strip())
+        tiene_claude = bool(os.getenv("GEMINI_API_KEY", "").strip())
         st.markdown(_badge(tiene_claude))
         if not tiene_claude:
-            st.caption("Añade `ANTHROPIC_API_KEY=sk-ant-...` en `.env`")
+            st.caption("Añade `GEMINI_API_KEY=sk-ant-...` en `.env`")
 
     st.divider()
     separador_seccion("Publicación en redes sociales")
