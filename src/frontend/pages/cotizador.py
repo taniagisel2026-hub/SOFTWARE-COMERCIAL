@@ -87,19 +87,13 @@ def render() -> None:
                 )
                 seleccionados.append({"nombre": nombre, "precio": float(precio)})
 
-        separador_seccion("Servicios Compecer (Alianza)")
-        st.caption("Certificaciones ISO gestionadas por Compecer. Se incluyen en el PDF como sección separada.")
+        separador_seccion("Alianza Compecer")
+        st.info(
+            "🤝 El PDF incluye automáticamente una mención a la alianza con **Compecer®** "
+            "(Organismo Internacional de Certificación ISO). "
+            "Para registrar un cliente interesado en certificación ISO, usa el módulo **Alianza Compecer**."
+        )
         seleccionados_compecer: list[dict] = []
-        for nombre in _SERVICIOS_COMPECER:
-            key_check = f"chk_comp_{nombre[:20]}"
-            key_price = f"prc_comp_{nombre[:20]}"
-            checked = st.checkbox(nombre, key=key_check)
-            if checked:
-                precio = st.number_input(
-                    f"Precio — {nombre[:45]}...",
-                    min_value=0, step=50000, format="%d", key=key_price,
-                )
-                seleccionados_compecer.append({"nombre": nombre, "precio": float(precio)})
 
         separador_seccion("Ajustes")
         descuento = st.number_input("Descuento (opcional)", min_value=0, step=50000,

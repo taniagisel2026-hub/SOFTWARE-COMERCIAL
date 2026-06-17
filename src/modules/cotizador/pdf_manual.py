@@ -30,7 +30,8 @@ _BORDE      = colors.HexColor("#C8D4E8")
 _GRIS       = colors.HexColor("#5A5A5A")
 _NEGRO      = colors.HexColor("#1E1E1E")
 
-_LOGO_PATH = Path(__file__).parent.parent.parent.parent / "assets" / "logo_medina.png"
+_LOGO_PATH         = Path(__file__).parent.parent.parent.parent / "assets" / "logo_medina.png"
+_LOGO_COMPECER     = Path(__file__).parent.parent.parent.parent / "assets" / "logo_compecer.jpg"
 
 
 def _estilos() -> dict:
@@ -233,82 +234,57 @@ def generar_pdf_manual(
     story.append(tbl_svc)
     story.append(Spacer(1, 0.35 * cm))
 
-    # ── SERVICIOS COMPECER (si aplica) ─────────────────────────────────────────
-    _MORADO = colors.HexColor("#4B2D8F")
-    _MORADO_CLARO = colors.HexColor("#EDE9F6")
+    # ── ALIANZA COMPECER (mención al pie, siempre visible) ────────────────────
+    _MORADO      = colors.HexColor("#4B2D8F")
+    _MORADO_CLARO= colors.HexColor("#EDE9F6")
+    subtotal_comp = 0.0
 
-    if servicios_compecer:
-        # Barra Compecer
-        tbl_comp_hdr = Table(
-            [[Paragraph("CERTIFICACIONES ISO — EN ALIANZA CON COMPECER®", s["enc_col"])]],
-            colWidths=[17.0 * cm],
-        )
-        tbl_comp_hdr.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, -1), _MORADO),
-            ("TOPPADDING",    (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ]))
-        story.append(tbl_comp_hdr)
-        story.append(Spacer(1, 0.2 * cm))
+    comp_logo_cell = ""
+    if _LOGO_COMPECER.exists():
+        from PIL import Image as PILImage
+        with PILImage.open(_LOGO_COMPECER) as im:
+            cw, ch = im.size
+        ratio = cw / ch
+        logo_h = 1.2 * cm
+        logo_w = logo_h * ratio
+        comp_logo_cell = Image(str(_LOGO_COMPECER), width=logo_w, height=logo_h)
 
-        story.append(Paragraph(
-            "Las siguientes certificaciones son gestionadas por <b>COMPECER®</b>, "
-            "Organismo Internacional de Certificación con doble acreditación internacional "
-            "(EMA · IAF), aliado estratégico de Medina SST Empresarial SAS.",
-            s["cuerpo"],
-        ))
-        story.append(Spacer(1, 0.15 * cm))
-
-        enc_comp = [
-            Paragraph("Norma ISO", s["enc_col"]),
-            Paragraph("Valor", s["enc_r"]),
-        ]
-        filas_comp = [enc_comp]
-        subtotal_comp = 0.0
-        for i, svc in enumerate(servicios_compecer):
-            precio = float(svc.get("precio", 0))
-            subtotal_comp += precio
-            filas_comp.append([
-                Paragraph(svc["nombre"], s["cuerpo"]),
-                Paragraph(_cop(precio), s["cuerpo_r"]),
-            ])
-
-        tbl_comp = Table(filas_comp, colWidths=[13.0 * cm, 4.0 * cm])
-        row_bgs_c = [colors.white if i % 2 == 0 else _MORADO_CLARO for i in range(len(filas_comp) - 1)]
-        tbl_comp.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, 0), _MORADO),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1), row_bgs_c),
-            ("GRID",          (0, 0), (-1, -1), 0.3, colors.HexColor("#C4B5E8")),
-            ("TOPPADDING",    (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
-            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-        story.append(tbl_comp)
-        story.append(Paragraph(
-            "* Contacto Compecer: Karen Mildred García · karen.garcia@compecer.com · 315 219 5958 · www.compecer.com",
-            s["pequeno"],
-        ))
-        story.append(Spacer(1, 0.35 * cm))
-    else:
-        subtotal_comp = 0.0
+    alianza_tbl = Table(
+        [[
+            comp_logo_cell,
+            Paragraph(
+                "En alianza con <b>COMPECER®</b>, Organismo Internacional de Certificación "
+                "(doble acreditación EMA · IAF, presencia en 9 países), ofrecemos acceso a "
+                "certificaciones en más de 10 normas ISO reconocidas internacionalmente. "
+                "Consulte a su asesor para mayor información.",
+                s["pequeno"],
+            ),
+        ]],
+        colWidths=[4.5 * cm, 12.5 * cm],
+    )
+    alianza_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), _MORADO_CLARO),
+        ("GRID",          (0, 0), (-1, -1), 0.3, colors.HexColor("#C4B5E8")),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
+    ]))
+    story.append(alianza_tbl)
+    story.append(Spacer(1, 0.35 * cm))
 
     # ── RESUMEN ECONÓMICO ──────────────────────────────────────────────────────
     story.append(_barra("RESUMEN ECONÓMICO", s))
     story.append(Spacer(1, 0.2 * cm))
 
-    gran_total = subtotal + subtotal_comp - descuento
+    total = subtotal - descuento
     filas_res = [
-        ("Subtotal servicios Medina SST:", subtotal, False),
+        ("Subtotal servicios:", subtotal, False),
     ]
-    if servicios_compecer:
-        filas_res.append(("Subtotal certificaciones Compecer®:", subtotal_comp, False))
     if descuento > 0:
         filas_res.append(("Descuento:", -descuento, False))
-    filas_res.append(("VALOR TOTAL (IVA no incluido):", gran_total, True))
-    total = gran_total
+    filas_res.append(("VALOR TOTAL (IVA no incluido):", total, True))
 
     tbl_res = Table(
         [[Paragraph(label, s["cuerpo_b"] if es_t else s["cuerpo"]),
