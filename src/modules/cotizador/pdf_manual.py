@@ -234,47 +234,9 @@ def generar_pdf_manual(
     story.append(tbl_svc)
     story.append(Spacer(1, 0.35 * cm))
 
-    # ── ALIANZA COMPECER (mención al pie, siempre visible) ────────────────────
-    _MORADO      = colors.HexColor("#4B2D8F")
-    _MORADO_CLARO= colors.HexColor("#EDE9F6")
+    _MORADO       = colors.HexColor("#4B2D8F")
+    _MORADO_CLARO = colors.HexColor("#EDE9F6")
     subtotal_comp = 0.0
-
-    comp_logo_cell = ""
-    if _LOGO_COMPECER.exists():
-        from PIL import Image as PILImage
-        with PILImage.open(_LOGO_COMPECER) as im:
-            cw, ch = im.size
-        ratio = cw / ch
-        max_w = 3.8 * cm
-        max_h = 1.1 * cm
-        logo_w = min(max_w, max_h * ratio)
-        logo_h = logo_w / ratio
-        comp_logo_cell = Image(str(_LOGO_COMPECER), width=logo_w, height=logo_h)
-
-    alianza_tbl = Table(
-        [[
-            comp_logo_cell,
-            Paragraph(
-                "En alianza con <b>COMPECER®</b>, Organismo Internacional de Certificación "
-                "(doble acreditación EMA · IAF, presencia en 9 países), ofrecemos acceso a "
-                "certificaciones en más de 10 normas ISO reconocidas internacionalmente. "
-                "Consulte a su asesor para mayor información.",
-                s["pequeno"],
-            ),
-        ]],
-        colWidths=[4.2 * cm, 12.8 * cm],
-    )
-    alianza_tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), _MORADO_CLARO),
-        ("GRID",          (0, 0), (-1, -1), 0.3, colors.HexColor("#C4B5E8")),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
-    ]))
-    story.append(alianza_tbl)
-    story.append(Spacer(1, 0.35 * cm))
 
     # ── RESUMEN ECONÓMICO ──────────────────────────────────────────────────────
     story.append(_barra("RESUMEN ECONÓMICO", s))
@@ -320,6 +282,42 @@ def generar_pdf_manual(
     ]
     for c in condiciones:
         story.append(Paragraph(f"•  {c}", s["cuerpo"]))
+    story.append(Spacer(1, 0.4 * cm))
+
+    # ── ALIANZA COMPECER ───────────────────────────────────────────────────────
+    comp_logo_cell = ""
+    if _LOGO_COMPECER.exists():
+        from PIL import Image as PILImage
+        with PILImage.open(_LOGO_COMPECER) as im:
+            cw, ch = im.size
+        ratio = cw / ch
+        logo_w = min(3.8 * cm, 1.1 * cm * ratio)
+        logo_h = logo_w / ratio
+        comp_logo_cell = Image(str(_LOGO_COMPECER), width=logo_w, height=logo_h)
+
+    alianza_tbl = Table(
+        [[
+            comp_logo_cell,
+            Paragraph(
+                "En alianza con <b>COMPECER®</b>, Organismo Internacional de Certificación "
+                "(doble acreditación EMA · IAF, presencia en 9 países), ofrecemos acceso a "
+                "certificaciones en más de 10 normas ISO reconocidas internacionalmente. "
+                "Consulte a su asesor para mayor información.",
+                s["pequeno"],
+            ),
+        ]],
+        colWidths=[4.2 * cm, 12.8 * cm],
+    )
+    alianza_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, -1), _MORADO_CLARO),
+        ("GRID",          (0, 0), (-1, -1), 0.3, colors.HexColor("#C4B5E8")),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
+    ]))
+    story.append(alianza_tbl)
     story.append(Spacer(1, 0.5 * cm))
 
     # ── FIRMA ──────────────────────────────────────────────────────────────────
