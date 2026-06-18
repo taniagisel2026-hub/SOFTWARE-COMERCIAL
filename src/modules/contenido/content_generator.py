@@ -54,9 +54,9 @@ RESPONDE ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes ni de
   "hashtags": ["#SST", "#SeguridadLaboral", "..."] (exactamente 8 hashtags relevantes),
   "cta": "Llamado a la acción único para Medina SST Empresarial SAS (1-2 oraciones)",
   "prompts_imagenes": [
-    "Detailed image prompt in English for image 1 (professional corporate setting, Colombian office)",
-    "Detailed image prompt in English for image 2 (infographic style, data visualization on safety)",
-    "Detailed image prompt in English for image 3 (people at work, safety awareness, Latin American context)"
+    "Prompt detallado en español para imagen 1 (entorno corporativo profesional, oficina colombiana)",
+    "Prompt detallado en español para imagen 2 (estilo infografía en español, visualización de datos de seguridad)",
+    "Prompt detallado en español para imagen 3 (personas trabajando, conciencia de seguridad, contexto latinoamericano)"
   ]
 }"""
 
@@ -135,7 +135,7 @@ class ContentGeneratorService:
         payload = {
             "system_instruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
             "contents": [{"parts": [{"text": user_prompt}]}],
-            "generationConfig": {"temperature": 0.8, "maxOutputTokens": 2048},
+            "generationConfig": {"temperature": 0.8, "maxOutputTokens": 8192},
         }
         r = _req.post(url, json=payload, timeout=60)
         r.raise_for_status()
@@ -158,9 +158,10 @@ class ContentGeneratorService:
 
     def _parsear_respuesta(self, raw: str, tema: TemaSSTInfo) -> ArticuloGenerado:
         try:
-            # Extraer bloque JSON aunque Claude añada texto envolvente
-            match = re.search(r"\{[\s\S]*\}", raw)
-            data = json.loads(match.group() if match else raw)
+            # Quitar bloques de código markdown si Gemini los incluye
+            texto = re.sub(r"```(?:json)?\s*", "", raw).strip()
+            match = re.search(r"\{[\s\S]*\}", texto)
+            data = json.loads(match.group() if match else texto)
         except (json.JSONDecodeError, AttributeError):
             # Fallback: construir estructura mínima si el JSON viene malformado
             data = {
