@@ -92,7 +92,7 @@ Muestra estadísticas detalladas para medir qué tan efectiva está siendo la es
 - **Pipeline por etapa:** cuántas empresas hay en cada etapa del embudo de ventas.
 - **Evolución en el tiempo:** gráficas de cómo han cambiado las métricas semana a semana.
 
-Sirve para que el jefe o el asesor identifiquen qué está funcionando y qué se debe mejorar en el proceso comercial.
+Sirve para que identifiquen qué está funcionando y qué se debe mejorar en el proceso comercial.
 
 ---
 

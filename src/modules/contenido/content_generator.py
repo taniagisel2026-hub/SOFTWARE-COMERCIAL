@@ -105,39 +105,41 @@ class ArticuloGenerado:
 
 class ContentGeneratorService:
 
-    MODEL = "gemini-2.0-flash"
+    MODEL = "gemini-2.5-flash"
+    _BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
     def __init__(self, api_key: Optional[str] = None):
-        from google import genai
-        from google.genai import types
-        key = api_key or os.getenv("GEMINI_API_KEY")
+        cfg = get_config()
+        key = api_key or cfg.gemini_api_key
         if not key:
             raise EnvironmentError(
                 "GEMINI_API_KEY no definida. Añádela al archivo .env"
             )
-        self._client = genai.Client(api_key=key)
-        self._output_dir = get_config().output_dir / "contenido" / "articulos"
+        self._api_key = key
+        self._output_dir = cfg.output_dir / "contenido" / "articulos"
 
     def generar(self, tema: Optional[TemaSSTInfo] = None, dia: Optional[date] = None) -> ArticuloGenerado:
         """Genera el artículo del día con rotación automática de temas."""
-        from google.genai import types
         tema_activo = tema or obtener_tema_del_dia(dia)
         user_prompt = self._construir_prompt_usuario(tema_activo)
-
-        response = self._client.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", self.MODEL),
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=_SYSTEM_PROMPT,
-            ),
-        )
-        raw_text = response.text
-
+        raw_text = self._llamar_gemini(user_prompt)
         articulo = self._parsear_respuesta(raw_text, tema_activo)
         articulo.modelo_usado = os.getenv("GEMINI_MODEL", self.MODEL)
-
         self._persistir_json(articulo)
         return articulo
+
+    def _llamar_gemini(self, user_prompt: str) -> str:
+        import requests as _req
+        model = os.getenv("GEMINI_MODEL", self.MODEL)
+        url = f"{self._BASE_URL}/{model}:generateContent?key={self._api_key}"
+        payload = {
+            "system_instruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
+            "contents": [{"parts": [{"text": user_prompt}]}],
+            "generationConfig": {"temperature": 0.8, "maxOutputTokens": 2048},
+        }
+        r = _req.post(url, json=payload, timeout=60)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
 
     def _construir_prompt_usuario(self, tema: TemaSSTInfo) -> str:
         cfg = get_config()

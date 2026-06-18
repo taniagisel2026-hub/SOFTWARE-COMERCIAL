@@ -39,6 +39,6 @@ def get_config() -> AppConfig:
             empresa_email=os.getenv("EMPRESA_EMAIL", ""),
             output_dir=Path(os.getenv("OUTPUT_DIR", str(BASE_DIR / "output"))),
             gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
-            gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+            gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
         )
     return _config

@@ -64,9 +64,9 @@ Si ves que muchos correos se abren pero nadie responde, algo está fallando en e
 
 **Una empresa interesada pide precio.**
 
-Cuando una empresa responde y quiere saber cuánto cuesta el servicio, entras al cotizador. Ingresas los datos de esa empresa, seleccionas los servicios que necesita, y el jefe indica cuánto cobrar por cada uno. El sistema suma todo y genera un **PDF profesional con el logo de Medina SST** listo para enviarle al cliente por correo o WhatsApp.
+Cuando una empresa responde y quiere saber cuánto cuesta el servicio, entras al cotizador. Ingresas los datos de esa empresa, seleccionas los servicios que necesita, indica cuánto cobrar por cada uno. El sistema suma todo y genera un **PDF profesional con el logo de Medina SST** listo para enviarle al cliente por correo o WhatsApp.
 
-El cliente nunca entra al software — solo recibe el PDF.
+
 
 ---
 

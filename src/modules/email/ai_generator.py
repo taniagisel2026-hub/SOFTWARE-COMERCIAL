@@ -125,14 +125,13 @@ def generar_cuerpo_ia(
     )
 
     try:
-        from google import genai
-
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
-            contents=prompt,
-        )
-        return response.text.strip()
+        import requests as _req
+        model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        r = _req.post(url, json=payload, timeout=30)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
 
     except Exception:
         return None
