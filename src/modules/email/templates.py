@@ -46,9 +46,9 @@ _BASE_HTML = """\
 <body style="margin:0;padding:0;background-color:#F2F5F9;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0">
   <tr><td align="center" style="padding:24px 12px;">
-    <table width="950" cellpadding="0" cellspacing="0"
+    <table width="700" cellpadding="0" cellspacing="0"
            style="background:#ffffff;border-radius:8px;overflow:hidden;
-                  box-shadow:0 2px 12px rgba(0,0,0,0.09);max-width:950px;">
+                  box-shadow:0 2px 12px rgba(0,0,0,0.09);max-width:700px;">
 
       <!-- HEADER -->
       <tr>
@@ -209,7 +209,12 @@ _BODY_PRIMER_CONTACTO = """\
   toda la información. Puede comunicarse con nosotros por WhatsApp o llamada al:
 </p>
 
-<table width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 8px;">
+<p style="margin:20px 0 6px;font-size:13px;color:#444;line-height:1.7;">
+  Puede comunicarse con nosotros por WhatsApp o llamada al:<br>
+  📞 <strong>+57 322 818 7963</strong>
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0 8px;">
   <tr>
     <td style="padding-right:10px;width:1%;">
       <a href="https://wa.me/573228187963?text=Hola%2C%20estoy%20interesado%20en%20los%20servicios%20de%20Medina%20SST%20Empresarial%20SAS"

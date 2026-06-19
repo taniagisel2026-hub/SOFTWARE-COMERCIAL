@@ -80,6 +80,21 @@ class GmailClient:
 
         self._service = build("gmail", "v1", credentials=creds, cache_discovery=False)
 
+    def _obtener_firma(self) -> str:
+        """Obtiene la firma HTML configurada en Gmail."""
+        try:
+            result = self._service.users().settings().sendAs().list(userId="me").execute()
+            for alias in result.get("sendAs", []):
+                sig = alias.get("signature", "")
+                if sig:
+                    sig = sig.replace('width:1342px', 'width:100%')
+                    sig = sig.replace('align="left" style="text-align:left"', 'align="center" style="text-align:center"')
+                    sig = sig.replace('margin:0px', 'margin:0px auto')
+                    return f'<br>{sig}'
+        except Exception:
+            pass
+        return ""
+
     def send(
         self,
         to: str,
@@ -88,9 +103,12 @@ class GmailClient:
         plain_text: Optional[str] = None,
         reply_to: Optional[str] = None,
     ) -> str:
-        """Envía un correo HTML. Retorna el ID de mensaje de Gmail."""
+        """Envía un correo HTML con firma de Gmail. Retorna el ID de mensaje."""
         if self._service is None:
             self.authenticate()
+
+        firma = self._obtener_firma()
+        html_con_firma = html_body + firma
 
         msg = MIMEMultipart("alternative")
         msg["To"] = to
@@ -101,7 +119,7 @@ class GmailClient:
         # Versión texto plano mejora entregabilidad ante filtros anti-spam
         if plain_text:
             msg.attach(MIMEText(plain_text, "plain", "utf-8"))
-        msg.attach(MIMEText(html_body, "html", "utf-8"))
+        msg.attach(MIMEText(html_con_firma, "html", "utf-8"))
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")
         try:
