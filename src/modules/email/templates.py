@@ -209,10 +209,6 @@ _BODY_PRIMER_CONTACTO = """\
   toda la información. Puede comunicarse con nosotros por WhatsApp o llamada al:
 </p>
 
-<p style="margin:8px 0;font-size:13px;color:#333;">
-  📞 Celular: <strong>+57 322 818 7963</strong>
-</p>
-
 <table width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 8px;">
   <tr>
     <td style="padding-right:10px;width:1%;">
@@ -234,11 +230,7 @@ _BODY_PRIMER_CONTACTO = """\
   </tr>
 </table>
 
-<p style="margin:16px 0 0;font-size:12px;color:#888;">
-  Cordialmente,<br>
-  <strong>Equipo {{ empresa_remitente }}</strong><br>
-  <a href="mailto:{{ email_remitente }}" style="color:#1B3A6B;">{{ email_remitente }}</a>
-</p>"""
+"""
 
 _BODY_SEGUIMIENTO_COTIZACION = """\
 <p style="margin:0 0 6px;font-size:14px;color:#333;">
