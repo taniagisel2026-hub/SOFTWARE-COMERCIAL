@@ -83,6 +83,22 @@ def _marcar_publicado(id_contenido: int) -> tuple[bool, str]:
         return False, str(exc)
 
 
+def _eliminar_contenido(id_contenido: int) -> tuple[bool, str]:
+    try:
+        from src.database.connection import get_session
+        from src.database.models import ContenidoRedes
+        with get_session() as session:
+            registro = session.query(ContenidoRedes).filter(
+                ContenidoRedes.id_contenido == id_contenido
+            ).first()
+            if registro:
+                session.delete(registro)
+        st.cache_data.clear()
+        return True, "Eliminado."
+    except Exception as exc:
+        return False, str(exc)
+
+
 def _guardar_en_calendario(articulo, imagenes) -> tuple[bool, str]:
     try:
         from src.modules.contenido import SocialSchedulerService
@@ -475,7 +491,7 @@ def _render_calendario() -> None:
     for item in contenidos:
         es_hoy = item["fecha"] == hoy
         borde = "4px solid #E65C00" if es_hoy else "1px solid #E2E8F0"
-        col_info, col_estado, col_btn = st.columns([4, 1, 1])
+        col_info, col_estado, col_btn, col_del = st.columns([4, 1, 1, 1])
 
         with col_info:
             etiqueta_hoy = " **← HOY**" if es_hoy else ""
@@ -510,6 +526,19 @@ def _render_calendario() -> None:
                         st.rerun()
                     else:
                         st.error(msg)
+
+        with col_del:
+            if st.button(
+                "🗑️",
+                key=f"del_{item['id']}",
+                use_container_width=True,
+                help="Eliminar este registro",
+            ):
+                ok, msg = _eliminar_contenido(item["id"])
+                if ok:
+                    st.rerun()
+                else:
+                    st.error(msg)
 
         st.markdown(
             "<hr style='margin:4px 0;border:none;border-top:1px solid #F1F5F9;'>",

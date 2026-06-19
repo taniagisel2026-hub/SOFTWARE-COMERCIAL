@@ -41,14 +41,22 @@ Escribe el cuerpo HTML de un correo de primer contacto en frío para:
 - Nivel de riesgo ARL: Clase {nivel_riesgo}
 - Obligación legal vigente: {articulo_resolucion} — {num_estandares} estándares mínimos (Resolución 0312 de 2019)
 
+Servicios propios de {empresa_remitente}:
+Implementación SG-SST · Mediciones Ambientales · Batería de Riesgo Psicosocial · Rumba Terapia · Capacitaciones SST · Planos de Emergencia · Brigadas de Emergencia · Certificación de Estándares Mínimos · Profesiograma · Análisis de Puesto de Trabajo · Red Contra Incendios · Inspecciones · Investigación de Accidentes · Acompañamiento SST
+
+Alianza estratégica con COMPECER — Certificación ISO:
+ISO 9001 · ISO 45001 · ISO 14001 · ISO 27001 · ISO 37001 · ISO 21001 · ISO 20000-1 · ISO 50001 · ISO 22000 · ISO 56002
+
 Reglas obligatorias:
-1. Máximo 130 palabras de texto visible.
+1. Máximo 200 palabras de texto visible.
 2. Abre directamente con el nombre del contacto.
 3. En la primera oración menciona el dolor específico del sector.
 4. Cita con exactitud los {num_estandares} estándares mínimos exigidos.
-5. Cierra con UNA sola pregunta consultiva (no dos).
-6. Tono profesional y consultivo, nunca alarmista ni invasivo.
-7. Retorna ÚNICAMENTE etiquetas <p> y <strong>. Sin <html>, <body>, <head>, <table> ni ningún otro elemento.""",
+5. Incluye una mención breve de los servicios más relevantes para el sector.
+6. Menciona la alianza con Compecer para certificaciones ISO.
+7. Cierra con UNA sola pregunta consultiva (no dos).
+8. Tono profesional y consultivo, nunca alarmista ni invasivo.
+9. Retorna ÚNICAMENTE etiquetas <p> y <strong>. Sin <html>, <body>, <head>, <table> ni ningún otro elemento.""",
 
     "SEGUIMIENTO_COTIZACION": """\
 Eres el redactor de correos corporativos de {empresa_remitente}, consultoría SST colombiana.

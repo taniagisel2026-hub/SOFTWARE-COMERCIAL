@@ -92,6 +92,7 @@ class EmailService:
             subject=asunto,
             html_body=html_con_pixel,
             plain_text=plain_text,
+            reply_to=os.getenv("EMPRESA_EMAIL", ""),
         )
 
         # 8 ── Registrar en HistorialInteracciones con token de tracking
