@@ -39,7 +39,7 @@ _PLANTILLAS: dict[str, str] = {
         "SG-SST bajo la *Resolución 0312/2019*.\n\n"
         "Le aplican *{{ num_estandares }} estándares mínimos* ({{ articulo_resolucion }} – "
         "Riesgo ARL {{ nivel_riesgo }}).\n\n"
-        "¿Le enviamos una propuesta personalizada sin costo? 😊"
+        "¿Le interesa conocer cómo podemos ayudarle a cumplir esta obligación? 🤝"
     ),
 
     EstadoProspecto.EN_SEGUIMIENTO.value: (
