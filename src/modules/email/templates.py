@@ -33,7 +33,7 @@ class EmailContext:
 _ASUNTOS = {
     "PRIMER_CONTACTO":          "SG-SST para {{ razon_social }} – Cumplimiento Res. 0312/2019",
     "SEGUIMIENTO_COTIZACION":   "Re: Propuesta SG-SST {{ razon_social }} – ¿Tiene alguna pregunta?",
-    "RECORDATORIO_VENCIMIENTO": "Su propuesta SG-SST vence pronto – {{ razon_social }}",
+    "RECORDATORIO_VENCIMIENTO": "Seguimiento: Servicios SST y certificaciones ISO para {{ razon_social }}",
 }
 
 _BASE_HTML = """\
@@ -221,7 +221,7 @@ _BODY_PRIMER_CONTACTO = """\
          style="display:inline-block;background:#25D366;color:#ffffff;
                 font-size:13px;font-weight:bold;padding:11px 24px;
                 border-radius:5px;text-decoration:none;white-space:nowrap;">
-        💬 Escribir por WhatsApp
+        💬 Contáctanos por WhatsApp
       </a>
     </td>
     <td style="width:1%;">
@@ -276,45 +276,147 @@ _BODY_SEGUIMIENTO_COTIZACION = """\
 </p>"""
 
 _BODY_RECORDATORIO_VENCIMIENTO = """\
-<p style="margin:0 0 6px;font-size:14px;color:#333;">
-  Estimado/a <strong>{{ nombre_contacto }}</strong>,
+<p style="margin:0 0 6px;font-size:13px;color:#444;">
+  Cordial saludo, equipo de <strong>{{ razon_social }}</strong>,
 </p>
 
 <p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  Le recordamos que la propuesta enviada a <strong>{{ razon_social }}</strong> para el
-  diseño del SG-SST ({{ num_estandares }} estándares – {{ articulo_resolucion }})
-  {% if fecha_vencimiento_cotizacion %}
-  <strong>vence el {{ fecha_vencimiento_cotizacion }}</strong>.
-  {% else %}
-  está próxima a vencer.
-  {% endif %}
-</p>
-
-<p style="margin:12px 0;font-size:13px;color:#C0392B;font-weight:bold;">
-  ⚠ Las multas por incumplimiento de la Res. 0312/2019 pueden alcanzar
-  hasta 500 SMMLV según el Decreto 472 de 2015.
+  Hace unos días les enviamos información sobre nuestros servicios de
+  <strong>Seguridad y Salud en el Trabajo (SST)</strong> y el cumplimiento de la
+  <strong>Resolución 0312 de 2019</strong>. Queremos asegurarnos de que haya llegado
+  correctamente y resolver cualquier duda que puedan tener.
 </p>
 
 <p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  Responda este correo o contáctenos para iniciar el proceso antes del vencimiento.
-  Podemos comenzar la primera semana con la documentación inicial sin costo adicional.
+  Recuerde que <strong>{{ razon_social }}</strong> debe cumplir con
+  <strong>{{ num_estandares }} estándares mínimos</strong> según el
+  {{ articulo_resolucion }} de la Res. 0312/2019 (Riesgo ARL {{ nivel_riesgo }}).
+  En <strong>{{ empresa_remitente }}</strong> estamos listos para acompañarlos en
+  este proceso de forma ágil y efectiva.
 </p>
 
-<table width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 8px;">
-  <tr><td>
-    <a href="mailto:{{ email_remitente }}?subject=Acepto propuesta SG-SST – {{ razon_social }}"
-       style="display:inline-block;background:#1B3A6B;color:#ffffff;
-              font-size:13px;font-weight:bold;padding:11px 24px;
-              border-radius:5px;text-decoration:none;">
-      Confirmar propuesta
-    </a>
+<p style="margin:20px 0 8px;font-size:13px;font-weight:bold;color:#1B3A6B;">Nuestros servicios en SST:</p>
+
+<table width="100%" cellpadding="0" cellspacing="4">
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Implementación y administración del SG-SST
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Mediciones Ambientales (Luxometría, Sonometría, Dosimetría, Estrés Térmico, Gases y Material Particulado)
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Batería de Riesgo Psicosocial (Ministerio del Trabajo)
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Rumba Terapia y programas de Bienestar Laboral
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Capacitaciones y Talleres SST
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Planos de Emergencia y señalización
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Formación de Brigadas de Emergencia
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Certificación de Estándares Mínimos ante ARL y Ministerio del Trabajo
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Profesiograma Ocupacional
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Análisis Ergonómico de Puesto de Trabajo
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Diseño e instalación de Red Contra Incendios
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Inspecciones de Puesto de Trabajo
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Investigación de Accidentes de Trabajo
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span>Acompañamiento y asesoría continua en SST
   </td></tr>
 </table>
 
-<p style="margin:16px 0 0;font-size:12px;color:#888;">
-  <strong>{{ empresa_remitente }}</strong><br>
-  <a href="mailto:{{ email_remitente }}" style="color:#1B3A6B;">{{ email_remitente }}</a>
-</p>"""
+<p style="margin:20px 0 8px;font-size:13px;font-weight:bold;color:#1B3A6B;">A través de nuestra alianza con COMPECER también ofrecemos certificaciones ISO internacionales:</p>
+
+<table width="100%" cellpadding="0" cellspacing="4">
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span><strong>ISO 9001:2015</strong> — Gestión de la Calidad
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span><strong>ISO 45001:2018</strong> — Seguridad y Salud en el Trabajo
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span><strong>ISO 14001:2015</strong> — Gestión Ambiental
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span><strong>ISO 27001:2022</strong> — Seguridad de la Información
+  </td></tr>
+  <tr><td style="padding:4px 0;font-size:13px;color:#444;">
+    <span style="display:inline-block;width:18px;height:18px;background:#1B3A6B;color:#fff;
+                 font-size:11px;font-weight:bold;text-align:center;line-height:18px;
+                 border-radius:3px;margin-right:8px;vertical-align:middle;">&#10003;</span><strong>ISO 37001:2016</strong> — Gestión Antisoborno
+  </td></tr>
+</table>
+
+<p style="margin:20px 0 6px;font-size:13px;color:#444;line-height:1.7;">
+  Puede comunicarse con nosotros por WhatsApp o llamada al:<br>
+  📞 <strong>+57 322 818 7963</strong>
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0 8px;">
+  <tr>
+    <td style="padding-right:10px;width:1%;">
+      <a href="https://wa.me/573228187963?text=Hola%2C%20estoy%20interesado%20en%20los%20servicios%20de%20Medina%20SST%20Empresarial%20SAS"
+         style="display:inline-block;background:#25D366;color:#ffffff;
+                font-size:13px;font-weight:bold;padding:11px 24px;
+                border-radius:5px;text-decoration:none;white-space:nowrap;">
+        💬 Contáctanos por WhatsApp
+      </a>
+    </td>
+  </tr>
+</table>"""
 
 _PLANTILLAS = {
     "PRIMER_CONTACTO":          (_ASUNTOS["PRIMER_CONTACTO"],          _BODY_PRIMER_CONTACTO),
@@ -344,7 +446,7 @@ class EmailTemplateEngine:
         data = ctx.__dict__
         asunto = _jinja.from_string(asunto_tpl).render(**data)
 
-        if tipo == "PRIMER_CONTACTO":
+        if tipo in ("PRIMER_CONTACTO", "RECORDATORIO_VENCIMIENTO"):
             body_rendered = _jinja.from_string(body_tpl).render(**data)
         else:
             from .ai_generator import generar_cuerpo_ia
