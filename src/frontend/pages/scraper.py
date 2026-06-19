@@ -62,11 +62,20 @@ def render() -> None:
         if not (usar_gmaps or usar_li or usar_web):
             st.warning("Activa al menos una fuente de datos.")
 
-        st.info(
-            "ℹ️ Sin Playwright instalado el extractor opera en **modo mock** "
-            "con datos representativos de empresas colombianas.\n\n"
-            "Para extracción real: `playwright install chromium`"
-        )
+        try:
+            from playwright.sync_api import sync_playwright  # noqa: F401
+            _pw_ok = True
+        except ImportError:
+            _pw_ok = False
+
+        if _pw_ok:
+            st.success("✅ Playwright instalado — extracción real activa.")
+        else:
+            st.info(
+                "ℹ️ Sin Playwright instalado el extractor opera en **modo mock** "
+                "con datos representativos de empresas colombianas.\n\n"
+                "Para extracción real: `playwright install chromium`"
+            )
 
         iniciar = st.button(
             "🚀 Iniciar Extracción",
