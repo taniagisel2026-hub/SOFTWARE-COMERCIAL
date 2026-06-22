@@ -759,24 +759,26 @@ def _render_prospectos() -> None:
 
         if guardar:
             if not razon_social or not email:
-                st.warning("Empresa y correo electrónico son obligatorios.")
+                st.warning("⚠️ Empresa y correo electrónico son obligatorios.")
             else:
                 ok, msg = _registrar_prospecto_manual(
                     razon_social, email, nombre_ctc, telefono,
                     ciudad, sector, int(num_emp), nivel_riesgo,
                 )
                 if ok:
-                    st.success(f"✅ **{msg}** agregado al CRM. Ya puedes enviarle correo.")
+                    st.toast(f"✅ {msg} creado correctamente en el CRM.", icon="✅")
                     st.rerun()
                 else:
-                    st.error(f"Error: {msg}")
+                    st.error(f"❌ Error al crear el prospecto: {msg}")
 
     # ── Eliminar prospecto ────────────────────────────────────────────────────
     with st.expander("🗑️ Eliminar prospecto"):
         if datos:
             nombres_para_borrar = [f"{p['Empresa']} (ID {p['ID']})" for p in datos]
             sel_borrar = st.selectbox("Selecciona el prospecto a eliminar", nombres_para_borrar, key="sel_borrar")
-            if st.button("Eliminar definitivamente", type="secondary", key="btn_borrar"):
+            nombre_a_borrar = sel_borrar.split(" (ID")[0]
+            st.warning(f"⚠️ Esto eliminará **{nombre_a_borrar}** y todo su historial. Esta acción no se puede deshacer.")
+            if st.button(f"Sí, eliminar {nombre_a_borrar}", type="secondary", key="btn_borrar"):
                 id_borrar = int(sel_borrar.split("ID ")[-1].rstrip(")"))
                 from ...database.connection import get_session
                 from ...database.models import EmpresaProspecto as _EmpModel, HistorialInteracciones as _HistModel
@@ -784,7 +786,7 @@ def _render_prospectos() -> None:
                     _s.query(_HistModel).filter(_HistModel.id_empresa == id_borrar).delete()
                     _s.query(_EmpModel).filter(_EmpModel.id_empresa == id_borrar).delete()
                     _s.commit()
-                st.success("Prospecto eliminado correctamente.")
+                st.toast(f"🗑️ {nombre_a_borrar} eliminado correctamente.", icon="🗑️")
                 st.rerun()
         else:
             st.info("No hay prospectos para eliminar.")
