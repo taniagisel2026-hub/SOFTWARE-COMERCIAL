@@ -45,7 +45,7 @@ class LinkedInScraper(BaseScraperAdapter):
     # Google busca páginas públicas de LinkedIn sin requerir login
     _GOOGLE_TPL = "site:linkedin.com/company {sector} {ciudad} Colombia"
 
-    def __init__(self, headless: bool = True, delay_min: float = 2.0, delay_max: float = 5.0):
+    def __init__(self, headless: bool = False, delay_min: float = 2.0, delay_max: float = 5.0):
         self._headless = headless
         self._delay_min = delay_min
         self._delay_max = delay_max

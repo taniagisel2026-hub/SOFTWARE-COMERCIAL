@@ -63,7 +63,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
     SOURCE = "Google Maps"
 
-    def __init__(self, headless: bool = True, delay_min: float = 1.5, delay_max: float = 4.0):
+    def __init__(self, headless: bool = False, delay_min: float = 1.5, delay_max: float = 4.0):
         self._headless = headless
         self._delay_min = delay_min
         self._delay_max = delay_max
