@@ -1,6 +1,10 @@
 """
 Orquestador del canal de correo electrónico.
-Pipeline: Ley 1581 → Rate limit → Delay → Render → Gmail → Log
+Pipeline: Ley 1581 → Rate limit → Delay → Render → Brevo (o Gmail) → Log
+
+Prioridad de envío:
+  1. Brevo  — si BREVO_API_KEY está en .env (recomendado, mejor entregabilidad)
+  2. Gmail  — fallback si no hay clave Brevo
 """
 import os
 from datetime import datetime
@@ -12,6 +16,7 @@ from ...domain.entities import Cotizacion, EmpresaProspecto
 from ...domain.resolution_0312 import ESPECIFICACIONES, clasificar_nivel_estandares
 from ..compliance.habeas_data import HabeasDataService
 from .gmail_client import GmailClient
+from .brevo_client import BrevoClient
 from .rate_limiter import RateLimiter
 from .templates import EmailContext, EmailTemplateEngine
 
@@ -25,10 +30,18 @@ class EmailService:
         template_engine: Optional[EmailTemplateEngine] = None,
         habeas_data: Optional[HabeasDataService] = None,
     ):
-        self._gmail = gmail_client or GmailClient.from_config()
+        self._gmail = gmail_client  # se inicializa lazy si se necesita
         self._rate = rate_limiter or RateLimiter()
         self._templates = template_engine or EmailTemplateEngine()
         self._habeas = habeas_data or HabeasDataService()
+
+    def _get_sender(self):
+        """Retorna cliente Brevo si está configurado, si no usa Gmail."""
+        if os.getenv("BREVO_API_KEY", "").strip():
+            return "brevo", BrevoClient.from_env()
+        if self._gmail is None:
+            self._gmail = GmailClient.from_config()
+        return "gmail", self._gmail
 
     def enviar(
         self,
@@ -89,14 +102,27 @@ class EmailService:
         token = generar_token()
         html_con_pixel = incrustar_pixel(html_body, token)
 
-        # 7 ── Enviar vía Gmail API
-        mensaje_id = self._gmail.send(
-            to=empresa.email_contacto,
-            subject=asunto,
-            html_body=html_con_pixel,
-            plain_text=plain_text,
-            reply_to=os.getenv("EMPRESA_EMAIL", ""),
-        )
+        # 7 ── Enviar vía Brevo o Gmail según configuración
+        canal_usado, sender = self._get_sender()
+        reply_to = os.getenv("EMPRESA_EMAIL", "")
+        if canal_usado == "brevo":
+            mensaje_id = sender.send(
+                to=empresa.email_contacto,
+                subject=asunto,
+                html_body=html_con_pixel,
+                plain_text=plain_text,
+                reply_to=reply_to,
+                to_name=empresa.nombre_contacto or empresa.razon_social,
+            )
+        else:
+            mensaje_id = sender.send(
+                to=empresa.email_contacto,
+                subject=asunto,
+                html_body=html_con_pixel,
+                plain_text=plain_text,
+                reply_to=reply_to,
+            )
+        print(f"[EMAIL] Enviado vía {canal_usado.upper()} a {empresa.email_contacto}")
 
         # 8 ── Registrar en HistorialInteracciones con token de tracking
         id_interaccion = self._log(
