@@ -240,14 +240,14 @@ _BLOQUE_FIRMA = """\
           <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;display:inline-table;">
             <tr>
               <td align="center" valign="middle" style="padding:0 12px;">
-                <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39850a6087e3835cdb05da.jpg"
-                     alt="Medina SST Empresarial SAS" width="180" height="61" border="0"
-                     style="display:block;width:180px;height:61px;object-fit:contain;">
+                <img src="https://medinaempresarialsst.com/wp-content/uploads/2025/05/correo-logo-e1757002489525-300x128.webp"
+                     alt="Medina SST Empresarial SAS" width="180" border="0"
+                     style="display:block;width:180px;height:auto;">
               </td>
               <td align="center" valign="middle" style="padding:0 12px;border-left:1px solid #dddddd;">
-                <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39851c1858e71a8dd7b1f8.jpg"
-                     alt="Compecer" width="130" height="44" border="0"
-                     style="display:block;width:130px;height:44px;object-fit:contain;">
+                <img src="https://compecer.com.co/wp-content/uploads/2024/06/logo-1.png"
+                     alt="Compecer" width="130" border="0"
+                     style="display:block;width:130px;height:auto;">
               </td>
             </tr>
           </table>
