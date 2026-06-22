@@ -116,24 +116,24 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                page.wait_for_timeout(3000)  # pausa extra para renderizado headless
 
                 # Aceptar cookies si aparece el aviso de Google
                 for btn_text in ["Aceptar todo", "Accept all", "Acepto"]:
                     try:
                         btn = page.get_by_text(btn_text, exact=True)
-                        if btn.is_visible(timeout=1500):
+                        if btn.is_visible(timeout=2000):
                             btn.click()
-                            page.wait_for_timeout(2000)
+                            page.wait_for_timeout(1500)
                             break
                     except Exception:
                         pass
 
-                # Esperar a que aparezca el feed de resultados
+                # Esperar el feed — hasta 90 segundos por si aparece CAPTCHA que el usuario debe resolver
+                print(f"  [GoogleMaps] Esperando resultados... Si aparece CAPTCHA en el navegador, resuélvelo.")
                 try:
-                    page.wait_for_selector(_SEL_FEED, timeout=15_000)
+                    page.wait_for_selector(_SEL_FEED, timeout=90_000)
                 except PWTimeout:
-                    print(f"  [GoogleMaps] Feed no encontrado — puede ser CAPTCHA o sin resultados")
+                    print(f"  [GoogleMaps] Feed no encontrado tras 90s — CAPTCHA no resuelto o sin resultados")
                     return prospectos
 
                 # Scroll para cargar más resultados
