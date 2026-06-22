@@ -26,6 +26,7 @@ class EmailContext:
     num_empleados: int = 0
     valor_cotizacion: Optional[Decimal] = None
     fecha_vencimiento_cotizacion: Optional[str] = None
+    nombre_asesora: str = "Tania Peñaloza"
 
 
 # ── Plantillas Jinja2 ─────────────────────────────────────────────────────────
@@ -235,6 +236,12 @@ _BODY_PRIMER_CONTACTO = """\
   </tr>
 </table>
 
+<p style="margin:20px 0 4px;font-size:13px;color:#444;">
+  Cordialmente,<br>
+  <strong>{{ nombre_asesora }}</strong><br>
+  <span style="color:#6B7280;font-size:12px;">{{ empresa_remitente }}</span>
+</p>
+
 """
 
 _BODY_SEGUIMIENTO_COTIZACION = """\
@@ -271,7 +278,8 @@ _BODY_SEGUIMIENTO_COTIZACION = """\
 
 <p style="margin:16px 0 0;font-size:12px;color:#888;">
   Quedamos atentos,<br>
-  <strong>Equipo {{ empresa_remitente }}</strong><br>
+  <strong>{{ nombre_asesora }}</strong><br>
+  <span style="color:#6B7280;">{{ empresa_remitente }}</span><br>
   <a href="mailto:{{ email_remitente }}" style="color:#1B3A6B;">{{ email_remitente }}</a>
 </p>"""
 
@@ -416,7 +424,13 @@ _BODY_RECORDATORIO_VENCIMIENTO = """\
       </a>
     </td>
   </tr>
-</table>"""
+</table>
+
+<p style="margin:20px 0 4px;font-size:13px;color:#444;">
+  Cordialmente,<br>
+  <strong>{{ nombre_asesora }}</strong><br>
+  <span style="color:#6B7280;font-size:12px;">{{ empresa_remitente }}</span>
+</p>"""
 
 _PLANTILLAS = {
     "PRIMER_CONTACTO":          (_ASUNTOS["PRIMER_CONTACTO"],          _BODY_PRIMER_CONTACTO),

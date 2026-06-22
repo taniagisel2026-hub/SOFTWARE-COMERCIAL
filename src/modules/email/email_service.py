@@ -54,6 +54,8 @@ class EmailService:
         # 4 ── Construir contexto dinámico con variables de la empresa y la Res. 0312
         nivel = clasificar_nivel_estandares(empresa.num_empleados, empresa.nivel_riesgo_arl)
         spec = ESPECIFICACIONES[nivel]
+        from ...config import get_config
+        cfg = get_config()
         ctx = EmailContext(
             razon_social=empresa.razon_social,
             nombre_contacto=empresa.nombre_contacto or "Gerente",
@@ -62,10 +64,10 @@ class EmailService:
             num_estandares=spec.num_estandares,
             nivel_riesgo=empresa.nivel_riesgo_arl.value,
             articulo_resolucion=spec.articulo_resolucion,
-            empresa_remitente=os.getenv("EMPRESA_NOMBRE", "Medina SST Empresarial SAS"),
-            email_remitente=os.getenv("EMPRESA_EMAIL", ""),
+            empresa_remitente=cfg.empresa_nombre,
+            email_remitente=cfg.empresa_email,
             opt_out_url=(
-                f"mailto:{os.getenv('EMPRESA_EMAIL', '')}?"
+                f"mailto:{cfg.empresa_email}?"
                 f"subject=Exclusión Base de Datos - {empresa.razon_social}"
             ),
             sector_economico=empresa.sector_economico or "",
@@ -75,6 +77,7 @@ class EmailService:
                 cotizacion.fecha_vencimiento.strftime("%d/%m/%Y")
                 if cotizacion and cotizacion.fecha_vencimiento else None
             ),
+            nombre_asesora=cfg.asesora_nombre,
         )
 
         # 5 ── Renderizar plantilla

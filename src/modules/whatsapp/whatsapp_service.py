@@ -64,6 +64,8 @@ class WhatsAppService:
         # 4 ── Construir contexto y renderizar según estado CRM
         nivel = clasificar_nivel_estandares(empresa.num_empleados, empresa.nivel_riesgo_arl)
         spec = ESPECIFICACIONES[nivel]
+        from ...config import get_config
+        cfg = get_config()
         ctx = WAContext(
             nombre_contacto=empresa.nombre_contacto or "Gerente",
             razon_social=empresa.razon_social,
@@ -71,13 +73,14 @@ class WhatsAppService:
             num_estandares=spec.num_estandares,
             articulo_resolucion=spec.articulo_resolucion,
             nivel_riesgo=empresa.nivel_riesgo_arl.value,
-            empresa_remitente=os.getenv("EMPRESA_NOMBRE", "Medina SST Empresarial SAS"),
-            email_remitente=os.getenv("EMPRESA_EMAIL", ""),
+            empresa_remitente=cfg.empresa_nombre,
+            email_remitente=cfg.empresa_email,
             valor_cotizacion=cotizacion.valor_total_proyecto if cotizacion else None,
             fecha_vencimiento=(
                 cotizacion.fecha_vencimiento.strftime("%d/%m/%Y")
                 if cotizacion and cotizacion.fecha_vencimiento else None
             ),
+            nombre_asesora=cfg.asesora_nombre,
         )
         body = self._templates.renderizar(empresa.estado_prospecto.value, ctx)
 

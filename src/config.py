@@ -17,6 +17,7 @@ class AppConfig:
     output_dir: Path
     gemini_api_key: str
     gemini_model: str
+    asesora_nombre: str
 
 
 _config: AppConfig | None = None
@@ -40,5 +41,6 @@ def get_config() -> AppConfig:
             output_dir=Path(os.getenv("OUTPUT_DIR", str(BASE_DIR / "output"))),
             gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
             gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            asesora_nombre=os.getenv("ASESORA_NOMBRE", "Tania Peñaloza"),
         )
     return _config

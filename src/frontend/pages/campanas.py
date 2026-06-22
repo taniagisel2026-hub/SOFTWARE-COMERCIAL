@@ -1,4 +1,5 @@
 import sys
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -164,6 +165,82 @@ def _registrar_optout(id_empresa: int, motivo: str) -> tuple[bool, str]:
         HabeasDataService().registrar_opt_out(id_empresa, motivo)
         st.cache_data.clear()
         return True, "Opt-out registrado correctamente."
+    except Exception as exc:
+        return False, str(exc)
+
+
+@st.cache_data(ttl=15)
+def _cargar_clientes_firmados() -> dict:
+    try:
+        from src.database.connection import get_session
+        from src.database.models import EmpresaProspecto, HistorialInteracciones
+
+        with get_session() as session:
+            rows = (
+                session.query(EmpresaProspecto)
+                .filter(EmpresaProspecto.estado_prospecto == "CERRADO_GANADO")
+                .order_by(EmpresaProspecto.fecha_ultima_actualizacion.desc())
+                .all()
+            )
+            resultado = []
+            for r in rows:
+                # Buscar el registro de cierre en el historial
+                cierre = (
+                    session.query(HistorialInteracciones)
+                    .filter(
+                        HistorialInteracciones.id_empresa == r.id_empresa,
+                        HistorialInteracciones.tipo_interaccion == "CLIENTE_FIRMADO",
+                    )
+                    .order_by(HistorialInteracciones.fecha_interaccion.desc())
+                    .first()
+                )
+                resultado.append({
+                    "ID":           r.id_empresa,
+                    "Empresa":      r.razon_social,
+                    "Ciudad":       r.ciudad,
+                    "Sector":       r.sector_economico or "—",
+                    "Email":        r.email_contacto or "—",
+                    "Teléfono":     r.telefono or "—",
+                    "Contacto":     r.nombre_contacto or "—",
+                    "Fuente":       r.fuente_origen or "—",
+                    "Fecha cierre": str(r.fecha_ultima_actualizacion),
+                    "Canal":        cierre.canal if cierre else "—",
+                    "Notas":        cierre.notas_seguimiento if cierre else "—",
+                })
+            return {"ok": True, "data": resultado}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "data": []}
+
+
+def _marcar_cliente_firmado(id_empresa: int, canal: str, notas: str) -> tuple[bool, str]:
+    try:
+        from datetime import datetime
+        from src.database.connection import get_session
+        from src.database.models import EmpresaProspecto, HistorialInteracciones
+
+        with get_session() as session:
+            empresa = session.get(EmpresaProspecto, id_empresa)
+            if not empresa:
+                return False, "Empresa no encontrada."
+            if empresa.estado_prospecto == "CERRADO_GANADO":
+                return False, f"{empresa.razon_social} ya está marcada como cliente firmado."
+
+            empresa.estado_prospecto = "CERRADO_GANADO"
+            empresa.fecha_ultima_actualizacion = date.today()
+
+            session.add(HistorialInteracciones(
+                id_empresa=id_empresa,
+                tipo_interaccion="CLIENTE_FIRMADO",
+                canal=canal,
+                asunto="Cliente firmó contrato",
+                notas_seguimiento=notas or "Sin notas adicionales.",
+                fecha_interaccion=datetime.now(),
+                responsable="Panel Web",
+            ))
+            nombre = empresa.razon_social
+
+        st.cache_data.clear()
+        return True, nombre
     except Exception as exc:
         return False, str(exc)
 
@@ -520,13 +597,95 @@ def render() -> None:
 
     st.caption("Gestión de prospectos, secuencias de correo y control Ley 1581/2012")
 
-    tab_prospectos, tab_optout = st.tabs(["📋 Prospectos en CRM", "🚫 Lista Negra (Opt-Out)"])
+    tab_prospectos, tab_firmados, tab_optout = st.tabs([
+        "📋 Prospectos en CRM",
+        "✅ Clientes Firmados",
+        "🚫 Lista Negra (Opt-Out)",
+    ])
 
     with tab_prospectos:
         _render_prospectos()
 
+    with tab_firmados:
+        _render_clientes_firmados()
+
     with tab_optout:
         _render_lista_negra()
+
+
+def _render_clientes_firmados() -> None:
+    separador_seccion("Registrar nuevo cliente firmado")
+    st.caption("Cuando tu jefe te confirme que un prospecto firmó, búscalo aquí y márcalo.")
+
+    resultado_todos = _cargar_prospectos()
+    prospectos_activos = [
+        p for p in resultado_todos.get("data", [])
+        if p["Estado"] != "CERRADO_GANADO"
+    ]
+
+    with st.form("form_cliente_firmado"):
+        col_emp, col_canal = st.columns([3, 2])
+        nombres = ["— Selecciona una empresa —"] + [p["Empresa"] for p in prospectos_activos]
+        empresa_sel = col_emp.selectbox("Empresa", options=nombres)
+        canal = col_canal.selectbox(
+            "¿Cómo te contactó?",
+            ["Correo electrónico", "WhatsApp", "Redes sociales", "Llamada telefónica", "Otro"],
+        )
+        notas = st.text_input("Notas (opcional)", placeholder="Ej: Me escribió el martes después del correo del Día 8")
+        confirmar = st.form_submit_button("✅ Marcar como cliente firmado", type="primary")
+
+    if confirmar:
+        if empresa_sel == "— Selecciona una empresa —":
+            st.warning("Selecciona una empresa primero.")
+        else:
+            id_emp = next(p["ID"] for p in prospectos_activos if p["Empresa"] == empresa_sel)
+            ok, msg = _marcar_cliente_firmado(id_emp, canal, notas)
+            if ok:
+                st.success(f"✅ **{msg}** registrada como cliente firmado.")
+                st.rerun()
+            else:
+                st.error(msg)
+
+    st.divider()
+    separador_seccion("Mis clientes firmados")
+
+    resultado = _cargar_clientes_firmados()
+    if not resultado["ok"]:
+        st.error(f"Error: {resultado['error']}")
+        return
+
+    clientes = resultado["data"]
+    tarjeta_kpi("Total clientes firmados", str(len(clientes)), icono="✅", color="#10B981")
+
+    if not clientes:
+        st.info("Aún no hay clientes firmados registrados.")
+        return
+
+    st.divider()
+    for c in clientes:
+        col_info, col_canal = st.columns([5, 2])
+        with col_info:
+            st.markdown(f"**{c['Empresa']}**")
+            st.markdown(
+                f"<small style='color:#6B7280;'>"
+                f"📍 {c['Ciudad']} &nbsp;·&nbsp; 📧 {c['Email']} &nbsp;·&nbsp; "
+                f"👤 {c['Contacto']} &nbsp;·&nbsp; 🔗 Origen: {c['Fuente']} &nbsp;·&nbsp; "
+                f"📅 Firmó: {c['Fecha cierre']}"
+                f"</small>",
+                unsafe_allow_html=True,
+            )
+            if c["Notas"] and c["Notas"] != "—":
+                st.markdown(
+                    f"<small style='color:#475569;'>📝 {c['Notas']}</small>",
+                    unsafe_allow_html=True,
+                )
+        with col_canal:
+            st.markdown(
+                f"<span style='background:#10B981;color:white;padding:3px 10px;"
+                f"border-radius:12px;font-size:12px;font-weight:600;'>{c['Canal']}</span>",
+                unsafe_allow_html=True,
+            )
+        st.divider()
 
 
 def _render_prospectos() -> None:

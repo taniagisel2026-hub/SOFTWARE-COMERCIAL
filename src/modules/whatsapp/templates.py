@@ -27,6 +27,7 @@ class WAContext:
     email_remitente: str
     valor_cotizacion: Optional[Decimal] = None
     fecha_vencimiento: Optional[str] = None
+    nombre_asesora: str = "Tania Peñaloza"
 
 
 # Cada entrada: estado CRM → texto de la plantilla (Jinja2)
@@ -34,7 +35,7 @@ class WAContext:
 _PLANTILLAS: dict[str, str] = {
 
     EstadoProspecto.NUEVO.value: (
-        "Hola {{ nombre_contacto }}, soy del equipo de *{{ empresa_remitente }}*. 👋\n\n"
+        "Hola {{ nombre_contacto }}, soy *{{ nombre_asesora }}* de *{{ empresa_remitente }}*. 👋\n\n"
         "Notamos que *{{ razon_social }}* en {{ ciudad }} puede necesitar el diseño de su "
         "SG-SST bajo la *Resolución 0312/2019*.\n\n"
         "Le aplican *{{ num_estandares }} estándares mínimos* ({{ articulo_resolucion }} – "
@@ -44,10 +45,11 @@ _PLANTILLAS: dict[str, str] = {
 
     EstadoProspecto.EN_SEGUIMIENTO.value: (
         "Hola de nuevo, {{ nombre_contacto }} 👋\n\n"
+        "Le escribe *{{ nombre_asesora }}* de *{{ empresa_remitente }}*. "
         "Hacemos seguimiento a nuestra consulta para *{{ razon_social }}* sobre el "
         "cumplimiento de los *{{ num_estandares }} estándares* de la Res. 0312/2019.\n\n"
         "¿Podemos coordinar una llamada de 15 minutos esta semana para resolver sus dudas? 📞\n\n"
-        "_{{ empresa_remitente }} · {{ email_remitente }}_"
+        "_{{ nombre_asesora }} · {{ empresa_remitente }}_"
     ),
 
     EstadoProspecto.COTIZACION_ENVIADA.value: (
@@ -57,7 +59,8 @@ _PLANTILLAS: dict[str, str] = {
         "Valor del proyecto: *$ {{ '{:,.0f}'.format(valor_cotizacion).replace(',','.') }} COP*"
         "{% if fecha_vencimiento %} (válida hasta el {{ fecha_vencimiento }}){% endif %}.\n\n"
         "{% endif %}"
-        "Podemos ajustar el alcance o la forma de pago. ¿Tiene alguna pregunta? 🤝"
+        "Podemos ajustar el alcance o la forma de pago. ¿Tiene alguna pregunta? 🤝\n\n"
+        "_{{ nombre_asesora }} · {{ empresa_remitente }}_"
     ),
 
     EstadoProspecto.NEGOCIACION.value: (
@@ -66,7 +69,7 @@ _PLANTILLAS: dict[str, str] = {
         "Ministerio del Trabajo. 💼\n\n"
         "Podemos iniciar con la documentación base esta misma semana. "
         "¿Cerramos la propuesta hoy? ✅\n\n"
-        "_{{ empresa_remitente }}_"
+        "_{{ nombre_asesora }} · {{ empresa_remitente }}_"
     ),
 }
 
