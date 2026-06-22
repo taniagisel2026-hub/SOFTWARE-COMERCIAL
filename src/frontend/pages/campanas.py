@@ -771,6 +771,24 @@ def _render_prospectos() -> None:
                 else:
                     st.error(f"Error: {msg}")
 
+    # ── Eliminar prospecto ────────────────────────────────────────────────────
+    with st.expander("🗑️ Eliminar prospecto"):
+        if datos:
+            nombres_para_borrar = [f"{p['Empresa']} (ID {p['ID']})" for p in datos]
+            sel_borrar = st.selectbox("Selecciona el prospecto a eliminar", nombres_para_borrar, key="sel_borrar")
+            if st.button("Eliminar definitivamente", type="secondary", key="btn_borrar"):
+                id_borrar = int(sel_borrar.split("ID ")[-1].rstrip(")"))
+                from ...database.connection import get_session
+                from ...database.models import EmpresaProspecto as _EmpModel, HistorialInteracciones as _HistModel
+                with get_session() as _s:
+                    _s.query(_HistModel).filter(_HistModel.id_empresa == id_borrar).delete()
+                    _s.query(_EmpModel).filter(_EmpModel.id_empresa == id_borrar).delete()
+                    _s.commit()
+                st.success("Prospecto eliminado correctamente.")
+                st.rerun()
+        else:
+            st.info("No hay prospectos para eliminar.")
+
     if not datos:
         st.info("📭 No hay prospectos registrados aún. Usa el **Motor de Prospección** o agrega uno manualmente arriba.")
         return
