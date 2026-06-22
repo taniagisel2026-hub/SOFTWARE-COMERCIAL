@@ -733,6 +733,14 @@ def _render_prospectos() -> None:
 
     datos = resultado["data"]
 
+    # ── Banner de confirmación persistente ────────────────────────────────────
+    if st.session_state.get("_msg_crm"):
+        tipo_msg, texto_msg = st.session_state.pop("_msg_crm")
+        if tipo_msg == "ok":
+            st.success(texto_msg)
+        else:
+            st.error(texto_msg)
+
     # ── KPIs ──────────────────────────────────────────────────────────────────
     estados = [p["Estado"] for p in datos]
     c1, c2, c3, c4 = st.columns(4)
@@ -766,7 +774,7 @@ def _render_prospectos() -> None:
                     ciudad, sector, int(num_emp), nivel_riesgo,
                 )
                 if ok:
-                    st.toast(f"✅ {msg} creado correctamente en el CRM.", icon="✅")
+                    st.session_state["_msg_crm"] = ("ok", f"✅ {msg} creado correctamente en el CRM.")
                     st.rerun()
                 else:
                     st.error(f"❌ Error al crear el prospecto: {msg}")
@@ -786,7 +794,7 @@ def _render_prospectos() -> None:
                     _s.query(_HistModel).filter(_HistModel.id_empresa == id_borrar).delete()
                     _s.query(_EmpModel).filter(_EmpModel.id_empresa == id_borrar).delete()
                     _s.commit()
-                st.toast(f"🗑️ {nombre_a_borrar} eliminado correctamente.", icon="🗑️")
+                st.session_state["_msg_crm"] = ("ok", f"🗑️ {nombre_a_borrar} eliminado correctamente.")
                 st.rerun()
         else:
             st.info("No hay prospectos para eliminar.")
