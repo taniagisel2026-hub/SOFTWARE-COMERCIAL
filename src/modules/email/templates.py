@@ -245,7 +245,7 @@ _BLOQUE_FIRMA = """\
                      style="display:block;width:180px;height:auto;">
               </td>
               <td align="center" valign="middle" style="padding:0 12px;border-left:1px solid #dddddd;">
-                <img src="https://compecer.com.co/wp-content/uploads/2024/06/logo-1.png"
+                <img src="https://compecer.com/wp-content/uploads/2021/07/logo-footer.png"
                      alt="Compecer" width="130" border="0"
                      style="display:block;width:130px;height:auto;">
               </td>
