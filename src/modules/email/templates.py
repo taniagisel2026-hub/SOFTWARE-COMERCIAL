@@ -236,6 +236,17 @@ _BLOQUE_FIRMA = """\
   <tr><td align="center" style="text-align:center;">
     <table cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px;max-width:100%;font-family:'Segoe UI',Arial,sans-serif;color:#333333;line-height:1.5;font-size:11.5px;margin:0 auto;text-align:center;">
       <tr>
+        <td align="center" style="text-align:center;padding-bottom:14px;">
+          <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39850a6087e3835cdb05da.jpg"
+               alt="Medina SST Empresarial SAS" width="200" border="0"
+               style="display:inline-block;max-width:200px;height:auto;">
+          &nbsp;&nbsp;&nbsp;
+          <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39851c1858e71a8dd7b1f8.jpg"
+               alt="Compecer" width="140" border="0"
+               style="display:inline-block;max-width:140px;height:auto;vertical-align:middle;">
+        </td>
+      </tr>
+      <tr>
         <td align="center" style="text-align:center;border-top:2px solid #041E42;padding-top:12px;padding-bottom:12px;">
           <span style="font-size:16px;font-weight:bold;color:#041E42;display:block;letter-spacing:0.2px;margin:0;">Tania Pe&ntilde;aloza</span>
           <span style="font-size:11.5px;color:#555555;display:block;margin-top:2px;">Coordinadora Comercial &nbsp;|&nbsp; <strong style="color:#041E42;">Medina SST Empresarial S.A.S.</strong></span>
