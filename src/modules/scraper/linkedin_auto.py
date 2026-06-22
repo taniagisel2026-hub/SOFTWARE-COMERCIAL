@@ -108,21 +108,12 @@ class LinkedInAutoScraper(BaseScraperAdapter):
         depto = _CIUDAD_DEPARTAMENTO.get(ciudad_norm, "Colombia")
         nivel_riesgo = estimar_nivel_riesgo(sector)
 
+        # Solo sector + "Colombia" como keyword — sin geo ID hardcodeado
         keyword = _SECTOR_KEYWORD.get(sector.lower().strip(), sector)
-        geo_id = _CIUDAD_GEO_ID.get(ciudad_norm, "")
-        if geo_id:
-            # Keyword solo con el sector + filtro de ciudad separado (igual que hacerlo manual)
-            search_url = (
-                "https://www.linkedin.com/search/results/companies/"
-                f"?keywords={quote(keyword)}"
-                f"&origin=FACETED_SEARCH"
-                f"&companyHqGeo=%5B%22{geo_id}%22%5D"
-            )
-        else:
-            search_url = (
-                "https://www.linkedin.com/search/results/companies/"
-                f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
-            )
+        search_url = (
+            "https://www.linkedin.com/search/results/companies/"
+            f"?keywords={quote(keyword + ' Colombia')}&origin=GLOBAL_SEARCH_HEADER"
+        )
 
         prospectos: list[ProspectoExtraido] = []
 

@@ -216,25 +216,10 @@ def main():
             SESSION_FILE.write_text(json.dumps(cookies))
             print("  ✅ Sesión guardada — la próxima vez será automático.")
 
-        # IDs geográficos LinkedIn para ciudades colombianas
-        _GEO = {
-            "Bogotá": "102364368", "Medellín": "100996579", "Cali": "106057199",
-            "Barranquilla": "104421764", "Bucaramanga": "105255724",
-            "Pereira": "105303307", "Cartagena": "100550483",
-            "Cúcuta": "105302813", "Ibagué": "105305387", "Villavicencio": "105303044",
-        }
-        geo_id = _GEO.get(ciudad, "")
-        if geo_id:
-            search_url = (
-                f"https://www.linkedin.com/search/results/companies/"
-                f"?keywords={quote(keyword)}&origin=FACETED_SEARCH"
-                f"&companyHqGeo=%5B%22{geo_id}%22%5D"
-            )
-        else:
-            search_url = (
-                f"https://www.linkedin.com/search/results/companies/"
-                f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
-            )
+        search_url = (
+            f"https://www.linkedin.com/search/results/companies/"
+            f"?keywords={quote(keyword + ' Colombia')}&origin=GLOBAL_SEARCH_HEADER"
+        )
         print(f"\n🔍 Buscando: {keyword}")
         page.goto(search_url, wait_until="domcontentloaded", timeout=20_000)
         time.sleep(4)
