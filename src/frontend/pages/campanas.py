@@ -924,7 +924,7 @@ def _render_prospectos() -> None:
     separador_seccion("Acciones masivas")
     nuevos_con_email = [p for p in filtrados if p["Estado"] == "NUEVO" and p["_tiene_email"]]
 
-    col_m1, col_m2 = st.columns(2)
+    col_m1, col_m2, col_m3 = st.columns(3)
     with col_m1:
         if st.button(
             f"🚀 Enviar PRIMER CONTACTO a {len(nuevos_con_email)} prospectos nuevos",
@@ -935,6 +935,14 @@ def _render_prospectos() -> None:
             _disparar_lote(nuevos_con_email)
 
     with col_m2:
+        st.markdown(
+            "<small style='color:#6B7280;'>Ejecutar una vez al día — envía Día 4 (WhatsApp) y Día 8 (correo) a quien corresponda automáticamente.</small>",
+            unsafe_allow_html=True,
+        )
+        if st.button("⚙️ Ejecutar cadencia automática (Día 4 y Día 8)", use_container_width=True):
+            _ejecutar_cadencia()
+
+    with col_m3:
         if st.button("📤 Exportar tabla a CSV", use_container_width=True):
             cols_visibles = ["Empresa", "Ciudad", "Sector", "Empleados", "Email", "Estado", "Fuente", "Registro"]
             df = pd.DataFrame([{k: p[k] for k in cols_visibles} for p in filtrados])
@@ -944,6 +952,32 @@ def _render_prospectos() -> None:
                 "prospectos_crm.csv",
                 "text/csv",
             )
+
+
+def _ejecutar_cadencia() -> None:
+    """Procesa todos los prospectos activos y avanza la cadencia (Día 4 / Día 8)."""
+    from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
+    with st.spinner("Procesando cadencia automática..."):
+        resultados = SequenceOrchestrator().procesar_pendientes(creado_por="Panel Web")
+
+    if not resultados:
+        st.info("No hay prospectos pendientes de cadencia en este momento.")
+        return
+
+    enviados = [r for r in resultados if r.ok and r.accion in ("DIA_4", "DIA_8")]
+    en_espera = [r for r in resultados if r.accion == "EN_ESPERA"]
+    errores   = [r for r in resultados if not r.ok]
+
+    if enviados:
+        st.success(f"✅ {len(enviados)} mensaje(s) enviados en la cadencia.")
+        for r in enviados:
+            st.markdown(f"- **{r.razon_social}** — {r.accion}: {r.mensaje}")
+    if en_espera:
+        st.info(f"⏳ {len(en_espera)} prospecto(s) en espera (aún no corresponde el siguiente paso).")
+    if errores:
+        st.warning(f"⚠️ {len(errores)} error(es):")
+        for r in errores:
+            st.markdown(f"- {r.razon_social}: {r.mensaje}")
 
 
 def _disparar_lote(prospectos: list[dict]) -> None:
