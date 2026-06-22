@@ -89,21 +89,45 @@ class GoogleMapsScraper(BaseScraperAdapter):
         with sync_playwright() as pw:
             browser = pw.chromium.launch(
                 headless=self._headless,
-                args=["--no-sandbox", "--disable-dev-shm-usage", "--lang=es-CO"],
+                args=[
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--lang=es-CO",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-infobars",
+                    "--window-size=1280,800",
+                ],
             )
             ctx = browser.new_context(
                 user_agent=(
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
+                    "Chrome/124.0.0.0 Safari/537.36"
                 ),
                 viewport={"width": 1280, "height": 800},
                 locale="es-CO",
+                java_script_enabled=True,
+            )
+            # Ocultar flag de automatización que Google detecta
+            ctx.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
             page = ctx.new_page()
 
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                page.wait_for_timeout(3000)  # pausa extra para renderizado headless
+
+                # Aceptar cookies si aparece el aviso de Google
+                for btn_text in ["Aceptar todo", "Accept all", "Acepto"]:
+                    try:
+                        btn = page.get_by_text(btn_text, exact=True)
+                        if btn.is_visible(timeout=1500):
+                            btn.click()
+                            page.wait_for_timeout(2000)
+                            break
+                    except Exception:
+                        pass
 
                 # Esperar a que aparezca el feed de resultados
                 try:
