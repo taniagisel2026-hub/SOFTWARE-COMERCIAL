@@ -241,28 +241,35 @@ _BLOQUE_FIRMA = """\
 # ── Intros de respaldo (se usan si Gemini no responde) ────────────────────────
 
 _FALLBACK_PRIMER_CONTACTO = """\
-<p style="margin:0 0 12px;font-size:13px;color:#444;">Cordial saludo, equipo de <strong>{{ razon_social }}</strong>,</p>
+<p style="margin:0 0 14px;font-size:14px;color:#1B3A6B;font-weight:bold;">
+  ¿Sabe cuánto puede costarle a {{ razon_social }} no tener el SG-SST al día?
+</p>
 <p style="margin:12px 0;font-size:13px;color:#444;line-height:1.7;">
-  Somos <strong>{{ empresa_remitente }}</strong> y queremos dar a conocer nuestro portafolio
-  de servicios en <strong>Seguridad y Salud en el Trabajo (SST)</strong>.<br><br>
-  Sabemos que las empresas en <strong>Colombia</strong> con nivel de riesgo ARL
-  <strong>{{ nivel_riesgo }}</strong> deben cumplir con
-  <strong>{{ num_estandares }} estándares mínimos</strong> según la Resolución 0312 de 2019,
-  y estamos aquí para facilitar ese proceso.
+  El Decreto 472 de 2015 establece multas de hasta <strong>500 SMMLV</strong> para empresas
+  que incumplan la Resolución 0312 de 2019. Con <strong>{{ num_empleados }} trabajadores</strong>
+  y riesgo ARL Clase <strong>{{ nivel_riesgo }}</strong>, a {{ razon_social }} le aplican
+  exactamente <strong>{{ num_estandares }} estándares mínimos</strong>
+  ({{ articulo_resolucion }}) — y una visita del Ministerio del Trabajo puede llegar en cualquier momento.
+</p>
+<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.7;">
+  Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
+  y ayudamos a empresas en {{ ciudad }} a cumplir estos requisitos de forma rápida y sin complicaciones.
+  ¿Le gustaría que revisáramos juntos el estado actual del SG-SST de {{ razon_social }}?
 </p>"""
 
 _FALLBACK_RECORDATORIO = """\
-<p style="margin:0 0 6px;font-size:13px;color:#444;">
-  Cordial saludo, equipo de <strong>{{ razon_social }}</strong>,
+<p style="margin:0 0 14px;font-size:14px;color:#1B3A6B;font-weight:bold;">
+  {{ razon_social }}: el reloj corre y el Ministerio del Trabajo no avisa.
 </p>
 <p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  Hace unos días les enviamos información sobre nuestros servicios de
-  <strong>Seguridad y Salud en el Trabajo (SST)</strong> y el cumplimiento de la
-  <strong>Resolución 0312 de 2019</strong>. Queremos asegurarnos de que haya llegado
-  correctamente y resolver cualquier duda que puedan tener.<br><br>
-  Recuerde que <strong>{{ razon_social }}</strong> debe cumplir con
-  <strong>{{ num_estandares }} estándares mínimos</strong> según el
-  {{ articulo_resolucion }} de la Res. 0312/2019 (Riesgo ARL {{ nivel_riesgo }}).
+  Hace unos días les escribí sobre los <strong>{{ num_estandares }} estándares mínimos</strong>
+  que deben cumplir según el {{ articulo_resolucion }} de la Res. 0312/2019.
+  Las multas por incumplimiento (Decreto 472/2015) van desde <strong>20 hasta 500 SMMLV</strong>
+  — y se aplican desde la primera visita de inspección, sin previo aviso.
+</p>
+<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
+  En <strong>{{ empresa_remitente }}</strong> podemos implementar su SG-SST en tiempo récord.
+  ¿Cuándo sería un buen momento para hablar 15 minutos?
 </p>"""
 
 _FALLBACK_SEGUIMIENTO = """\
@@ -270,16 +277,18 @@ _FALLBACK_SEGUIMIENTO = """\
   Hola <strong>{{ nombre_contacto }}</strong>,
 </p>
 <p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  Quiero hacer un seguimiento a la propuesta que enviamos para <strong>{{ razon_social }}</strong>
-  relacionada con el diseño del SG-SST bajo la <strong>Resolución 0312/2019</strong>
-  ({{ articulo_resolucion }} – {{ num_estandares }} estándares, Riesgo {{ nivel_riesgo }}).
+  Te escribo de nuevo porque quiero asegurarme de que {{ razon_social }} esté cubierta
+  antes de cualquier visita del Ministerio del Trabajo.
+  Con {{ num_empleados }} trabajadores y riesgo Clase {{ nivel_riesgo }},
+  les aplican <strong>{{ num_estandares }} estándares mínimos</strong> — y el incumplimiento
+  puede costar hasta <strong>500 SMMLV</strong> (Decreto 472/2015).
 </p>
 {% if valor_cotizacion %}
 <table width="100%" cellpadding="0" cellspacing="0"
        style="background:#EEF2F9;border-left:4px solid #E65C00;border-radius:4px;margin:18px 0;">
   <tr><td style="padding:14px 18px;">
     <p style="margin:0;font-size:13px;color:#222;">
-      <strong>Valor total del proyecto:</strong>
+      <strong>Inversión total del proyecto:</strong>
       $ {{ "{:,.0f}".format(valor_cotizacion).replace(",",".") }} COP
       {% if fecha_vencimiento_cotizacion %}
       &nbsp;·&nbsp; <strong>Válida hasta:</strong> {{ fecha_vencimiento_cotizacion }}
@@ -289,8 +298,8 @@ _FALLBACK_SEGUIMIENTO = """\
 </table>
 {% endif %}
 <p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  ¿Tiene alguna pregunta sobre el alcance o la forma de pago?
-  Podemos ajustar la propuesta a sus posibilidades.
+  ¿Tiene alguna duda sobre el alcance o las condiciones? Podemos ajustar la propuesta.
+  Son solo 15 minutos de llamada.
 </p>"""
 
 _ASUNTOS_TPL = _ASUNTOS

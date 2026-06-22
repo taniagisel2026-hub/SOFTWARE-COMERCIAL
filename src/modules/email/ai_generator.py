@@ -1,93 +1,95 @@
 """
-Genera introducciones de correo únicas con Gemini Flash (gratuito).
-Analiza el sector y los riesgos específicos de cada empresa para que
-ningún mensaje sea idéntico — evita filtros de spam semántico.
-Retorna None si GEMINI_API_KEY no está configurado o la llamada falla,
-activando el fallback a texto de respaldo en EmailTemplateEngine.
+Genera introducciones de correo únicas e impactantes con Gemini Flash.
+Cada correo abre con un gancho específico al sector/riesgo de la empresa
+para despertar interés real y evitar filtros de spam semántico.
+Retorna None si Gemini falla tras 2 intentos — el llamador usa el fallback.
 """
 import os
+import time
 from typing import Optional
 
-# Dolor principal en SST por sector económico colombiano
 _DOLORES_SECTOR: dict[str, str] = {
-    "Construcción":             "accidentes de trabajo en alturas, excavaciones y uso de maquinaria pesada",
-    "Manufactura / Industria":  "exposición a ruido industrial, polvos y riesgos mecánicos",
-    "Transporte y Logística":   "accidentes viales, fatiga de conductores y manejo manual de cargas",
-    "Comercio y Retail":        "riesgos ergonómicos, caídas al mismo nivel y atención al público",
-    "Servicios Empresariales":  "riesgos psicosociales, carga mental y postura sedentaria prolongada",
-    "Salud y Clínicas":         "exposición a agentes biológicos, riesgo de pinchazos y violencia laboral",
-    "Educación":                "riesgos psicosociales, carga laboral docente y lesiones músculo-esqueléticas",
-    "Agricultura y Ganadería":  "exposición a plaguicidas, golpes de calor y herramientas cortopunzantes",
-    "Minería y Energía":        "explosiones, derrumbes, exposición a gases tóxicos y alto riesgo eléctrico",
-    "Tecnología y Software":    "síndrome de burnout, riesgos ergonómicos por sedentarismo y fatiga visual",
-    "Alimentos y Bebidas":      "exposición a calor extremo, riesgos biológicos y trabajo altamente repetitivo",
-    "Seguridad Privada":        "agresiones físicas, jornadas nocturnas y fatiga crónica por turnos rotativos",
-    "Ingeniería y Consultoría": "trabajo en campo, riesgo en alturas y accidentes de desplazamiento",
-    "Petróleo y Gas":           "explosiones, fugas de gas, espacios confinados y alto riesgo eléctrico",
+    "Construcción":             "accidentes en alturas, derrumbes y maquinaria pesada que cada año generan las multas más altas del sector",
+    "Manufactura / Industria":  "ruido industrial, polvos y riesgos mecánicos que silenciosamente destruyen la salud de los trabajadores",
+    "Transporte y Logística":   "accidentes viales y fatiga de conductores — el sector con más muertes laborales en Colombia",
+    "Comercio y Retail":        "caídas, lesiones ergonómicas y estrés laboral que disparan las incapacidades y reducen la productividad",
+    "Servicios Empresariales":  "riesgo psicosocial y burnout que hoy son la primera causa de ausentismo laboral en Colombia",
+    "Salud y Clínicas":         "exposición a agentes biológicos y violencia laboral — el sector con mayor subregistro de accidentes",
+    "Educación":                "sobrecarga laboral docente y riesgos psicosociales que el Ministerio del Trabajo está fiscalizando activamente",
+    "Agricultura y Ganadería":  "plaguicidas, golpes de calor y herramientas cortopunzantes en zonas donde la inspección del Mintrabajo está aumentando",
+    "Minería y Energía":        "explosiones, espacios confinados y gases tóxicos — el sector con las multas más severas del Decreto 472",
+    "Tecnología y Software":    "burnout y lesiones por sedentarismo que ya son reconocidas como enfermedad laboral en Colombia",
+    "Alimentos y Bebidas":      "calor extremo, riesgos biológicos y trabajo repetitivo que disparan las enfermedades laborales",
+    "Seguridad Privada":        "jornadas extenuantes, agresiones y fatiga crónica en el sector con mayor rotación por accidentes laborales",
+    "Ingeniería y Consultoría": "trabajo en campo y riesgo en alturas donde un solo accidente puede paralizar toda la operación",
+    "Petróleo y Gas":           "espacios confinados, fugas de gas y alto riesgo eléctrico — donde las multas del Mintrabajo son de las más altas del país",
 }
 
 _PROMPTS: dict[str, str] = {
 
     "PRIMER_CONTACTO": """\
-Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, consultoría especializada \
-en Seguridad y Salud en el Trabajo (SST) en Colombia.
+Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, especialistas en \
+Seguridad y Salud en el Trabajo (SST) en Colombia.
 
-Escribe ÚNICAMENTE la introducción personalizada de un correo de primer contacto en frío para:
-- Empresa destinataria: {razon_social}
-- Nombre del contacto: {nombre_contacto}
-- Ubicación: {ciudad}, {departamento}
-- Sector económico: {sector}
-- Dolor principal en SST del sector: {dolor}
-- Número de trabajadores: {num_empleados}
-- Nivel de riesgo ARL: Clase {nivel_riesgo}
-- Obligación legal vigente: {articulo_resolucion} — {num_estandares} estándares mínimos (Resolución 0312 de 2019)
+Escribe una introducción de correo de primer contacto para:
+- Empresa: {razon_social} | Contacto: {nombre_contacto} | Ciudad: {ciudad}
+- Sector: {sector} | Empleados: {num_empleados} | Riesgo ARL: Clase {nivel_riesgo}
+- Obligación legal: {articulo_resolucion} de la Res. 0312/2019 = {num_estandares} estándares mínimos
+- Riesgo del sector: {dolor}
 
-IMPORTANTE: No incluyas lista de servicios ni datos de contacto (se agregan automáticamente después).
+OBJETIVO: que quien lo lea quiera saber más. Nada de presentaciones corporativas aburridas.
 
-Reglas obligatorias:
-1. Máximo 3 párrafos, 150 palabras en total.
-2. Abre con el nombre del contacto y preséntate como {nombre_asesora} de {empresa_remitente}.
-3. En el primer párrafo menciona el dolor específico del sector de {razon_social}.
-4. Cita los {num_estandares} estándares mínimos que les exige la Resolución 0312/2019.
-5. Cierra con UNA sola pregunta consultiva que invite al diálogo.
-6. Tono profesional y cercano, nunca alarmista ni invasivo.
-7. Retorna ÚNICAMENTE etiquetas <p> y <strong>. Sin tablas, botones ni otros elementos.""",
+Estructura OBLIGATORIA (3 párrafos cortos):
+1. GANCHO (1 oración impactante): abre con una pregunta o dato concreto sobre el riesgo \
+específico de {razon_social} en el sector {sector}. No empieces con "Estimado" ni con el nombre \
+de la empresa. Sorprende al lector desde la primera línea.
+2. CONTEXTO LEGAL (2-3 oraciones): explica que empresas como {razon_social} con {num_empleados} \
+trabajadores y riesgo ARL Clase {nivel_riesgo} deben cumplir exactamente {num_estandares} estándares \
+según el {articulo_resolucion} de la Res. 0312/2019. Menciona el riesgo real de una multa \
+(Decreto 472/2015, hasta 500 SMMLV) sin ser alarmista.
+3. PROPUESTA (1-2 oraciones): preséntate como {nombre_asesora} de {empresa_remitente} y \
+cierra con UNA pregunta directa que invite a responder.
+
+Reglas:
+- Máximo 120 palabras en total.
+- Tono: directo, humano y consultivo. Como si hablaras con un colega, no con un desconocido.
+- Nada de frases como "queremos presentar nuestros servicios" o "nos permitimos contactarlos".
+- No incluyas lista de servicios (va aparte). No incluyas datos de contacto.
+- Solo etiquetas <p> y <strong>. Sin HTML adicional.""",
 
     "SEGUIMIENTO_COTIZACION": """\
-Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, consultoría SST colombiana.
+Eres {nombre_asesora}, asesora de {empresa_remitente}, SST Colombia.
 
-Escribe ÚNICAMENTE el cuerpo de un correo de seguimiento para:
-- Empresa: {razon_social} — Contacto: {nombre_contacto}
-- Sector: {sector} — Riesgo específico: {dolor}
-- Propuesta enviada: {num_estandares} estándares SG-SST ({articulo_resolucion}, Res. 0312/2019)
+Escribe el cuerpo de un correo de seguimiento para {razon_social} ({nombre_contacto}).
+Sector: {sector}. Riesgo ARL Clase {nivel_riesgo}. Propuesta previa: {num_estandares} estándares.
 
-IMPORTANTE: No incluyas firma ni datos de contacto (se agregan automáticamente).
+OBJETIVO: recordar sin presionar. Abrir una conversación real.
 
-Reglas obligatorias:
-1. Máximo 100 palabras.
-2. Preséntate como {nombre_asesora} al inicio.
-3. Referencia la propuesta anterior de forma natural, sin ser insistente.
-4. Ofrece resolver UNA duda concreta relacionada con el sector {sector}.
-5. Cierra con disponibilidad para una llamada de 15 minutos.
-6. Solo <p> y <strong>. Sin otros elementos HTML.""",
+Estructura:
+1. Abre mencionando que ya les escribiste, de forma natural (no "le hago seguimiento a...").
+2. Conecta con un dolor real del sector {sector}: {dolor}.
+3. Ofrece resolver UNA duda específica. Cierra con disponibilidad para 15 minutos.
+
+Máximo 80 palabras. Tono humano y directo. Solo <p> y <strong>.
+No incluyas firma (va aparte).""",
 
     "RECORDATORIO_VENCIMIENTO": """\
-Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, consultoría SST colombiana.
+Eres {nombre_asesora}, asesora de {empresa_remitente}, SST Colombia.
 
-Escribe ÚNICAMENTE la introducción de un correo de seguimiento (Día 8) para:
-- Empresa: {razon_social} — Contacto: {nombre_contacto}
-- Sector: {sector} — Riesgo: {dolor}
-- Obligación legal: {num_estandares} estándares Res. 0312/2019 ({articulo_resolucion})
+Escribe la introducción del tercer contacto (Día 8) para {razon_social} ({nombre_contacto}).
+Sector: {sector}. Riesgo ARL Clase {nivel_riesgo}. Obligación: {num_estandares} estándares Res. 0312/2019.
+Riesgo del sector: {dolor}.
 
-IMPORTANTE: No incluyas lista de servicios ni datos de contacto (se agregan automáticamente).
+OBJETIVO: generar urgencia real sin sonar a spam ni a amenaza.
 
-Reglas obligatorias:
-1. Máximo 2 párrafos, 100 palabras.
-2. Preséntate como {nombre_asesora} y menciona que ya les escribiste antes.
-3. Recuerda el riesgo legal de incumplimiento (Decreto 472 de 2015, multas hasta 500 SMMLV).
-4. Usa un ángulo diferente al primer correo — enfócate en el riesgo específico del sector {sector}.
-5. Tono urgente pero no alarmista.
-6. Solo <p> y <strong>. Sin otros elementos HTML.""",
+Estructura (2 párrafos):
+1. Abre con el riesgo específico del sector {sector} — algo concreto que les puede pasar \
+si no tienen el SG-SST al día (inspección, accidente, multa Decreto 472/2015).
+2. Recuerda que puedes ayudarles a cumplir los {num_estandares} estándares rápidamente. \
+Cierra con una pregunta directa de cierre.
+
+Máximo 100 palabras. Ángulo DIFERENTE al primer correo. Tono más directo.
+No incluyas lista de servicios (va aparte). Solo <p> y <strong>.""",
 }
 
 
@@ -107,8 +109,8 @@ def generar_cuerpo_ia(
 ) -> Optional[str]:
     """
     Genera la introducción personalizada del correo con Gemini Flash.
-    Retorna None si no hay API key o si la llamada falla — el llamador
-    usa el texto de respaldo estático.
+    Reintenta una vez si hay error de conexión.
+    Retorna None si falla — el llamador usa el texto de respaldo.
     """
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
@@ -118,12 +120,13 @@ def generar_cuerpo_ia(
     if not prompt_tpl:
         return None
 
-    dolor = _DOLORES_SECTOR.get(sector, "riesgos laborales propios de su sector")
+    dolor = _DOLORES_SECTOR.get(sector, "riesgos laborales que el Ministerio del Trabajo está fiscalizando activamente")
+    contacto = nombre_contacto if nombre_contacto and nombre_contacto != "Gerente" else "equipo"
 
     prompt = prompt_tpl.format(
         empresa_remitente=empresa_remitente,
         razon_social=razon_social,
-        nombre_contacto=nombre_contacto or "Gerente",
+        nombre_contacto=contacto,
         ciudad=ciudad,
         departamento=departamento,
         sector=sector or "su sector",
@@ -135,14 +138,28 @@ def generar_cuerpo_ia(
         nombre_asesora=nombre_asesora,
     )
 
-    try:
-        import requests as _req
-        model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        r = _req.post(url, json=payload, timeout=30)
-        r.raise_for_status()
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{model}:generateContent?key={api_key}"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.85, "maxOutputTokens": 800},
+    }
 
-    except Exception:
-        return None
+    for intento in range(2):
+        try:
+            import requests as _req
+            r = _req.post(url, json=payload, timeout=60)
+            r.raise_for_status()
+            texto = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            if len(texto) > 80:
+                return texto
+            print(f"[AI_GENERATOR] Respuesta demasiado corta ({len(texto)} chars), reintentando...")
+        except Exception as e:
+            print(f"[AI_GENERATOR] Intento {intento+1} fallido ({tipo}): {e}")
+            if intento == 0:
+                time.sleep(2)
+
+    return None
