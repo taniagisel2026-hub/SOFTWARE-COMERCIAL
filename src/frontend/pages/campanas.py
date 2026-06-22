@@ -849,6 +849,15 @@ def _render_prospectos() -> None:
         st.warning("Ningún prospecto coincide con los filtros aplicados.")
         return
 
+    # Mapeo estado → plantilla de correo
+    _TIPO_POR_ESTADO = {
+        "NUEVO":               "PRIMER_CONTACTO",
+        "EN_SEGUIMIENTO":      "SEGUIMIENTO_COTIZACION",
+        "COTIZACION_ENVIADA":  "RECORDATORIO_VENCIMIENTO",
+        "NEGOCIACION":         "SEGUIMIENTO_COTIZACION",
+    }
+    _ESTADOS_OPCIONES = ["NUEVO", "EN_SEGUIMIENTO", "COTIZACION_ENVIADA", "NEGOCIACION", "CERRADO_GANADO", "CERRADO_PERDIDO"]
+
     # ── Tabla de prospectos ────────────────────────────────────────────────────
     for p in filtrados:
         col_info, col_badge, col_btn = st.columns([4, 2, 2])
@@ -864,18 +873,43 @@ def _render_prospectos() -> None:
             )
 
         with col_badge:
-            st.markdown(badge_estado(p["Estado"]), unsafe_allow_html=True)
+            estado_actual = p["Estado"]
+            idx_actual = _ESTADOS_OPCIONES.index(estado_actual) if estado_actual in _ESTADOS_OPCIONES else 0
+            nuevo_estado = st.selectbox(
+                "Estado", _ESTADOS_OPCIONES,
+                index=idx_actual,
+                key=f"estado_{p['ID']}",
+                label_visibility="collapsed",
+            )
+            if nuevo_estado != estado_actual:
+                if st.button("Guardar", key=f"save_estado_{p['ID']}", use_container_width=True):
+                    from src.database.connection import get_session
+                    from src.database.models import EmpresaProspecto as _EmpMod
+                    with get_session() as _s:
+                        _e = _s.get(_EmpMod, p["ID"])
+                        if _e:
+                            _e.estado_prospecto = nuevo_estado
+                            _e.fecha_ultima_actualizacion = date.today()
+                            _s.commit()
+                    st.session_state["_msg_crm"] = ("ok", f"✅ Estado de {p['Empresa']} actualizado a {nuevo_estado}.")
+                    st.rerun()
 
         with col_btn:
+            tipo_correo = _TIPO_POR_ESTADO.get(p["Estado"], "PRIMER_CONTACTO")
+            _etiquetas = {
+                "PRIMER_CONTACTO":        "📨 Día 1 — Primer contacto",
+                "SEGUIMIENTO_COTIZACION": "📨 Día 4 — Seguimiento",
+                "RECORDATORIO_VENCIMIENTO": "📨 Día 8 — Recordatorio",
+            }
+            etiqueta_btn = _etiquetas.get(tipo_correo, "📨 Enviar correo")
             if p["_tiene_email"]:
-                if st.button("📨 Enviar correo", key=f"email_{p['ID']}", use_container_width=True):
+                if st.button(etiqueta_btn, key=f"email_{p['ID']}", use_container_width=True):
                     with st.spinner(f"Enviando a {p['Email']}..."):
-                        ok, msg = _enviar_correo(p["ID"])
+                        ok, msg = _enviar_correo(p["ID"], tipo=tipo_correo)
                     if ok:
                         st.success(msg)
                         st.cache_data.clear()
                     else:
-                        # Distinguir entre warning y error según el tipo
                         if "Opt-out" in msg or "Límite" in msg:
                             st.warning(msg)
                         else:
