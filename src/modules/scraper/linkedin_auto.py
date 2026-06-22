@@ -57,6 +57,21 @@ _CIUDAD_DEPARTAMENTO: dict[str, str] = {
     "villavicencio": "Meta",
 }
 
+# IDs geográficos de LinkedIn para ciudades colombianas
+# (se usan como filtro companyHqGeo en la URL de búsqueda)
+_CIUDAD_GEO_ID: dict[str, str] = {
+    "bogotá d.c.": "102364368", "bogotá": "102364368", "bogota": "102364368",
+    "medellín":    "100996579", "medellin": "100996579",
+    "cali":        "106057199",
+    "barranquilla":"104421764",
+    "bucaramanga": "105255724",
+    "pereira":     "105303307",
+    "cartagena":   "100550483",
+    "cúcuta":      "105302813", "cucuta": "105302813",
+    "ibagué":      "105305387", "ibague": "105305387",
+    "villavicencio":"105303044",
+}
+
 
 class LinkedInSinSesionError(Exception):
     """Se lanza cuando no existe linkedin_session.json."""
@@ -94,11 +109,20 @@ class LinkedInAutoScraper(BaseScraperAdapter):
         nivel_riesgo = estimar_nivel_riesgo(sector)
 
         keyword = _SECTOR_KEYWORD.get(sector.lower().strip(), sector)
-        query = f"{keyword} {ciudad} Colombia"
-        search_url = (
-            "https://www.linkedin.com/search/results/companies/"
-            f"?keywords={quote(query)}&origin=GLOBAL_SEARCH_HEADER"
-        )
+        geo_id = _CIUDAD_GEO_ID.get(ciudad_norm, "")
+        if geo_id:
+            # Keyword solo con el sector + filtro de ciudad separado (igual que hacerlo manual)
+            search_url = (
+                "https://www.linkedin.com/search/results/companies/"
+                f"?keywords={quote(keyword)}"
+                f"&origin=FACETED_SEARCH"
+                f"&companyHqGeo=%5B%22{geo_id}%22%5D"
+            )
+        else:
+            search_url = (
+                "https://www.linkedin.com/search/results/companies/"
+                f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
+            )
 
         prospectos: list[ProspectoExtraido] = []
 
@@ -149,9 +173,25 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             while pagina <= max_pag and len(empresas_raw) < max_resultados:
                 time.sleep(self._delay)
 
+                # Esperar a que carguen los resultados
+                try:
+                    page.wait_for_selector("a[href*='/company/']", timeout=8_000)
+                except Exception:
+                    pass
+
+                # Selectores en orden de preferencia
                 cards = page.locator("li.reusable-search__result-container").all()
                 if not cards:
+                    cards = page.locator("li[class*='reusable-search']").all()
+                if not cards:
                     cards = page.locator("li[class*='result']").all()
+                if not cards:
+                    # Fallback: cualquier li que contenga un link a /company/
+                    cards = [
+                        lnk.locator("xpath=ancestor::li[1]")
+                        for lnk in page.locator("a[href*='/company/']").all()
+                        if lnk.count() > 0
+                    ]
                 if not cards:
                     break
 

@@ -164,7 +164,7 @@ def main():
 
     sector = elegir(SECTORES, "¿Qué sector quieres buscar?")
     ciudad = elegir(CIUDADES, "¿En qué ciudad?")
-    keyword = f"{SECTOR_KEYWORD.get(sector, sector)} {ciudad} Colombia"
+    keyword = SECTOR_KEYWORD.get(sector, sector)
 
     tiene_sesion = SESSION_FILE.exists()
     if tiene_sesion:
@@ -216,11 +216,25 @@ def main():
             SESSION_FILE.write_text(json.dumps(cookies))
             print("  ✅ Sesión guardada — la próxima vez será automático.")
 
-        # Buscar empresas en LinkedIn
-        search_url = (
-            f"https://www.linkedin.com/search/results/companies/"
-            f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
-        )
+        # IDs geográficos LinkedIn para ciudades colombianas
+        _GEO = {
+            "Bogotá": "102364368", "Medellín": "100996579", "Cali": "106057199",
+            "Barranquilla": "104421764", "Bucaramanga": "105255724",
+            "Pereira": "105303307", "Cartagena": "100550483",
+            "Cúcuta": "105302813", "Ibagué": "105305387", "Villavicencio": "105303044",
+        }
+        geo_id = _GEO.get(ciudad, "")
+        if geo_id:
+            search_url = (
+                f"https://www.linkedin.com/search/results/companies/"
+                f"?keywords={quote(keyword)}&origin=FACETED_SEARCH"
+                f"&companyHqGeo=%5B%22{geo_id}%22%5D"
+            )
+        else:
+            search_url = (
+                f"https://www.linkedin.com/search/results/companies/"
+                f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
+            )
         print(f"\n🔍 Buscando: {keyword}")
         page.goto(search_url, wait_until="domcontentloaded", timeout=20_000)
         time.sleep(4)
@@ -233,8 +247,14 @@ def main():
             print(f"\n  Página {pagina}...")
             time.sleep(2)
 
-            # Extraer tarjetas
+            # Esperar resultados y extraer tarjetas
+            try:
+                page.wait_for_selector("a[href*='/company/']", timeout=8_000)
+            except Exception:
+                pass
             cards = page.locator("li.reusable-search__result-container").all()
+            if not cards:
+                cards = page.locator("li[class*='reusable-search']").all()
             if not cards:
                 cards = page.locator("li[class*='result']").all()
 
