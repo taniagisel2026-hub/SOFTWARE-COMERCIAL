@@ -260,14 +260,15 @@ _PARRAFO_CTA_PRIMER = """\
   Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
   y ayudamos a empresas en <strong>{{ ciudad }}</strong> a implementar el SG-SST de forma
   rápida, sin complicaciones y con acompañamiento continuo.
-  ¿Le gustaría revisar el estado actual de {{ razon_social }} en una llamada de 15 minutos?
+  Contáctenos cuando lo considere conveniente — con gusto le explicamos cómo podemos
+  ayudar a <strong>{{ razon_social }}</strong> a cumplir estos requisitos sin complicaciones.
 </p>"""
 
 _PARRAFO_CTA_RECORDATORIO = """\
 <p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
   En <strong>{{ empresa_remitente }}</strong> ya hemos ayudado a varias empresas en
   {{ ciudad }} a cumplir estos {{ num_estandares }} estándares en tiempo récord.
-  ¿Cuándo sería un buen momento para hablar 15 minutos esta semana?
+  Comuníquese con nosotros cuando guste — estamos disponibles para resolver sus dudas.
 </p>"""
 
 _PARRAFO_SEGUIMIENTO_COTIZACION = """\
@@ -285,7 +286,7 @@ _PARRAFO_SEGUIMIENTO_COTIZACION = """\
 </p>
 <p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
   ¿Tiene alguna duda sobre el alcance o la forma de pago? Podemos ajustar la propuesta.
-  Son solo 15 minutos de llamada.
+  Contáctenos cuando lo considere y con gusto la revisamos juntos.
 </p>"""
 
 # ── Ganchos de respaldo por tipo (texto plano, Gemini los reemplaza) ──────────
