@@ -1,9 +1,9 @@
 """
-Genera cuerpos de correo únicos con Claude API.
-Analiza el sector de la empresa y sus dolores específicos en SST
-para que ningún mensaje sea idéntico a otro (anti-spam semántico).
-Retorna None si ANTHROPIC_API_KEY no está configurado o la llamada falla,
-activando el fallback a plantillas estáticas en EmailTemplateEngine.
+Genera introducciones de correo únicas con Gemini Flash (gratuito).
+Analiza el sector y los riesgos específicos de cada empresa para que
+ningún mensaje sea idéntico — evita filtros de spam semántico.
+Retorna None si GEMINI_API_KEY no está configurado o la llamada falla,
+activando el fallback a texto de respaldo en EmailTemplateEngine.
 """
 import os
 from typing import Optional
@@ -27,11 +27,12 @@ _DOLORES_SECTOR: dict[str, str] = {
 }
 
 _PROMPTS: dict[str, str] = {
+
     "PRIMER_CONTACTO": """\
-Eres el redactor de correos corporativos de {empresa_remitente}, consultoría especializada \
+Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, consultoría especializada \
 en Seguridad y Salud en el Trabajo (SST) en Colombia.
 
-Escribe el cuerpo HTML de un correo de primer contacto en frío para:
+Escribe ÚNICAMENTE la introducción personalizada de un correo de primer contacto en frío para:
 - Empresa destinataria: {razon_social}
 - Nombre del contacto: {nombre_contacto}
 - Ubicación: {ciudad}, {departamento}
@@ -41,52 +42,52 @@ Escribe el cuerpo HTML de un correo de primer contacto en frío para:
 - Nivel de riesgo ARL: Clase {nivel_riesgo}
 - Obligación legal vigente: {articulo_resolucion} — {num_estandares} estándares mínimos (Resolución 0312 de 2019)
 
-Servicios propios de {empresa_remitente}:
-Implementación SG-SST · Mediciones Ambientales · Batería de Riesgo Psicosocial · Rumba Terapia · Capacitaciones SST · Planos de Emergencia · Brigadas de Emergencia · Certificación de Estándares Mínimos · Profesiograma · Análisis de Puesto de Trabajo · Red Contra Incendios · Inspecciones · Investigación de Accidentes · Acompañamiento SST
-
-Alianza estratégica con COMPECER — Certificación ISO:
-ISO 9001 · ISO 45001 · ISO 14001 · ISO 27001 · ISO 37001 · ISO 21001 · ISO 20000-1 · ISO 50001 · ISO 22000 · ISO 56002
+IMPORTANTE: No incluyas lista de servicios ni datos de contacto (se agregan automáticamente después).
 
 Reglas obligatorias:
-1. Máximo 200 palabras de texto visible.
-2. Abre directamente con el nombre del contacto.
-3. En la primera oración menciona el dolor específico del sector.
-4. Cita con exactitud los {num_estandares} estándares mínimos exigidos.
-5. Incluye una mención breve de los servicios más relevantes para el sector.
-6. Menciona la alianza con Compecer para certificaciones ISO.
-7. Cierra con UNA sola pregunta consultiva (no dos).
-8. Tono profesional y consultivo, nunca alarmista ni invasivo.
-9. Retorna ÚNICAMENTE etiquetas <p> y <strong>. Sin <html>, <body>, <head>, <table> ni ningún otro elemento.""",
+1. Máximo 3 párrafos, 150 palabras en total.
+2. Abre con el nombre del contacto y preséntate como {nombre_asesora} de {empresa_remitente}.
+3. En el primer párrafo menciona el dolor específico del sector de {razon_social}.
+4. Cita los {num_estandares} estándares mínimos que les exige la Resolución 0312/2019.
+5. Cierra con UNA sola pregunta consultiva que invite al diálogo.
+6. Tono profesional y cercano, nunca alarmista ni invasivo.
+7. Retorna ÚNICAMENTE etiquetas <p> y <strong>. Sin tablas, botones ni otros elementos.""",
 
     "SEGUIMIENTO_COTIZACION": """\
-Eres el redactor de correos corporativos de {empresa_remitente}, consultoría SST colombiana.
+Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, consultoría SST colombiana.
 
-Escribe el cuerpo HTML de un correo de seguimiento de cotización para:
+Escribe ÚNICAMENTE el cuerpo de un correo de seguimiento para:
 - Empresa: {razon_social} — Contacto: {nombre_contacto}
-- Sector: {sector} — Dolor: {dolor}
+- Sector: {sector} — Riesgo específico: {dolor}
 - Propuesta enviada: {num_estandares} estándares SG-SST ({articulo_resolucion}, Res. 0312/2019)
+
+IMPORTANTE: No incluyas firma ni datos de contacto (se agregan automáticamente).
 
 Reglas obligatorias:
 1. Máximo 100 palabras.
-2. Referencia la propuesta anterior de forma natural, sin ser insistente.
-3. Ofrece resolver UNA duda concreta relacionada con el sector.
-4. Cierra con disponibilidad para una llamada de 15 minutos.
-5. Solo <p> y <strong>. Sin otros elementos HTML.""",
+2. Preséntate como {nombre_asesora} al inicio.
+3. Referencia la propuesta anterior de forma natural, sin ser insistente.
+4. Ofrece resolver UNA duda concreta relacionada con el sector {sector}.
+5. Cierra con disponibilidad para una llamada de 15 minutos.
+6. Solo <p> y <strong>. Sin otros elementos HTML.""",
 
     "RECORDATORIO_VENCIMIENTO": """\
-Eres el redactor de correos corporativos de {empresa_remitente}, consultoría SST colombiana.
+Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, consultoría SST colombiana.
 
-Escribe el cuerpo HTML de un recordatorio de vencimiento de propuesta para:
+Escribe ÚNICAMENTE la introducción de un correo de seguimiento (Día 8) para:
 - Empresa: {razon_social} — Contacto: {nombre_contacto}
-- Sector: {sector}
+- Sector: {sector} — Riesgo: {dolor}
 - Obligación legal: {num_estandares} estándares Res. 0312/2019 ({articulo_resolucion})
 
+IMPORTANTE: No incluyas lista de servicios ni datos de contacto (se agregan automáticamente).
+
 Reglas obligatorias:
-1. Máximo 90 palabras.
-2. Menciona el riesgo legal de incumplimiento (Decreto 472 de 2015, multas hasta 500 SMMLV).
-3. Tono urgente pero no alarmista.
-4. Un solo CTA claro al final.
-5. Solo <p> y <strong>. Sin otros elementos HTML.""",
+1. Máximo 2 párrafos, 100 palabras.
+2. Preséntate como {nombre_asesora} y menciona que ya les escribiste antes.
+3. Recuerda el riesgo legal de incumplimiento (Decreto 472 de 2015, multas hasta 500 SMMLV).
+4. Usa un ángulo diferente al primer correo — enfócate en el riesgo específico del sector {sector}.
+5. Tono urgente pero no alarmista.
+6. Solo <p> y <strong>. Sin otros elementos HTML.""",
 }
 
 
@@ -102,11 +103,12 @@ def generar_cuerpo_ia(
     articulo_resolucion: str,
     num_estandares: int,
     empresa_remitente: str,
+    nombre_asesora: str = "Tania Peñaloza",
 ) -> Optional[str]:
     """
-    Genera el cuerpo HTML del correo con Gemini Flash (gratuito).
+    Genera la introducción personalizada del correo con Gemini Flash.
     Retorna None si no hay API key o si la llamada falla — el llamador
-    debe hacer fallback a la plantilla estática correspondiente.
+    usa el texto de respaldo estático.
     """
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
@@ -130,6 +132,7 @@ def generar_cuerpo_ia(
         nivel_riesgo=nivel_riesgo,
         articulo_resolucion=articulo_resolucion,
         num_estandares=num_estandares,
+        nombre_asesora=nombre_asesora,
     )
 
     try:
