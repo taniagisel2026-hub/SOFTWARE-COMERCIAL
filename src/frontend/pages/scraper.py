@@ -45,7 +45,7 @@ def render() -> None:
         )
 
         st.markdown("**Fuentes activas:**")
-        usar_gmaps = st.checkbox("🗺 Google Maps",                    value=True)
+        usar_gmaps = st.checkbox("📒 Páginas Amarillas Colombia",      value=True)
         usar_li    = st.checkbox("🔗 LinkedIn (búsqueda pública)",    value=True)
         usar_web   = st.checkbox("🌐 WebScraper (extracción emails)", value=True)
 

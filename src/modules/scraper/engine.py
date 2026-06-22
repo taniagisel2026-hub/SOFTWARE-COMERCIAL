@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 
 from .base import BaseScraperAdapter, ExtractionResult, ProspectoExtraido
-from .google_maps import GoogleMapsScraper
+from .paginas_amarillas import PaginasAmarillasScraper
 from .linkedin import LinkedInScraper
 from .web_scraper import WebScraper
 
@@ -60,7 +60,7 @@ class ScraperEngineService:
         enriquecer_emails: bool = True,
     ):
         self._adapters = adapters or [
-            GoogleMapsScraper(),
+            PaginasAmarillasScraper(),
             LinkedInScraper(),
         ]
         self._web = web_scraper or WebScraper()
