@@ -28,68 +28,44 @@ _DOLORES_SECTOR: dict[str, str] = {
 _PROMPTS: dict[str, str] = {
 
     "PRIMER_CONTACTO": """\
-Eres {nombre_asesora}, asesora comercial de {empresa_remitente}, especialistas en \
-Seguridad y Salud en el Trabajo (SST) en Colombia.
+Eres {nombre_asesora}, asesora SST de {empresa_remitente} (Colombia).
+Escribe 2 párrafos HTML cortos para un correo a {razon_social} ({sector}, {ciudad}).
+Datos: {num_empleados} empleados, Riesgo ARL Clase {nivel_riesgo}, \
+{num_estandares} estándares ({articulo_resolucion} Res. 0312/2019).
+Riesgo real del sector: {dolor}.
 
-Escribe una introducción de correo de primer contacto para:
-- Empresa: {razon_social} | Contacto: {nombre_contacto} | Ciudad: {ciudad}
-- Sector: {sector} | Empleados: {num_empleados} | Riesgo ARL: Clase {nivel_riesgo}
-- Obligación legal: {articulo_resolucion} de la Res. 0312/2019 = {num_estandares} estándares mínimos
-- Riesgo del sector: {dolor}
+Párrafo 1 — GANCHO: una sola oración que sorprenda. Puede ser una pregunta retórica \
+o un dato concreto sobre el riesgo de {sector}. NO empieces con "Estimado" ni el nombre de la empresa.
+Párrafo 2 — CONTEXTO + CTA: 2-3 oraciones. Menciona los {num_estandares} estándares, \
+el riesgo de multa (Decreto 472/2015), y termina preguntando si pueden hablar 15 minutos.
+Preséntate como {nombre_asesora} de {empresa_remitente} en este párrafo.
 
-OBJETIVO: que quien lo lea quiera saber más. Nada de presentaciones corporativas aburridas.
-
-Estructura OBLIGATORIA (3 párrafos cortos):
-1. GANCHO (1 oración impactante): abre con una pregunta o dato concreto sobre el riesgo \
-específico de {razon_social} en el sector {sector}. No empieces con "Estimado" ni con el nombre \
-de la empresa. Sorprende al lector desde la primera línea.
-2. CONTEXTO LEGAL (2-3 oraciones): explica que empresas como {razon_social} con {num_empleados} \
-trabajadores y riesgo ARL Clase {nivel_riesgo} deben cumplir exactamente {num_estandares} estándares \
-según el {articulo_resolucion} de la Res. 0312/2019. Menciona el riesgo real de una multa \
-(Decreto 472/2015, hasta 500 SMMLV) sin ser alarmista.
-3. PROPUESTA (1-2 oraciones): preséntate como {nombre_asesora} de {empresa_remitente} y \
-cierra con UNA pregunta directa que invite a responder.
-
-Reglas:
-- Máximo 120 palabras en total.
-- Tono: directo, humano y consultivo. Como si hablaras con un colega, no con un desconocido.
-- Nada de frases como "queremos presentar nuestros servicios" o "nos permitimos contactarlos".
-- No incluyas lista de servicios (va aparte). No incluyas datos de contacto.
-- Solo etiquetas <p> y <strong>. Sin HTML adicional.""",
+Reglas: máx 90 palabras. Tono directo y humano. Solo etiquetas <p> y <strong>. \
+Sin lista de servicios ni datos de contacto.""",
 
     "SEGUIMIENTO_COTIZACION": """\
-Eres {nombre_asesora}, asesora de {empresa_remitente}, SST Colombia.
+Eres {nombre_asesora}, asesora SST de {empresa_remitente} (Colombia).
+Escribe 2 párrafos HTML para seguimiento a {razon_social} ({sector}, Riesgo {nivel_riesgo}).
 
-Escribe el cuerpo de un correo de seguimiento para {razon_social} ({nombre_contacto}).
-Sector: {sector}. Riesgo ARL Clase {nivel_riesgo}. Propuesta previa: {num_estandares} estándares.
+Párrafo 1: menciona naturalmente que ya les escribiste antes. \
+Conecta con el riesgo real: {dolor}.
+Párrafo 2: ofrece resolver una duda específica. Pregunta si tienen 15 minutos esta semana.
 
-OBJETIVO: recordar sin presionar. Abrir una conversación real.
-
-Estructura:
-1. Abre mencionando que ya les escribiste, de forma natural (no "le hago seguimiento a...").
-2. Conecta con un dolor real del sector {sector}: {dolor}.
-3. Ofrece resolver UNA duda específica. Cierra con disponibilidad para 15 minutos.
-
-Máximo 80 palabras. Tono humano y directo. Solo <p> y <strong>.
-No incluyas firma (va aparte).""",
+Máx 70 palabras. Solo <p> y <strong>. Sin firma ni lista de servicios.""",
 
     "RECORDATORIO_VENCIMIENTO": """\
-Eres {nombre_asesora}, asesora de {empresa_remitente}, SST Colombia.
-
-Escribe la introducción del tercer contacto (Día 8) para {razon_social} ({nombre_contacto}).
-Sector: {sector}. Riesgo ARL Clase {nivel_riesgo}. Obligación: {num_estandares} estándares Res. 0312/2019.
+Eres {nombre_asesora}, asesora SST de {empresa_remitente} (Colombia).
+Escribe 2 párrafos HTML de urgencia para {razon_social} ({sector}, Riesgo {nivel_riesgo}, \
+{num_estandares} estándares Res. 0312/2019).
 Riesgo del sector: {dolor}.
 
-OBJETIVO: generar urgencia real sin sonar a spam ni a amenaza.
-
-Estructura (2 párrafos):
-1. Abre con el riesgo específico del sector {sector} — algo concreto que les puede pasar \
-si no tienen el SG-SST al día (inspección, accidente, multa Decreto 472/2015).
-2. Recuerda que puedes ayudarles a cumplir los {num_estandares} estándares rápidamente. \
+Párrafo 1: un riesgo concreto que puede ocurrirle a {razon_social} sin el SG-SST al día \
+(multa Decreto 472/2015, inspección, accidente).
+Párrafo 2: ofrece ayudarles a cumplir los {num_estandares} estándares. \
 Cierra con una pregunta directa de cierre.
 
-Máximo 100 palabras. Ángulo DIFERENTE al primer correo. Tono más directo.
-No incluyas lista de servicios (va aparte). Solo <p> y <strong>.""",
+Máx 80 palabras. Ángulo diferente al primer correo. Solo <p> y <strong>. \
+Sin lista de servicios.""",
 }
 
 

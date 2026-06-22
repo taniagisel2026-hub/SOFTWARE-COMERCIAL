@@ -344,17 +344,24 @@ class EmailTemplateEngine:
 
         firma = _jinja.from_string(_BLOQUE_FIRMA).render(**data)
 
+        saludo = _jinja.from_string(
+            "<p style='margin:0 0 16px;font-size:13px;color:#444;'>"
+            "Hola{% if nombre_contacto and nombre_contacto != 'Gerente' %}"
+            " <strong>{{ nombre_contacto }}</strong>{% endif %}, "
+            "buen día.</p>"
+        ).render(**data)
+
         if tipo == "PRIMER_CONTACTO":
             intro = intro_ia or _jinja.from_string(_FALLBACK_PRIMER_CONTACTO).render(**data)
-            body_rendered = intro + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data) + firma
+            body_rendered = saludo + intro + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data) + firma
 
         elif tipo == "RECORDATORIO_VENCIMIENTO":
             intro = intro_ia or _jinja.from_string(_FALLBACK_RECORDATORIO).render(**data)
-            body_rendered = intro + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data) + firma
+            body_rendered = saludo + intro + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data) + firma
 
         else:  # SEGUIMIENTO_COTIZACION
             intro = intro_ia or _jinja.from_string(_FALLBACK_SEGUIMIENTO).render(**data)
-            body_rendered = intro + firma
+            body_rendered = saludo + intro + firma
 
         html = _jinja.from_string(_BASE_HTML).render(
             body=body_rendered,
