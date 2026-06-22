@@ -232,11 +232,46 @@ _BLOQUE_SERVICIOS = """\
 # ── Firma (siempre al final de todo correo) ───────────────────────────────────
 
 _BLOQUE_FIRMA = """\
-<p style="margin:24px 0 4px;font-size:13px;color:#444;">
-  Cordialmente,<br>
-  <strong>{{ nombre_asesora }}</strong><br>
-  <span style="color:#6B7280;font-size:12px;">{{ empresa_remitente }}</span>
-</p>"""
+<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;table-layout:fixed;font-family:'Segoe UI',Arial,sans-serif;margin-top:25px;">
+  <tr><td align="center" style="text-align:center;">
+    <table cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px;max-width:100%;font-family:'Segoe UI',Arial,sans-serif;color:#333333;line-height:1.5;font-size:11.5px;margin:0 auto;text-align:center;">
+      <tr>
+        <td align="center" style="text-align:center;border-top:2px solid #041E42;padding-top:12px;padding-bottom:12px;">
+          <span style="font-size:16px;font-weight:bold;color:#041E42;display:block;letter-spacing:0.2px;margin:0;">Tania Pe&ntilde;aloza</span>
+          <span style="font-size:11.5px;color:#555555;display:block;margin-top:2px;">Coordinadora Comercial &nbsp;|&nbsp; <strong style="color:#041E42;">Medina SST Empresarial S.A.S.</strong></span>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" style="text-align:center;border-top:1px dashed #cccccc;padding-top:10px;padding-bottom:6px;line-height:1.8;">
+          <img src="https://cdn-icons-png.flaticon.com/512/159/159832.png" alt="Tel" width="11" height="11" style="display:inline-block;vertical-align:middle;margin-right:4px;opacity:0.8;">
+          <span style="vertical-align:middle;color:#555555;margin-right:20px;">601 9038072 | 3228187963</span>
+          <img src="https://cdn-icons-png.flaticon.com/512/542/542689.png" alt="Email" width="11" height="11" style="display:inline-block;vertical-align:middle;margin-right:4px;opacity:0.8;">
+          <a href="mailto:medinasstempresarial30@gmail.com" style="color:#555555;text-decoration:none;vertical-align:middle;margin-right:20px;">medinasstempresarial30@gmail.com</a>
+          <img src="https://cdn-icons-png.flaticon.com/512/1006/1006771.png" alt="Web" width="11" height="11" style="display:inline-block;vertical-align:middle;margin-right:4px;opacity:0.8;">
+          <a href="https://www.medinaempresarialsst.com/" target="_blank" style="color:#041E42;text-decoration:none;font-weight:bold;vertical-align:middle;">www.medinaempresarialsst.com</a>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" style="text-align:center;padding-bottom:12px;">
+          <img src="https://cdn-icons-png.flaticon.com/512/684/684908.png" alt="Dir" width="11" height="11" style="display:inline-block;vertical-align:middle;margin-right:4px;opacity:0.8;">
+          <span style="color:#666666;vertical-align:middle;">Cl. 99 # 11b - 66, Bogot&aacute; / Cra 31 # 17 - 99</span>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" style="text-align:center;">
+          <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;display:inline-block;">
+            <tr>
+              <td style="padding:0 6px;"><a href="https://wa.me/573228187963" target="_blank"><img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="WhatsApp" width="15" height="15" border="0" style="display:block;"></a></td>
+              <td style="padding:0 6px;"><a href="#" target="_blank"><img src="https://cdn-icons-png.flaticon.com/512/145/145802.png" alt="Facebook" width="15" height="15" border="0" style="display:block;"></a></td>
+              <td style="padding:0 6px;"><a href="#" target="_blank"><img src="https://cdn-icons-png.flaticon.com/512/3256/3256013.png" alt="Twitter" width="15" height="15" border="0" style="display:block;"></a></td>
+              <td style="padding:0 6px;"><a href="#" target="_blank"><img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" alt="Instagram" width="15" height="15" border="0" style="display:block;"></a></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>"""
 
 # ── Separador visual entre intro y servicios ─────────────────────────────────
 
