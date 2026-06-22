@@ -11,11 +11,9 @@ from urllib.parse import quote
 
 from .base import BaseScraperAdapter, ProspectoExtraido, _normalizar_texto
 
-# Selectores CSS de Google Maps (pueden requerir actualización si Google cambia el DOM)
+# Selectores CSS de Google Maps — basados en atributos estables (ARIA y URL)
 _SEL_FEED = "div[role='feed']"
-_SEL_CARD = "a.hfpxzc"
-_SEL_NAME = "div.qBF1Pd"
-_SEL_ADDR = "div.W4Etob"
+_SEL_CARD = "a[href*='/maps/place/']"   # estable: basado en URL del lugar
 _SEL_PHONE = "button[data-item-id^='phone']"
 _SEL_WEB = "a[data-item-id='authority']"
 
@@ -105,17 +103,25 @@ class GoogleMapsScraper(BaseScraperAdapter):
             page = ctx.new_page()
 
             try:
-                page.goto(url, wait_until="networkidle", timeout=30_000)
-                self._delay()
+                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
 
-                # Scroll del sidebar para cargar más resultados
-                for _ in range(max(3, max_resultados // 8)):
+                # Esperar a que aparezca el feed de resultados
+                try:
+                    page.wait_for_selector(_SEL_FEED, timeout=15_000)
+                except PWTimeout:
+                    print(f"  [GoogleMaps] Feed no encontrado — puede ser CAPTCHA o sin resultados")
+                    return prospectos
+
+                # Scroll para cargar más resultados
+                scrolls = max(4, max_resultados // 6)
+                for _ in range(scrolls):
                     page.evaluate(
-                        f"document.querySelector('{_SEL_FEED}')?.scrollBy(0, 600)"
+                        f"document.querySelector('{_SEL_FEED}')?.scrollBy(0, 800)"
                     )
                     self._delay()
 
                 cards = page.locator(_SEL_CARD).all()
+                print(f"  [GoogleMaps] {len(cards)} cards encontradas")
                 for card in cards[:max_resultados]:
                     prospecto = self._extraer_card(card, ciudad, depto, sector)
                     if prospecto:
@@ -130,11 +136,18 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
     def _extraer_card(self, card, ciudad: str, depto: str, sector: str):
         try:
-            nombre = card.locator(_SEL_NAME).first.text_content(timeout=3000) or ""
-            if not nombre.strip():
+            # aria-label contiene el nombre del lugar — atributo de accesibilidad estable
+            nombre = (card.get_attribute("aria-label") or "").strip()
+            if not nombre:
+                # Fallback: primera línea del contenido de texto
+                texto = card.text_content(timeout=2000) or ""
+                nombre = texto.strip().split("\n")[0].strip()
+            if not nombre or len(nombre) < 3:
                 return None
+            # Limpiar: a veces el aria-label incluye dirección después de coma
+            nombre = nombre.split(",")[0].strip()
             return ProspectoExtraido(
-                razon_social=nombre.strip(),
+                razon_social=nombre,
                 ciudad=ciudad,
                 departamento=depto,
                 fuente=self.SOURCE,

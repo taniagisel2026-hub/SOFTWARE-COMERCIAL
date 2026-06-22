@@ -84,7 +84,17 @@ class LinkedInScraper(BaseScraperAdapter):
                 page.goto(url, wait_until="domcontentloaded", timeout=20_000)
                 self._delay()
 
-                resultados = page.locator("div.g").all()
+                # Esperar resultados de búsqueda
+                try:
+                    page.wait_for_selector("h3", timeout=10_000)
+                except Exception:
+                    print(f"  [LinkedIn] Sin resultados de Google")
+                    return prospectos
+
+                # Selectores compatibles con el diseño actual de Google Search
+                resultados = page.locator("div.g, div.MjjYud div[data-hveid]").all()
+                if not resultados:
+                    resultados = page.locator("div[data-sokoban-container]").all()
                 for resultado in resultados[:max_resultados]:
                     prospecto = self._parsear_resultado_google(resultado, ciudad, sector)
                     if prospecto:
