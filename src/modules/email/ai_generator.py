@@ -109,12 +109,15 @@ def generar_cuerpo_ia(
             r = _req.post(url, json=payload, timeout=60)
             r.raise_for_status()
             texto = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-            if len(texto) > 80:
+            # Eliminar comillas que Gemini a veces añade alrededor de la oración
+            texto = texto.strip('"').strip("'").strip()
+            # La oración debe estar completa: terminar en puntuación final
+            if len(texto) > 30 and texto[-1] in ".!?":
                 return texto
-            print(f"[AI_GENERATOR] Respuesta demasiado corta ({len(texto)} chars), reintentando...")
+            print(f"[AI_GENERATOR] Respuesta incompleta: '{texto[-30:]}' — reintentando...")
         except Exception as e:
             print(f"[AI_GENERATOR] Intento {intento+1} fallido ({tipo}): {e}")
-            if intento == 0:
-                time.sleep(2)
+        if intento == 0:
+            time.sleep(2)
 
     return None
