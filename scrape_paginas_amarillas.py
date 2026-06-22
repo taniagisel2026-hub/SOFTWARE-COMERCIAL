@@ -108,11 +108,19 @@ def main():
         print("  Cuando veas los resultados cargados, vuelve aquí y presiona Enter.")
         input("\n  [Presiona Enter cuando los resultados estén visibles] ")
 
-        print("\n  Extrayendo datos de la página...")
-        time.sleep(2)
+        print("\n  Esperando que la página termine de cargar...")
+        try:
+            page.wait_for_load_state("networkidle", timeout=15_000)
+        except Exception:
+            pass
+        time.sleep(3)
 
         # Capturar HTML actual de la página de resultados
-        html = page.content()
+        try:
+            html = page.content()
+        except Exception:
+            time.sleep(3)
+            html = page.content()
         url_actual = page.url
         print(f"  URL: {url_actual}")
 
