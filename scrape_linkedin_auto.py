@@ -380,5 +380,47 @@ def random_delay():
     return random.uniform(1.5, 3.0)
 
 
+def solo_login():
+    """Abre el navegador, el usuario inicia sesión, guarda la sesión y sale."""
+    from playwright.sync_api import sync_playwright
+
+    print("\n" + "="*55)
+    print("  CONFIGURAR SESIÓN LINKEDIN — MEDINA SST")
+    print("="*55)
+    print("\n  Se abrirá el navegador en LinkedIn.")
+    print("  Inicia sesión con tu cuenta.")
+    print("  Cuando veas tu feed, vuelve aquí y presiona Enter.\n")
+    input("  Presiona Enter para abrir el navegador... ")
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(
+            headless=False,
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+        )
+        ctx = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 900},
+            locale="es-CO",
+        )
+        ctx.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
+        page = ctx.new_page()
+        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
+
+        input("\n  [Inicia sesión en el navegador y presiona Enter aquí] ")
+
+        cookies = ctx.cookies()
+        SESSION_FILE.write_text(json.dumps(cookies))
+        browser.close()
+
+    print(f"\n✅ Sesión guardada en {SESSION_FILE}")
+    print("   El sistema ahora usará LinkedIn automáticamente.\n")
+
+
 if __name__ == "__main__":
-    main()
+    import sys as _sys
+    if "--solo-login" in _sys.argv:
+        solo_login()
+    else:
+        main()
