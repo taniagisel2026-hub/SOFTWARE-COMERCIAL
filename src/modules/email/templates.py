@@ -260,8 +260,8 @@ _PARRAFO_CTA_PRIMER = """\
   Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
   y ayudamos a empresas en <strong>{{ ciudad }}</strong> a implementar el SG-SST de forma
   rápida, sin complicaciones y con acompañamiento continuo.
-  Contáctenos cuando lo considere conveniente — con gusto le explicamos cómo podemos
-  ayudar a <strong>{{ razon_social }}</strong> a cumplir estos requisitos sin complicaciones.
+  Contáctenos — con gusto le explicamos cómo podemos ayudar a
+  <strong>{{ razon_social }}</strong> a cumplir estos requisitos sin complicaciones.
 </p>"""
 
 _PARRAFO_CTA_RECORDATORIO = """\
