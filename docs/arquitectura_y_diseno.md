@@ -2,8 +2,8 @@
 ## Ecosistema Inteligente de Prospección Comercial, CRM y Automatización de Cotizaciones para Servicios SST
 
 **Cliente:** Medina SST Empresarial SAS  
-**Versión:** 1.0.0  
-**Fecha:** 2026-06-01  
+**Versión:** 1.1.0  
+**Fecha:** 2026-06-22  
 **Clasificación:** Documentación Técnica Interna
 
 ---
@@ -17,8 +17,8 @@ El presente sistema constituye un **ecosistema de software integrado** diseñado
 - **Motor de Prospección:** scraping automatizado de empresas objetivo en Google Maps y LinkedIn, segmentado por ciudad y sector económico en Colombia.
 - **CRM Central:** gestión del ciclo de vida del prospecto desde el primer contacto hasta el cierre comercial.
 - **Cotizador SST:** generación de propuestas económicas parametrizadas según los estándares de la Resolución 0312.
-- **Canal de Comunicación:** integración con la API de Gmail para el envío y seguimiento automatizado de correos.
-- **Fábrica de Contenido:** generación diaria automatizada de contenido para redes sociales (1 artículo + 3 imágenes).
+- **Secuencia de Outreach Omnicanal:** cadencia automatizada Día 1 → Día 4 → Día 8 vía Email y WhatsApp, con el objetivo de generar interés y que el prospecto contacte directamente a la empresa.
+- **Fábrica de Contenido:** generación diaria automatizada de contenido para redes sociales (1 artículo + 3 imágenes con IA).
 
 ---
 
@@ -29,8 +29,8 @@ El siguiente diagrama representa la arquitectura de alto nivel del sistema, most
 ```mermaid
 graph TD
     subgraph FUENTES["Fuentes de Datos Externas"]
-        GM[Google Maps API]
-        LI[LinkedIn / Web Scraping]
+        GM[Google Maps]
+        LI[LinkedIn / Web]
     end
 
     subgraph MOTOR_PROSPECCION["Motor de Prospección"]
@@ -41,28 +41,34 @@ graph TD
 
     subgraph NUCLEO["Núcleo del Sistema"]
         CRM["CRM Central\n(Gestión de Prospectos\ny Pipeline Comercial)"]
-        COTIZADOR["Cotizador SST\n(Parametrizado según\nResolución 0312/2019)"]
-        FABRICA["Fábrica de Contenido\n(1 artículo diario +\n3 imágenes automáticas)"]
+        COTIZADOR["Cotizador SST\n(Herramienta interna —\napoyo al asesor comercial)"]
+        OUTREACH["Orquestador de Cadencia\nDía 1 / Día 4 / Día 8"]
+        FABRICA["Fábrica de Contenido\n(1 artículo diario +\n3 imágenes — Gemini AI)"]
+        TRACKING["Tracking\n(Pixel + Detección\nde respuestas)"]
     end
 
     subgraph COMUNICACION["Canales de Comunicación"]
         GMAIL["Gmail API\n(Envío y seguimiento\nde correos)"]
+        WHATSAPP["WhatsApp\n(Twilio API)"]
         RRSS["Publicación\nRedes Sociales"]
     end
 
     subgraph ALMACENAMIENTO["Capa de Persistencia"]
-        DB[("Base de Datos\nRelacional\n(PostgreSQL)")]
+        DB[("Base de Datos\nSQLite / PostgreSQL")]
     end
 
     SCRAPER -->|"Empresas identificadas"| CRM
-    CRM -->|"Solicita propuesta"| COTIZADOR
-    CRM -->|"Dispara comunicación"| GMAIL
-    COTIZADOR -->|"PDF de cotización"| GMAIL
+    CRM -->|"Inicia cadencia"| OUTREACH
+    OUTREACH -->|"Día 1 y Día 8"| GMAIL
+    OUTREACH -->|"Día 4"| WHATSAPP
+    GMAIL -->|"Métricas de apertura"| TRACKING
+    TRACKING -->|"Actualiza estado"| CRM
+    COTIZADOR -->|"Uso manual por el asesor"| CRM
     FABRICA -->|"Contenido publicable"| RRSS
     CRM -->|"Lee / Escribe"| DB
     COTIZADOR -->|"Lee / Escribe"| DB
     FABRICA -->|"Lee / Escribe"| DB
-    GMAIL -->|"Registra historial"| DB
+    OUTREACH -->|"Registra historial"| DB
 ```
 
 ---
@@ -158,38 +164,104 @@ sequenceDiagram
     participant S  as Scraper
     participant DB as Base de Datos
     participant C  as CRM
-    participant Q  as Cotizador SST
+    participant O  as Orquestador Cadencia
     participant G  as Gmail API
+    participant W  as WhatsApp (Twilio)
+    participant P  as Prospecto
+    participant J  as Asesor Comercial
 
     S->>DB: Inserta EMPRESA_PROSPECTO (estado: NUEVO)
     C->>DB: Lee prospectos en estado NUEVO
-    C->>G: Envía correo de primer contacto
-    G->>DB: Registra HISTORIAL_INTERACCIONES (tipo: EMAIL_SALIENTE)
+    C->>O: Inicia cadencia de outreach
+    O->>G: Día 1 — Correo de primer contacto
+    G->>DB: Registra HISTORIAL (tipo: EMAIL_SALIENTE)
     C->>DB: Actualiza estado → EN_SEGUIMIENTO
-    C->>Q: Solicita generación de cotización
-    Q->>DB: Inserta COTIZACION (estado: BORRADOR)
-    Q->>G: Envía PDF de cotización al prospecto
-    G->>DB: Registra HISTORIAL_INTERACCIONES (tipo: COTIZACION_ENVIADA)
-    C->>DB: Actualiza estado → COTIZACION_ENVIADA
+    O->>W: Día 4 — Mensaje WhatsApp de seguimiento
+    W->>DB: Registra HISTORIAL (tipo: WHATSAPP_SALIENTE)
+    O->>G: Día 8 — Correo con portafolio de servicios
+    G->>DB: Registra HISTORIAL (tipo: EMAIL_SALIENTE)
+    P->>J: Prospecto interesado contacta al asesor directamente
+    J->>DB: Actualiza estado → INTERESADO / EN_NEGOCIACION
+    Note over J: El asesor presenta la propuesta<br/>y cotización de forma personalizada
 ```
 
 ---
 
-## 5. Stack Tecnológico Propuesto
+## 5. Cadencia de Outreach Omnicanal
 
-| Capa | Tecnología | Justificación |
-|---|---|---|
-| Backend / API | Python (FastAPI) | Alto rendimiento, tipado estático, ideal para automatizaciones |
-| Base de Datos | PostgreSQL | Soporte JSON, robustez relacional, escalabilidad |
-| ORM | SQLAlchemy | Mapeo objeto-relacional maduro para Python |
-| Scraping | Playwright + BeautifulSoup | Renderizado JS (Google Maps) y parsing HTML |
-| IA / Contenido | Claude API (Anthropic) | Generación de artículos y textos SST de alta calidad |
-| Imágenes | Stable Diffusion / DALL·E | Generación automática de imágenes para RRSS |
-| Comunicación | Gmail API (OAuth 2.0) | Integración nativa con cuentas corporativas Google |
-| Frontend / CRM | React + TailwindCSS | Interfaz moderna y responsiva |
-| Documentos | ReportLab / WeasyPrint | Generación de PDFs de cotizaciones |
-| Contenedor | Docker + Docker Compose | Despliegue reproducible y aislado |
+La secuencia de contacto automatizado sigue una cadencia de 3 puntos de contacto:
+
+| Día | Canal | Contenido | Condición |
+|---|---|---|---|
+| **1** | Email (Gmail) | Presentación de Medina SST + invitación a agendar | Siempre al registrar el prospecto |
+| **4** | WhatsApp (Twilio) | Seguimiento breve + CTA para confirmar interés | Solo si la empresa tiene teléfono registrado |
+| **8** | Email (Gmail) | Portafolio completo de servicios + botón WhatsApp | ≥4 días desde Día 4, o ≥7 días desde Día 1 si no hubo Día 4 |
+
+Si la empresa no tiene teléfono, el Día 4 se omite y el Día 8 se calcula desde el Día 1.  
+Toda la cadencia queda trazada en `HISTORIAL_INTERACCIONES` con prefijos `[SEQ:DIA_1]`, `[SEQ:DIA_4]`, `[SEQ:DIA_8]`.
+
+> **Importante:** La cadencia automatizada tiene como único objetivo despertar el interés del prospecto. Una vez que el prospecto contacta al asesor comercial, la negociación y presentación de la propuesta económica se realizan de forma **personalizada y manual** por parte del asesor. El Cotizador SST del sistema es una herramienta de apoyo interno para que el asesor prepare las cifras, no un proceso automático.
 
 ---
 
-*Documento generado el 2026-06-01. Para actualizaciones contactar al equipo de desarrollo.*
+## 6. Stack Tecnológico Implementado
+
+| Capa | Tecnología | Estado |
+|---|---|---|
+| Frontend / CRM | Python + **Streamlit** | Implementado |
+| Visualización | Plotly + Pandas | Implementado |
+| Base de Datos | **SQLite** (local) / PostgreSQL (producción) | Implementado |
+| ORM | SQLAlchemy 2.0 + Alembic | Implementado |
+| Scraping | Playwright + BeautifulSoup + httpx | Implementado |
+| IA / Contenido | **Gemini 2.0 Flash** (Google — gratuito) | Implementado |
+| Generación de imágenes | Prompts automáticos (DALL-E 3 / Stable Diffusion — opcional) | Prompts listos, activación pendiente |
+| Email | Gmail API (OAuth 2.0) | Implementado |
+| WhatsApp | **Twilio API** | Implementado |
+| Documentos | ReportLab + Pillow | Implementado |
+| Plantillas HTML | Jinja2 | Implementado |
+| Compliance | Habeas Data (Ley 1581/2012) | Implementado |
+| Configuración | python-dotenv (.env) | Implementado |
+
+---
+
+## 7. Estructura de Módulos del Proyecto
+
+```
+SOFTWARE COMERCIAL/
+├── app.py                          # Punto de entrada Streamlit
+├── src/
+│   ├── config.py                   # Configuración global (AppConfig singleton)
+│   ├── data/
+│   │   └── ciudades_colombia.py    # Referencia de ciudades + zonas de viáticos
+│   ├── database/
+│   │   ├── models.py               # Modelos ORM (4 entidades)
+│   │   ├── connection.py           # Gestión de sesiones SQLAlchemy
+│   │   └── init_db.py              # Creación de tablas + datos semilla
+│   ├── domain/
+│   │   ├── entities.py             # Dataclasses puras + enums de negocio
+│   │   └── resolution_0312.py      # Lógica Res. 0312/2019 (60 estándares)
+│   ├── frontend/
+│   │   ├── pages/                  # Páginas Streamlit (dashboard, cotizador,
+│   │   │   │                       #   scraper, campañas, contenido, analítica,
+│   │   │   │                       #   compecer, servicios)
+│   │   ├── components/             # Componentes reutilizables (métricas)
+│   │   └── styles.py               # Estilos CSS personalizados
+│   └── modules/
+│       ├── cotizador/              # Calculadora + viáticos + exportador PDF
+│       ├── email/                  # Gmail client + plantillas + rate limiter
+│       ├── whatsapp/               # Twilio client + plantillas WhatsApp
+│       ├── outreach/               # Orquestador de cadencia Día 1/4/8
+│       ├── scraper/                # Engine + Google Maps + LinkedIn + pipeline
+│       ├── contenido/              # Generador artículos (Gemini) + imágenes
+│       ├── tracking/               # Pixel tracker + detección de respuestas
+│       └── compliance/             # Habeas Data (Ley 1581/2012)
+├── assets/                         # Logos (Medina SST, Compecer)
+├── credentials/                    # Tokens OAuth Gmail (gitignored)
+├── output/                         # Cotizaciones PDF + contenido generado
+└── docs/
+    └── arquitectura_y_diseno.md    # Este documento
+```
+
+---
+
+*Documento actualizado el 2026-06-22. Para consultas contactar al equipo de desarrollo.*
