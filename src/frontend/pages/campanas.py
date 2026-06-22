@@ -912,18 +912,22 @@ def _render_lista_negra() -> None:
 
     # ── Formulario de registro manual de opt-out ───────────────────────────────
     separador_seccion("Registrar nueva exclusión manual")
+    prospectos_activos = _cargar_prospectos().get("data", [])
+    nombres_optout = ["— Selecciona una empresa —"] + [p["Empresa"] for p in prospectos_activos]
+
     with st.form("form_optout_manual"):
-        col_id, col_motivo = st.columns([1, 3])
-        empresa_id = col_id.number_input("ID empresa", min_value=1, step=1)
-        motivo     = col_motivo.text_input(
-            "Motivo", value="Solicitud del titular de los datos",
-        )
+        empresa_sel_optout = st.selectbox("Empresa", options=nombres_optout)
+        motivo = st.text_input("Motivo", value="Solicitud del titular de los datos")
         enviado = st.form_submit_button("🚫 Registrar Opt-Out", type="primary")
 
     if enviado:
-        ok, msg = _registrar_optout(int(empresa_id), motivo)
-        if ok:
-            st.success(f"✅ {msg}")
-            st.rerun()
+        if empresa_sel_optout == "— Selecciona una empresa —":
+            st.warning("Selecciona una empresa primero.")
         else:
-            st.error(f"Error: {msg}")
+            id_emp = next(p["ID"] for p in prospectos_activos if p["Empresa"] == empresa_sel_optout)
+            ok, msg = _registrar_optout(id_emp, motivo)
+            if ok:
+                st.success(f"✅ {msg}")
+                st.rerun()
+            else:
+                st.error(f"Error: {msg}")
