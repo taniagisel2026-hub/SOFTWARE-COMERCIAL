@@ -688,6 +688,41 @@ def _render_clientes_firmados() -> None:
         st.divider()
 
 
+def _registrar_prospecto_manual(
+    razon_social: str, email: str, nombre_contacto: str,
+    telefono: str, ciudad: str, sector: str, num_empleados: int, nivel_riesgo: str,
+) -> tuple[bool, str]:
+    try:
+        import uuid
+        from datetime import datetime
+        from src.database.connection import get_session
+        from src.database.models import EmpresaProspecto
+
+        nit_temp = f"TEST-{uuid.uuid4().hex[:8].upper()}"
+        with get_session() as session:
+            emp = EmpresaProspecto(
+                razon_social=razon_social,
+                nit=nit_temp,
+                sector_economico=sector,
+                ciudad=ciudad,
+                departamento="Cundinamarca",
+                telefono=telefono,
+                email_contacto=email,
+                nombre_contacto=nombre_contacto,
+                nivel_riesgo_arl=nivel_riesgo,
+                num_empleados=num_empleados,
+                estado_prospecto="NUEVO",
+                fuente_origen="Manual",
+                fecha_registro=date.today(),
+                fecha_ultima_actualizacion=date.today(),
+            )
+            session.add(emp)
+        st.cache_data.clear()
+        return True, razon_social
+    except Exception as exc:
+        return False, str(exc)
+
+
 def _render_prospectos() -> None:
     resultado = _cargar_prospectos()
 
@@ -706,8 +741,38 @@ def _render_prospectos() -> None:
     with c3: tarjeta_kpi("Con email", str(sum(1 for p in datos if p["_tiene_email"])), icono="📧", color="#7C3AED")
     with c4: tarjeta_kpi("Cierres", str(estados.count("CERRADO_GANADO")), icono="✅", color="#10B981")
 
+    # ── Agregar prospecto manual ───────────────────────────────────────────────
+    with st.expander("➕ Agregar prospecto manualmente"):
+        with st.form("form_prospecto_manual"):
+            col1, col2 = st.columns(2)
+            razon_social = col1.text_input("Empresa *", placeholder="Ej: Mi Empresa SAS")
+            email        = col2.text_input("Correo electrónico *", placeholder="contacto@empresa.com")
+            col3, col4  = st.columns(2)
+            nombre_ctc   = col3.text_input("Nombre contacto", placeholder="Ej: María García")
+            telefono     = col4.text_input("Teléfono", placeholder="3001234567")
+            col5, col6, col7, col8 = st.columns(4)
+            ciudad       = col5.text_input("Ciudad", value="Bogotá D.C.")
+            sector       = col6.text_input("Sector", placeholder="Construcción")
+            num_emp      = col7.number_input("N° empleados", min_value=1, value=10)
+            nivel_riesgo = col8.selectbox("Riesgo ARL", ["I", "II", "III", "IV", "V"])
+            guardar      = st.form_submit_button("Guardar prospecto", type="primary")
+
+        if guardar:
+            if not razon_social or not email:
+                st.warning("Empresa y correo electrónico son obligatorios.")
+            else:
+                ok, msg = _registrar_prospecto_manual(
+                    razon_social, email, nombre_ctc, telefono,
+                    ciudad, sector, int(num_emp), nivel_riesgo,
+                )
+                if ok:
+                    st.success(f"✅ **{msg}** agregado al CRM. Ya puedes enviarle correo.")
+                    st.rerun()
+                else:
+                    st.error(f"Error: {msg}")
+
     if not datos:
-        st.info("📭 No hay prospectos registrados aún. Usa el **Motor de Prospección** para comenzar.")
+        st.info("📭 No hay prospectos registrados aún. Usa el **Motor de Prospección** o agrega uno manualmente arriba.")
         return
 
     # ── Ficha Centralizada ────────────────────────────────────────────────────
