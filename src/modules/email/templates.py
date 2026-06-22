@@ -232,77 +232,70 @@ _BLOQUE_SERVICIOS = """\
 # ── Firma (siempre al final de todo correo) ───────────────────────────────────
 
 _BLOQUE_FIRMA = """\
-<p style="margin:20px 0 4px;font-size:13px;color:#444;">
+<p style="margin:24px 0 4px;font-size:13px;color:#444;">
   Cordialmente,<br>
   <strong>{{ nombre_asesora }}</strong><br>
   <span style="color:#6B7280;font-size:12px;">{{ empresa_remitente }}</span>
 </p>"""
 
-# ── Intros de respaldo (se usan si Gemini no responde) ────────────────────────
+# ── Separador visual entre intro y servicios ─────────────────────────────────
 
-_FALLBACK_PRIMER_CONTACTO = """\
-<p style="margin:0 0 14px;font-size:14px;color:#1B3A6B;font-weight:bold;">
-  ¿Sabe cuánto puede costarle a {{ razon_social }} no tener el SG-SST al día?
-</p>
-<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.7;">
-  El Decreto 472 de 2015 establece multas de hasta <strong>500 SMMLV</strong> para empresas
-  que incumplan la Resolución 0312 de 2019. Con <strong>{{ num_empleados }} trabajadores</strong>
-  y riesgo ARL Clase <strong>{{ nivel_riesgo }}</strong>, a {{ razon_social }} le aplican
+_SEPARADOR = '<hr style="border:none;border-top:2px solid #EEF2F9;margin:24px 0;">'
+
+# ── Párrafo legal fijo (personalizado con variables de plantilla) ─────────────
+
+_PARRAFO_LEGAL = """\
+<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+  Como empresa del sector <strong>{{ sector_economico or "su sector" }}</strong>
+  con <strong>{{ num_empleados }} trabajadores</strong> y riesgo ARL Clase
+  <strong>{{ nivel_riesgo }}</strong>, a <strong>{{ razon_social }}</strong> le aplican
   exactamente <strong>{{ num_estandares }} estándares mínimos</strong>
-  ({{ articulo_resolucion }}) — y una visita del Ministerio del Trabajo puede llegar en cualquier momento.
-</p>
-<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.7;">
+  ({{ articulo_resolucion }} — Res. 0312/2019). El Decreto 472 de 2015 establece multas
+  de hasta <strong>500 SMMLV</strong> por incumplimiento, y el Ministerio del Trabajo
+  no anuncia sus visitas de inspección con anticipación.
+</p>"""
+
+_PARRAFO_CTA_PRIMER = """\
+<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
   Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
-  y ayudamos a empresas en {{ ciudad }} a cumplir estos requisitos de forma rápida y sin complicaciones.
-  ¿Le gustaría que revisáramos juntos el estado actual del SG-SST de {{ razon_social }}?
+  y ayudamos a empresas en <strong>{{ ciudad }}</strong> a implementar el SG-SST de forma
+  rápida, sin complicaciones y con acompañamiento continuo.
+  ¿Le gustaría revisar el estado actual de {{ razon_social }} en una llamada de 15 minutos?
 </p>"""
 
-_FALLBACK_RECORDATORIO = """\
-<p style="margin:0 0 14px;font-size:14px;color:#1B3A6B;font-weight:bold;">
-  {{ razon_social }}: el reloj corre y el Ministerio del Trabajo no avisa.
-</p>
-<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  Hace unos días les escribí sobre los <strong>{{ num_estandares }} estándares mínimos</strong>
-  que deben cumplir según el {{ articulo_resolucion }} de la Res. 0312/2019.
-  Las multas por incumplimiento (Decreto 472/2015) van desde <strong>20 hasta 500 SMMLV</strong>
-  — y se aplican desde la primera visita de inspección, sin previo aviso.
-</p>
-<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  En <strong>{{ empresa_remitente }}</strong> podemos implementar su SG-SST en tiempo récord.
-  ¿Cuándo sería un buen momento para hablar 15 minutos?
+_PARRAFO_CTA_RECORDATORIO = """\
+<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+  En <strong>{{ empresa_remitente }}</strong> ya hemos ayudado a varias empresas en
+  {{ ciudad }} a cumplir estos {{ num_estandares }} estándares en tiempo récord.
+  ¿Cuándo sería un buen momento para hablar 15 minutos esta semana?
 </p>"""
 
-_FALLBACK_SEGUIMIENTO = """\
-<p style="margin:0 0 6px;font-size:14px;color:#333;">
-  Hola <strong>{{ nombre_contacto }}</strong>,
+_PARRAFO_SEGUIMIENTO_COTIZACION = """\
+<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+  Hace unos días les enviamos una propuesta para <strong>{{ razon_social }}</strong>
+  relacionada con el SG-SST ({{ articulo_resolucion }} — {{ num_estandares }} estándares,
+  Riesgo {{ nivel_riesgo }}).
+  {% if valor_cotizacion %}
+  <br><strong>Inversión del proyecto:</strong>
+  $ {{ "{:,.0f}".format(valor_cotizacion).replace(",",".") }} COP
+  {% if fecha_vencimiento_cotizacion %}
+  &nbsp;·&nbsp; <strong>Válida hasta:</strong> {{ fecha_vencimiento_cotizacion }}
+  {% endif %}
+  {% endif %}
 </p>
-<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  Te escribo de nuevo porque quiero asegurarme de que {{ razon_social }} esté cubierta
-  antes de cualquier visita del Ministerio del Trabajo.
-  Con {{ num_empleados }} trabajadores y riesgo Clase {{ nivel_riesgo }},
-  les aplican <strong>{{ num_estandares }} estándares mínimos</strong> — y el incumplimiento
-  puede costar hasta <strong>500 SMMLV</strong> (Decreto 472/2015).
-</p>
-{% if valor_cotizacion %}
-<table width="100%" cellpadding="0" cellspacing="0"
-       style="background:#EEF2F9;border-left:4px solid #E65C00;border-radius:4px;margin:18px 0;">
-  <tr><td style="padding:14px 18px;">
-    <p style="margin:0;font-size:13px;color:#222;">
-      <strong>Inversión total del proyecto:</strong>
-      $ {{ "{:,.0f}".format(valor_cotizacion).replace(",",".") }} COP
-      {% if fecha_vencimiento_cotizacion %}
-      &nbsp;·&nbsp; <strong>Válida hasta:</strong> {{ fecha_vencimiento_cotizacion }}
-      {% endif %}
-    </p>
-  </td></tr>
-</table>
-{% endif %}
-<p style="margin:12px 0;font-size:13px;color:#444;line-height:1.6;">
-  ¿Tiene alguna duda sobre el alcance o las condiciones? Podemos ajustar la propuesta.
+<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+  ¿Tiene alguna duda sobre el alcance o la forma de pago? Podemos ajustar la propuesta.
   Son solo 15 minutos de llamada.
 </p>"""
 
-_ASUNTOS_TPL = _ASUNTOS
+# ── Ganchos de respaldo por tipo (texto plano, Gemini los reemplaza) ──────────
+
+_GANCHO_FALLBACK = {
+    "PRIMER_CONTACTO":          "¿Sabe cuánto puede costarle a {razon_social} no tener el SG-SST al día?",
+    "RECORDATORIO_VENCIMIENTO": "{razon_social}: el Ministerio del Trabajo no avisa antes de inspeccionar.",
+    "SEGUIMIENTO_COTIZACION":   "Quiero asegurarme de que {razon_social} esté protegida antes de la próxima inspección.",
+}
+
 _jinja = Environment(undefined=StrictUndefined, autoescape=False)
 
 
@@ -313,9 +306,8 @@ class EmailTemplateEngine:
     def renderizar(self, tipo: str, ctx: EmailContext) -> tuple[str, str]:
         """
         Retorna (asunto, html_body).
-        Intenta generar el intro con Gemini para que cada correo sea único.
-        Si Gemini no responde, usa el texto de respaldo.
-        Los servicios, botones y firma siempre son estáticos.
+        Estructura siempre: Saludo + Gancho + Párrafo legal + CTA + [Servicios] + Firma
+        Gemini solo genera el gancho (1 oración). El resto es fijo y personalizado.
         """
         if tipo not in _ASUNTOS:
             raise ValueError(
@@ -325,9 +317,9 @@ class EmailTemplateEngine:
         data = ctx.__dict__
         asunto = _jinja.from_string(_ASUNTOS[tipo]).render(**data)
 
-        # Intentar intro única con Gemini
+        # Gemini genera SOLO el gancho (1 oración, texto plano)
         from .ai_generator import generar_cuerpo_ia
-        intro_ia = generar_cuerpo_ia(
+        gancho_texto = generar_cuerpo_ia(
             tipo=tipo,
             razon_social=ctx.razon_social,
             nombre_contacto=ctx.nombre_contacto,
@@ -342,26 +334,61 @@ class EmailTemplateEngine:
             nombre_asesora=ctx.nombre_asesora,
         )
 
+        # Fallback si Gemini no responde
+        if not gancho_texto:
+            gancho_texto = _GANCHO_FALLBACK.get(tipo, "").format(
+                razon_social=ctx.razon_social
+            )
+
+        # Envolver gancho en <p> con estilo destacado (nosotros controlamos el HTML)
+        gancho_html = (
+            f'<p style="margin:0 0 4px;font-size:14px;color:#1B3A6B;'
+            f'font-weight:bold;line-height:1.6;">{gancho_texto}</p>'
+        )
+
+        # Saludo personalizado
+        if ctx.nombre_contacto and ctx.nombre_contacto not in ("Gerente", ""):
+            saludo_html = (
+                f'<p style="margin:0 0 16px;font-size:13px;color:#444;">'
+                f'Hola <strong>{ctx.nombre_contacto}</strong>,</p>'
+            )
+        else:
+            saludo_html = (
+                f'<p style="margin:0 0 16px;font-size:13px;color:#444;">'
+                f'Buen día, equipo de <strong>{ctx.razon_social}</strong>,</p>'
+            )
+
         firma = _jinja.from_string(_BLOQUE_FIRMA).render(**data)
 
-        saludo = _jinja.from_string(
-            "<p style='margin:0 0 16px;font-size:13px;color:#444;'>"
-            "Hola{% if nombre_contacto and nombre_contacto != 'Gerente' %}"
-            " <strong>{{ nombre_contacto }}</strong>{% endif %}, "
-            "buen día.</p>"
-        ).render(**data)
-
         if tipo == "PRIMER_CONTACTO":
-            intro = intro_ia or _jinja.from_string(_FALLBACK_PRIMER_CONTACTO).render(**data)
-            body_rendered = saludo + intro + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data) + firma
+            body_rendered = (
+                saludo_html
+                + gancho_html
+                + _jinja.from_string(_PARRAFO_LEGAL).render(**data)
+                + _jinja.from_string(_PARRAFO_CTA_PRIMER).render(**data)
+                + _SEPARADOR
+                + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data)
+                + firma
+            )
 
         elif tipo == "RECORDATORIO_VENCIMIENTO":
-            intro = intro_ia or _jinja.from_string(_FALLBACK_RECORDATORIO).render(**data)
-            body_rendered = saludo + intro + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data) + firma
+            body_rendered = (
+                saludo_html
+                + gancho_html
+                + _jinja.from_string(_PARRAFO_LEGAL).render(**data)
+                + _jinja.from_string(_PARRAFO_CTA_RECORDATORIO).render(**data)
+                + _SEPARADOR
+                + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data)
+                + firma
+            )
 
         else:  # SEGUIMIENTO_COTIZACION
-            intro = intro_ia or _jinja.from_string(_FALLBACK_SEGUIMIENTO).render(**data)
-            body_rendered = saludo + intro + firma
+            body_rendered = (
+                saludo_html
+                + gancho_html
+                + _jinja.from_string(_PARRAFO_SEGUIMIENTO_COTIZACION).render(**data)
+                + firma
+            )
 
         html = _jinja.from_string(_BASE_HTML).render(
             body=body_rendered,

@@ -28,44 +28,23 @@ _DOLORES_SECTOR: dict[str, str] = {
 _PROMPTS: dict[str, str] = {
 
     "PRIMER_CONTACTO": """\
-Eres {nombre_asesora}, asesora SST de {empresa_remitente} (Colombia).
-Escribe 2 párrafos HTML cortos para un correo a {razon_social} ({sector}, {ciudad}).
-Datos: {num_empleados} empleados, Riesgo ARL Clase {nivel_riesgo}, \
-{num_estandares} estándares ({articulo_resolucion} Res. 0312/2019).
+Escribe UNA sola oración de apertura impactante para un correo a una empresa del sector {sector} en {ciudad}.
+La frase debe despertar curiosidad o generar urgencia. Puede ser una pregunta o un dato sorprendente.
+NO empieces con "Estimado", "Hola", "Buenos días" ni el nombre de la empresa.
+Ejemplos de tono: "¿Sabe cuántas empresas de {sector} reciben multas del Mintrabajo sin saberlo?"
 Riesgo real del sector: {dolor}.
-
-Párrafo 1 — GANCHO: una sola oración que sorprenda. Puede ser una pregunta retórica \
-o un dato concreto sobre el riesgo de {sector}. NO empieces con "Estimado" ni el nombre de la empresa.
-Párrafo 2 — CONTEXTO + CTA: 2-3 oraciones. Menciona los {num_estandares} estándares, \
-el riesgo de multa (Decreto 472/2015), y termina preguntando si pueden hablar 15 minutos.
-Preséntate como {nombre_asesora} de {empresa_remitente} en este párrafo.
-
-Reglas: máx 90 palabras. Tono directo y humano. Solo etiquetas <p> y <strong>. \
-Sin lista de servicios ni datos de contacto.""",
+Solo escribe la oración. Sin HTML. Sin introducción. Sin explicación.""",
 
     "SEGUIMIENTO_COTIZACION": """\
-Eres {nombre_asesora}, asesora SST de {empresa_remitente} (Colombia).
-Escribe 2 párrafos HTML para seguimiento a {razon_social} ({sector}, Riesgo {nivel_riesgo}).
-
-Párrafo 1: menciona naturalmente que ya les escribiste antes. \
-Conecta con el riesgo real: {dolor}.
-Párrafo 2: ofrece resolver una duda específica. Pregunta si tienen 15 minutos esta semana.
-
-Máx 70 palabras. Solo <p> y <strong>. Sin firma ni lista de servicios.""",
+Escribe UNA sola oración natural de seguimiento para {razon_social} en sector {sector}.
+La frase debe mencionar que ya les escribiste antes y conectar con su riesgo: {dolor}.
+Tono: humano y cercano. Sin presión. Sin HTML. Solo la oración.""",
 
     "RECORDATORIO_VENCIMIENTO": """\
-Eres {nombre_asesora}, asesora SST de {empresa_remitente} (Colombia).
-Escribe 2 párrafos HTML de urgencia para {razon_social} ({sector}, Riesgo {nivel_riesgo}, \
-{num_estandares} estándares Res. 0312/2019).
+Escribe UNA sola oración de urgencia para una empresa de {sector} que aún no ha implementado su SG-SST.
+Menciona algo concreto que puede pasarles (inspección, accidente, multa Decreto 472/2015).
 Riesgo del sector: {dolor}.
-
-Párrafo 1: un riesgo concreto que puede ocurrirle a {razon_social} sin el SG-SST al día \
-(multa Decreto 472/2015, inspección, accidente).
-Párrafo 2: ofrece ayudarles a cumplir los {num_estandares} estándares. \
-Cierra con una pregunta directa de cierre.
-
-Máx 80 palabras. Ángulo diferente al primer correo. Solo <p> y <strong>. \
-Sin lista de servicios.""",
+Tono directo. Sin HTML. Solo la oración. Ángulo diferente a "¿está preparado?".""",
 }
 
 
