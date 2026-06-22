@@ -237,13 +237,20 @@ _BLOQUE_FIRMA = """\
     <table cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px;max-width:100%;font-family:'Segoe UI',Arial,sans-serif;color:#333333;line-height:1.5;font-size:11.5px;margin:0 auto;text-align:center;">
       <tr>
         <td align="center" style="text-align:center;padding-bottom:14px;">
-          <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39850a6087e3835cdb05da.jpg"
-               alt="Medina SST Empresarial SAS" width="200" border="0"
-               style="display:inline-block;max-width:200px;height:auto;">
-          &nbsp;&nbsp;&nbsp;
-          <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39851c1858e71a8dd7b1f8.jpg"
-               alt="Compecer" width="140" border="0"
-               style="display:inline-block;max-width:140px;height:auto;vertical-align:middle;">
+          <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;display:inline-table;">
+            <tr>
+              <td align="center" valign="middle" style="padding:0 12px;">
+                <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39850a6087e3835cdb05da.jpg"
+                     alt="Medina SST Empresarial SAS" width="180" height="61" border="0"
+                     style="display:block;width:180px;height:61px;object-fit:contain;">
+              </td>
+              <td align="center" valign="middle" style="padding:0 12px;border-left:1px solid #dddddd;">
+                <img src="https://img.mailinblue.com/11508805/images/content_library/original/6a39851c1858e71a8dd7b1f8.jpg"
+                     alt="Compecer" width="130" height="44" border="0"
+                     style="display:block;width:130px;height:44px;object-fit:contain;">
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
       <tr>
