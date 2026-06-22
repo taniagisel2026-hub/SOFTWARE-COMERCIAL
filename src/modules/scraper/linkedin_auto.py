@@ -161,47 +161,59 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             pagina = 1
             max_pag = min(self._max_paginas, max_resultados // 10 + 1)
 
+            # JS que extrae directamente los links de empresa visibles en la página
+            _JS_EXTRAER = """
+            () => {
+                const seen = new Set();
+                const results = [];
+                document.querySelectorAll('a[href*="/company/"]').forEach(a => {
+                    const href = a.href.split('?')[0].replace(/\\/+$/, '');
+                    if (!href || seen.has(href)) return;
+                    // Ignorar links de navegación (barra superior, etc.)
+                    if (href.endsWith('/company') || href.includes('/company/people')
+                        || href.includes('/company/jobs') || href.includes('/company/posts')) return;
+
+                    // Buscar el nombre: span[aria-hidden=true] más cercano, o texto del link
+                    let name = '';
+                    const span = a.querySelector('span[aria-hidden="true"]');
+                    if (span) name = span.textContent.trim();
+                    if (!name) name = a.textContent.trim().split('\\n')[0].trim();
+                    if (!name || name.length < 2) return;
+                    if (['LinkedIn', 'Ver perfil', 'Seguir', 'Follow'].includes(name)) return;
+
+                    seen.add(href);
+                    results.push({ href, name });
+                });
+                return results;
+            }
+            """
+
             while pagina <= max_pag and len(empresas_raw) < max_resultados:
                 time.sleep(self._delay)
 
-                # Esperar a que carguen los resultados
+                # Esperar a que aparezca al menos un link de empresa
                 try:
-                    page.wait_for_selector("a[href*='/company/']", timeout=8_000)
+                    page.wait_for_selector("a[href*='/company/']", timeout=10_000)
+                    time.sleep(1.5)
                 except Exception:
-                    pass
-
-                # Selectores en orden de preferencia
-                cards = page.locator("li.reusable-search__result-container").all()
-                if not cards:
-                    cards = page.locator("li[class*='reusable-search']").all()
-                if not cards:
-                    cards = page.locator("li[class*='result']").all()
-                if not cards:
-                    # Fallback: cualquier li que contenga un link a /company/
-                    cards = [
-                        lnk.locator("xpath=ancestor::li[1]")
-                        for lnk in page.locator("a[href*='/company/']").all()
-                        if lnk.count() > 0
-                    ]
-                if not cards:
                     break
 
-                for card in cards:
+                # Extraer con JavaScript — no depende de clases CSS de LinkedIn
+                items: list[dict] = page.evaluate(_JS_EXTRAER) or []
+
+                nuevos = 0
+                for item in items:
                     if len(empresas_raw) >= max_resultados:
                         break
-                    try:
-                        nombre = self._extraer_nombre(card)
-                        if not nombre:
-                            continue
-                        link = self._extraer_link(card)
-                        num_emp = self._extraer_empleados(card)
-                        empresas_raw.append({
-                            "nombre": nombre,
-                            "link": link,
-                            "num_emp": num_emp,
-                        })
-                    except Exception:
-                        continue
+                    nombre = item.get("name", "").strip()
+                    link   = item.get("href", "").strip()
+                    if nombre and link and not any(e["link"] == link for e in empresas_raw):
+                        empresas_raw.append({"nombre": nombre, "link": link, "num_emp": 0})
+                        nuevos += 1
+                        print(f"  [{len(empresas_raw):02d}] {nombre}")
+
+                if not nuevos:
+                    break
 
                 # Siguiente página
                 try:
@@ -209,7 +221,6 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     if next_btn.is_visible(timeout=2000) and next_btn.is_enabled(timeout=2000):
                         next_btn.click()
                         pagina += 1
-                        time.sleep(self._delay)
                     else:
                         break
                 except Exception:
