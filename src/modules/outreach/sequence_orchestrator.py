@@ -1,13 +1,9 @@
 """
-SequenceOrchestrator — cadencia omnicanal Día 1 → Día 4 → Día 8.
+SequenceOrchestrator — cadencia por correo Día 1 → Día 4 → Día 8.
 
-  Día 1 : Email PRIMER_CONTACTO        (se dispara al incorporar el prospecto)
-  Día 4 : WhatsApp de seguimiento       (≥3 días desde Día 1, requiere teléfono)
-  Día 8 : Email RECORDATORIO_VENCIMIENTO (≥4 días desde Día 4 ó ≥7 desde Día 1)
-
-Si la empresa no tiene teléfono, Día 4 se omite y Día 8 se calcula desde Día 1.
-Apertura de email: al no disponer de webhooks, se usa el tiempo transcurrido como
-proxy de "interacción ficticia" — si pasaron ≥3 días, se presume recibido.
+  Día 1 : Email PRIMER_CONTACTO          (se dispara al incorporar el prospecto)
+  Día 4 : Email RECORDATORIO_VENCIMIENTO (≥3 días desde Día 1, requiere email)
+  Día 8 : Email ULTIMO_CONTACTO          (≥4 días desde Día 4, requiere email)
 
 Estado de la cadencia trazado en HISTORIAL_INTERACCIONES:
   tipo_interaccion = "SECUENCIA_CADENCIA"
@@ -17,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import or_
 
 from ...database.connection import get_session
 from ...database.models import EmpresaProspecto as EmpresaORM
@@ -30,7 +26,6 @@ from ...domain.entities import (
 from ..compliance.habeas_data import HabeasDataError, HabeasDataService
 from ..email.email_service import EmailService
 from ..email.rate_limiter import RateLimitExceededError
-from ..whatsapp.whatsapp_service import WhatsAppService
 
 # ── Tags de control de secuencia ────────────────────────────────────────────
 TAG_DIA_1 = "[SEQ:DIA_1]"
@@ -38,8 +33,7 @@ TAG_DIA_4 = "[SEQ:DIA_4]"
 TAG_DIA_8 = "[SEQ:DIA_8]"
 
 OFFSET_DIA_4 = 3   # días después del Día 1
-OFFSET_DIA_8 = 4   # días después del Día 4 (= Día 8 total)
-OFFSET_DIA_8_SIN_WA = 7  # días desde Día 1 si no hubo Día 4
+OFFSET_DIA_8 = 4   # días después del Día 4
 
 
 # ── Dataclasses de estado ────────────────────────────────────────────────────
@@ -58,18 +52,15 @@ class EstadoSecuencia:
     dia_1: PasoSecuencia = field(default_factory=lambda: PasoSecuencia(TAG_DIA_1, False))
     dia_4: PasoSecuencia = field(default_factory=lambda: PasoSecuencia(TAG_DIA_4, False))
     dia_8: PasoSecuencia = field(default_factory=lambda: PasoSecuencia(TAG_DIA_8, False))
-    tiene_telefono: bool = False
 
     @property
     def siguiente_paso(self) -> str:
         if not self.dia_1.enviado:
             return "DIA_1"
-        if not self.dia_4.enviado and self.tiene_telefono:
+        if not self.dia_4.enviado:
             return "DIA_4" if self._dias_desde(self.dia_1.fecha) >= OFFSET_DIA_4 else "EN_ESPERA"
         if not self.dia_8.enviado:
-            ref = self.dia_4.fecha if self.dia_4.enviado else self.dia_1.fecha
-            umbral = OFFSET_DIA_8 if self.dia_4.enviado else OFFSET_DIA_8_SIN_WA
-            return "DIA_8" if self._dias_desde(ref) >= umbral else "EN_ESPERA"
+            return "DIA_8" if self._dias_desde(self.dia_4.fecha) >= OFFSET_DIA_8 else "EN_ESPERA"
         return "COMPLETA"
 
     @property
@@ -97,22 +88,17 @@ class SequenceOrchestrator:
     def __init__(
         self,
         email_svc: Optional[EmailService] = None,
-        whatsapp_svc: Optional[WhatsAppService] = None,
         habeas_data: Optional[HabeasDataService] = None,
     ):
-        self._email     = email_svc or EmailService()
-        self._whatsapp  = whatsapp_svc or WhatsAppService()
-        self._habeas    = habeas_data or HabeasDataService()
+        self._email  = email_svc or EmailService()
+        self._habeas = habeas_data or HabeasDataService()
 
     # ── API pública ────────────────────────────────────────────────────────────
 
     def iniciar_secuencia(
         self, empresa: EmpresaDominio, creado_por: str = "Pipeline"
     ) -> ResultadoProcesamiento:
-        """
-        Dispara el Día 1 (email de presentación) y registra el inicio de la cadencia.
-        Llamado por ProspectionPipeline al incorporar un prospecto nuevo.
-        """
+        """Dispara el Día 1 (email de presentación) e inicia la cadencia."""
         try:
             self._habeas.verificar_opt_out(empresa.id_empresa)
             self._email.enviar(empresa, "PRIMER_CONTACTO", creado_por)
@@ -140,9 +126,7 @@ class SequenceOrchestrator:
     def verificar_y_avanzar(
         self, id_empresa: int, creado_por: str = "Scheduler"
     ) -> ResultadoProcesamiento:
-        """
-        Evalúa si corresponde disparar Día 4 o Día 8 para una empresa específica.
-        """
+        """Evalúa si corresponde disparar Día 4 o Día 8 para una empresa específica."""
         estado = self.obtener_estado(id_empresa)
         accion = estado.siguiente_paso
 
@@ -155,7 +139,7 @@ class SequenceOrchestrator:
         if accion == "COMPLETA":
             return ResultadoProcesamiento(
                 id_empresa=id_empresa, razon_social=estado.razon_social,
-                accion="COMPLETA", ok=True, mensaje="Secuencia omnicanal completada.",
+                accion="COMPLETA", ok=True, mensaje="Cadencia de correos completada.",
             )
         if accion == "DIA_4":
             return self._enviar_dia_4(id_empresa, estado.razon_social, creado_por)
@@ -172,7 +156,7 @@ class SequenceOrchestrator:
     ) -> list[ResultadoProcesamiento]:
         """
         Recorre todos los prospectos activos y avanza los que corresponda.
-        Diseñado para ejecución diaria (botón en GUI o cron job).
+        Diseñado para ejecución diaria (botón en GUI).
         """
         resultados: list[ResultadoProcesamiento] = []
 
@@ -233,7 +217,6 @@ class SequenceOrchestrator:
                 dia_1=PasoSecuencia(TAG_DIA_1, d1_ok, d1_fecha),
                 dia_4=PasoSecuencia(TAG_DIA_4, d4_ok, d4_fecha),
                 dia_8=PasoSecuencia(TAG_DIA_8, d8_ok, d8_fecha),
-                tiene_telefono=bool(empresa.telefono),
             )
 
     # ── Envíos de cadencia ────────────────────────────────────────────────────
@@ -245,16 +228,16 @@ class SequenceOrchestrator:
             empresa = self._cargar_dominio(id_empresa)
             razon_social = razon_social or empresa.razon_social
             self._habeas.verificar_opt_out(id_empresa)
-            self._whatsapp.enviar(empresa, creado_por)
+            self._email.enviar(empresa, "RECORDATORIO_VENCIMIENTO", creado_por)
             self._log_secuencia(
                 id_empresa, TAG_DIA_4,
-                "Día 4: WhatsApp de seguimiento enviado — apertura email asumida por tiempo transcurrido",
+                "Día 4: Email de seguimiento enviado",
                 creado_por,
             )
             return ResultadoProcesamiento(
                 id_empresa=id_empresa, razon_social=razon_social,
                 accion="DIA_4", ok=True,
-                mensaje=f"WhatsApp Día 4 enviado a {empresa.telefono}.",
+                mensaje=f"Email Día 4 enviado a {empresa.email_contacto}.",
             )
         except Exception as exc:
             return ResultadoProcesamiento(
@@ -269,16 +252,16 @@ class SequenceOrchestrator:
             empresa = self._cargar_dominio(id_empresa)
             razon_social = razon_social or empresa.razon_social
             self._habeas.verificar_opt_out(id_empresa)
-            self._email.enviar(empresa, "RECORDATORIO_VENCIMIENTO", creado_por)
+            self._email.enviar(empresa, "ULTIMO_CONTACTO", creado_por)
             self._log_secuencia(
                 id_empresa, TAG_DIA_8,
-                "Día 8: Email recordatorio de vencimiento enviado",
+                "Día 8: Email último seguimiento enviado",
                 creado_por,
             )
             return ResultadoProcesamiento(
                 id_empresa=id_empresa, razon_social=razon_social,
                 accion="DIA_8", ok=True,
-                mensaje=f"Email recordatorio Día 8 enviado a {empresa.email_contacto}.",
+                mensaje=f"Email último seguimiento Día 8 enviado a {empresa.email_contacto}.",
             )
         except Exception as exc:
             return ResultadoProcesamiento(
@@ -290,7 +273,7 @@ class SequenceOrchestrator:
 
     @staticmethod
     def _ids_candidatos_dia_4(session) -> list[int]:
-        """Empresas con DIA_1 enviado hace ≥3 días, sin DIA_4, con teléfono, sin opt-out."""
+        """Empresas con DIA_1 enviado hace ≥3 días, sin DIA_4, con email, sin opt-out."""
         corte = datetime.now() - timedelta(days=OFFSET_DIA_4)
 
         tiene_dia_1 = (
@@ -314,7 +297,7 @@ class SequenceOrchestrator:
             session.query(EmpresaORM.id_empresa)
             .filter(
                 EmpresaORM.opt_out == False,
-                EmpresaORM.telefono.isnot(None),
+                EmpresaORM.email_contacto.isnot(None),
                 EmpresaORM.id_empresa.in_(session.query(tiene_dia_1)),
                 EmpresaORM.id_empresa.notin_(session.query(tiene_dia_4)),
             )
@@ -324,38 +307,15 @@ class SequenceOrchestrator:
 
     @staticmethod
     def _ids_candidatos_dia_8(session) -> list[int]:
-        """
-        Empresas con DIA_4 enviado hace ≥4 días (ó DIA_1 hace ≥7 días sin DIA_4),
-        sin DIA_8, con email, sin opt-out.
-        """
+        """Empresas con DIA_4 enviado hace ≥4 días, sin DIA_8, con email, sin opt-out."""
         corte_d4 = datetime.now() - timedelta(days=OFFSET_DIA_8)
-        corte_d1_sin_wa = datetime.now() - timedelta(days=OFFSET_DIA_8_SIN_WA)
 
-        # Caso A: tienen DIA_4 y ya pasaron ≥4 días
         tiene_dia_4_listo = (
             session.query(HistorialInteracciones.id_empresa)
             .filter(
                 HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
                 HistorialInteracciones.notas_seguimiento.like(f"{TAG_DIA_4}%"),
                 HistorialInteracciones.fecha_interaccion <= corte_d4,
-            )
-            .subquery()
-        )
-        # Caso B: tienen DIA_1 hace ≥7 días y no tienen DIA_4 (sin teléfono)
-        tiene_dia_1_antiguo = (
-            session.query(HistorialInteracciones.id_empresa)
-            .filter(
-                HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
-                HistorialInteracciones.notas_seguimiento.like(f"{TAG_DIA_1}%"),
-                HistorialInteracciones.fecha_interaccion <= corte_d1_sin_wa,
-            )
-            .subquery()
-        )
-        tiene_dia_4_cualquiera = (
-            session.query(HistorialInteracciones.id_empresa)
-            .filter(
-                HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
-                HistorialInteracciones.notas_seguimiento.like(f"{TAG_DIA_4}%"),
             )
             .subquery()
         )
@@ -367,16 +327,12 @@ class SequenceOrchestrator:
             )
             .subquery()
         )
-        from sqlalchemy import or_
         rows = (
             session.query(EmpresaORM.id_empresa)
             .filter(
                 EmpresaORM.opt_out == False,
                 EmpresaORM.email_contacto.isnot(None),
-                or_(
-                    EmpresaORM.id_empresa.in_(session.query(tiene_dia_4_listo)),
-                    EmpresaORM.id_empresa.in_(session.query(tiene_dia_1_antiguo)),
-                ),
+                EmpresaORM.id_empresa.in_(session.query(tiene_dia_4_listo)),
                 EmpresaORM.id_empresa.notin_(session.query(tiene_dia_8)),
             )
             .all()
@@ -391,7 +347,7 @@ class SequenceOrchestrator:
             session.add(HistorialInteracciones(
                 id_empresa=id_empresa,
                 tipo_interaccion="SECUENCIA_CADENCIA",
-                canal="SISTEMA",
+                canal="EMAIL",
                 asunto=descripcion,
                 estado_respuesta="REGISTRADO",
                 fecha_interaccion=datetime.now(),

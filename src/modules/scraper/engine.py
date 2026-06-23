@@ -10,6 +10,7 @@ from .base import BaseScraperAdapter, ExtractionResult, ProspectoExtraido
 from .paginas_amarillas import PaginasAmarillasScraper
 from .linkedin_auto import LinkedInAutoScraper, LinkedInSinSesionError
 from .linkedin import LinkedInScraper
+from .google_maps import GoogleMapsScraper
 from .web_scraper import WebScraper
 
 
@@ -60,11 +61,8 @@ class ScraperEngineService:
         web_scraper: Optional[WebScraper] = None,
         enriquecer_emails: bool = True,
     ):
-        # Usa LinkedIn con sesión guardada si existe; si no, cae al scraper público
-        linkedin = LinkedInAutoScraper() if LinkedInAutoScraper.sesion_existe() else LinkedInScraper()
         self._adapters = adapters or [
-            PaginasAmarillasScraper(),
-            linkedin,
+            GoogleMapsScraper(),
         ]
         self._web = web_scraper or WebScraper()
         self._enriquecer_emails = enriquecer_emails

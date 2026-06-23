@@ -45,8 +45,8 @@ def render() -> None:
         )
 
         st.markdown("**Fuentes activas:**")
-        usar_gmaps = st.checkbox("📒 Páginas Amarillas Colombia",      value=True)
-        usar_li    = st.checkbox("🔗 LinkedIn (búsqueda pública)",    value=True)
+        usar_gmaps = st.checkbox("🗺️ Google Maps (búsqueda + fichas)",  value=True)
+        usar_li    = False
         usar_web   = st.checkbox("🌐 WebScraper (extracción emails)", value=True)
 
         st.divider()
@@ -59,8 +59,8 @@ def render() -> None:
             ),
         )
 
-        if not (usar_gmaps or usar_li or usar_web):
-            st.warning("Activa al menos una fuente de datos.")
+        if not usar_gmaps:
+            st.warning("Activa Google Maps para iniciar la extracción.")
 
         try:
             from playwright.sync_api import sync_playwright  # noqa: F401
@@ -97,7 +97,7 @@ def render() -> None:
             "🚀 Iniciar Extracción",
             type="primary",
             use_container_width=True,
-            disabled=not (usar_gmaps or usar_li or usar_web),
+            disabled=not usar_gmaps,
         )
 
     # ── Resultado / Log ───────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ def render() -> None:
         separador_seccion("Resultado de la sesión")
 
         if iniciar:
-            _ejecutar_pipeline(ciudad, sector, max_empresas, disparar_emails)
+            _ejecutar_pipeline(ciudad, sector, max_empresas, disparar_emails, usar_gmaps, usar_li, usar_web)
 
         # Mostrar último resultado almacenado en session_state
         if _CLAVE_RESULTADO in st.session_state:
@@ -114,7 +114,8 @@ def render() -> None:
             _mostrar_historial()
 
 
-def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_emails: bool) -> None:
+def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_emails: bool,
+                       usar_gmaps: bool = True, usar_li: bool = True, usar_web: bool = True) -> None:
     """
     Llama a ProspectionPipeline.ejecutar() con st.spinner().
     Almacena el resultado en session_state para persistencia entre reruns.
@@ -140,6 +141,9 @@ def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_e
                 sector=sector,
                 max_por_fuente=max_por_fuente,
                 disparar_emails=disparar_emails,
+                usar_gmaps=usar_gmaps,
+                usar_linkedin=usar_li,
+                usar_webscraper=usar_web,
             )
 
         # Serializar para session_state (solo primitivos)

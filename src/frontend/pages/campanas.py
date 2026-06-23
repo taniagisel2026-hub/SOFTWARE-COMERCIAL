@@ -25,7 +25,10 @@ def _cargar_prospectos() -> dict:
             rows = (
                 session.query(EmpresaProspecto)
                 .filter(EmpresaProspecto.opt_out == False)
-                .order_by(EmpresaProspecto.fecha_registro.desc())
+                .order_by(
+                    EmpresaProspecto.fecha_registro.desc(),
+                    EmpresaProspecto.id_empresa.desc(),
+                )
                 .all()
             )
             return {

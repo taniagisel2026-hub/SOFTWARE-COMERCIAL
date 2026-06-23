@@ -61,6 +61,12 @@ class CRMInjectorService:
         resultado = InyeccionLoteResult()
 
         for prospecto in prospectos:
+            # Omitir prospectos sin email — sin correo no se puede iniciar la cadencia
+            if not prospecto.email:
+                resultado.omitidas += 1
+                print(f"  [CRM] Omitido (sin email): {prospecto.razon_social[:50]}")
+                continue
+
             try:
                 id_empresa, fue_creado = self.inyectar(prospecto)
                 if fue_creado:

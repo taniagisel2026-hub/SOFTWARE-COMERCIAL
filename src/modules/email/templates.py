@@ -40,6 +40,7 @@ _ASUNTOS = {
     "PRIMER_CONTACTO":          "SG-SST para {{ razon_social }} – Cumplimiento Res. 0312/2019",
     "SEGUIMIENTO_COTIZACION":   "Re: Propuesta SG-SST {{ razon_social }} – ¿Tiene alguna pregunta?",
     "RECORDATORIO_VENCIMIENTO": "Seguimiento: Servicios SST y certificaciones ISO para {{ razon_social }}",
+    "ULTIMO_CONTACTO":          "Último mensaje: SG-SST para {{ razon_social }}",
 }
 
 # ── Estructura base del correo ────────────────────────────────────────────────
@@ -344,10 +345,19 @@ _PARRAFO_SEGUIMIENTO_COTIZACION = """\
 
 # ── Ganchos de respaldo por tipo (texto plano, Gemini los reemplaza) ──────────
 
+_PARRAFO_ULTIMO_CONTACTO = """\
+<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+  Este es nuestro último mensaje para no saturar su bandeja de entrada.
+  Si en algún momento <strong>{{ razon_social }}</strong> necesita apoyo con el SG-SST,
+  mediciones ambientales o certificaciones ISO, con gusto los atendemos.
+  Quedamos a su disposición.
+</p>"""
+
 _GANCHO_FALLBACK = {
     "PRIMER_CONTACTO":          "¿Sabe cuánto puede costarle a {razon_social} no tener el SG-SST al día?",
     "RECORDATORIO_VENCIMIENTO": "{razon_social}: el Ministerio del Trabajo no avisa antes de inspeccionar.",
     "SEGUIMIENTO_COTIZACION":   "Quiero asegurarme de que {razon_social} esté protegida antes de la próxima inspección.",
+    "ULTIMO_CONTACTO":          "Este es nuestro último contacto — quedamos atentos si {razon_social} necesita apoyo en SST.",
 }
 
 _jinja = Environment(undefined=StrictUndefined, autoescape=False)
@@ -431,6 +441,16 @@ class EmailTemplateEngine:
                 + gancho_html
                 + _jinja.from_string(_PARRAFO_LEGAL).render(**data)
                 + _jinja.from_string(_PARRAFO_CTA_RECORDATORIO).render(**data)
+                + _SEPARADOR
+                + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data)
+                + firma
+            )
+
+        elif tipo == "ULTIMO_CONTACTO":
+            body_rendered = (
+                saludo_html
+                + gancho_html
+                + _jinja.from_string(_PARRAFO_ULTIMO_CONTACTO).render(**data)
                 + _SEPARADOR
                 + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data)
                 + firma

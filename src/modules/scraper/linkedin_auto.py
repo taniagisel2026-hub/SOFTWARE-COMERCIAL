@@ -3,6 +3,7 @@ LinkedInAutoScraper — usa sesión guardada, extrae datos completos de empresas
 Para crear sesión: python scrape_linkedin_auto.py --solo-login
 """
 import json
+import random
 import re
 import time
 from pathlib import Path
@@ -75,51 +76,55 @@ class LinkedInAutoScraper(BaseScraperAdapter):
 
     _JS_LISTA = r"""
     () => {
-        const COLOMBIA = """ + str(_PALABRAS_COLOMBIA).replace("'", '"') + r""";
         const seen = new Set();
         const results = [];
 
-        // Iterar sobre cada <li> de resultado (no sobre <a> directamente)
-        document.querySelectorAll('li').forEach(li => {
-            // Buscar primer link a /company/ dentro de este li
-            const a = li.querySelector('a[href*="/company/"]');
-            if (!a) return;
-
+        // Buscar directamente todos los <a href*="/company/"> sin depender de <li>
+        document.querySelectorAll('a[href*="/company/"]').forEach(a => {
             const href = a.href.split('?')[0].replace(/\/+$/, '');
             if (!href || seen.has(href)) return;
-            // Ignorar sub-páginas
+            // Ignorar sub-páginas y páginas genéricas
             if (/\/company\/(people|jobs|posts|videos|about|services|life)\b/.test(href)) return;
             if (/\/company\/?$/.test(href)) return;
 
-            // ── Nombre: buscar en heading (h3/h4) dentro del li ──────────
+            // ── Nombre: intentar varias fuentes ──────────────────────────
             let name = '';
-            const heading = li.querySelector('h3, h4, [role="heading"]');
-            if (heading) {
-                // Tomar solo el span con aria-hidden="true" o el primer span
-                const sp = heading.querySelector('span[aria-hidden="true"]');
-                name = sp ? sp.textContent.trim() : heading.textContent.trim();
-                // Cortar en primera nueva línea
-                name = name.split('\n')[0].trim();
+
+            // 1. aria-label del propio link
+            name = (a.getAttribute('aria-label') || '').trim();
+            name = name.replace(/^(Ver página de empresa para|View company page for)\s*/i, '');
+
+            // 2. Heading más cercano (h3/h4) subiendo por el DOM
+            if (!name || name.length < 2) {
+                let el = a.parentElement;
+                for (let i = 0; i < 8 && el; i++) {
+                    const h = el.querySelector('h1,h2,h3,h4,[role="heading"]');
+                    if (h) {
+                        const sp = h.querySelector('span[aria-hidden="true"]') || h;
+                        name = (sp.textContent || '').trim().split('\n')[0].trim();
+                        break;
+                    }
+                    el = el.parentElement;
+                }
             }
 
-            // Si no hay heading, usar aria-label del link
-            if (!name) name = (a.getAttribute('aria-label') || '').trim();
-            // Limpiar prefijos de accesibilidad
-            name = name.replace(/^(Ver página de empresa para|View company page for)\s*/i, '');
-            // Cortar en "Seguir" / separadores
+            // 3. Texto del propio link como fallback
+            if (!name || name.length < 2) {
+                name = (a.textContent || '').trim().split('\n')[0].trim();
+            }
+
+            // Limpiar nombre
             name = name.replace(/\s*(Seguir|Follow|Ver perfil|View profile)[\s\S]*$/i, '').trim();
-            // Eliminar trailing separadores
             name = name.replace(/[\s·\-–|,]+$/, '').trim();
 
             if (!name || name.length < 2) return;
-            if (['LinkedIn','Ver perfil','Seguir','Follow','Inicio'].includes(name)) return;
-
-            // ── Detectar si es Colombia ───────────────────────────────────
-            const cardText = li.textContent || '';
-            const esColombia = COLOMBIA.some(c => cardText.includes(c));
+            // Filtrar nombres falsos que LinkedIn pone cuando detecta bots
+            const invalidos = ['LinkedIn','Ver perfil','Seguir','Follow','Inicio','Home',
+                'Opciones de publicidad','Advertising options','Publicidad','Ad options'];
+            if (invalidos.some(v => name.toLowerCase().includes(v.toLowerCase()))) return;
 
             seen.add(href);
-            results.push({ href, name, esColombia });
+            results.push({ href, name });
         });
         return results;
     }
@@ -249,13 +254,15 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             # ── Paso 1: Buscar ──────────────────────────────────────────────
             search_url = (
                 "https://www.linkedin.com/search/results/companies/"
-                f"?keywords={quote(keyword + ' Colombia')}&origin=GLOBAL_SEARCH_HEADER"
+                f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
             )
             page.goto(search_url, wait_until="domcontentloaded", timeout=20_000)
             time.sleep(3)
 
             # ── Paso 2: Aplicar filtro de ciudad ────────────────────────────
-            self._aplicar_filtro_ciudad(page, ciudad)
+            # Simplificar el nombre: "Bogotá D.C." → "Bogotá", "Medellín" → "Medellín"
+            ciudad_busqueda = ciudad.split(" D.C.")[0].split(",")[0].strip()
+            self._aplicar_filtro_ciudad(page, ciudad_busqueda)
 
             # ── Paso 3: Recolectar links de empresas (hasta 10 páginas) ─────
             empresas_raw: list[dict] = []
@@ -264,7 +271,8 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             for pagina in range(1, max_pag + 1):
                 print(f"  Página {pagina}...")
                 try:
-                    page.wait_for_selector("li a[href*='/company/']", timeout=10_000)
+                    # Sin 'li' — LinkedIn puede usar div u otros contenedores
+                    page.wait_for_selector("a[href*='/company/']", timeout=12_000)
                     time.sleep(1.5)
                 except Exception:
                     print(f"  No cargaron resultados en página {pagina}.")
@@ -277,11 +285,7 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                         break
                     nombre = item.get("name", "").strip()
                     link   = item.get("href", "").strip()
-                    es_colombia = item.get("esColombia", True)
 
-                    if not es_colombia:
-                        print(f"    [omitir - no es Colombia] {nombre}")
-                        continue
                     if not nombre or not link:
                         continue
                     if any(e["link"] == link for e in empresas_raw):
@@ -330,23 +334,41 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             print(f"  Total empresas encontradas: {len(empresas_raw)}")
 
             # ── Paso 4: Visitar Acerca de y extraer web, tel, empleados ─────
+            # Límite de seguridad: máximo 50 empresas por sesión para no activar el sistema de LinkedIn
+            MAX_DIARIO = 50
+            if len(empresas_raw) > MAX_DIARIO:
+                print(f"  [Seguridad] Limitando a {MAX_DIARIO} empresas (tenía {len(empresas_raw)}) para proteger la cuenta")
+                empresas_raw = empresas_raw[:MAX_DIARIO]
+
             for i, emp in enumerate(empresas_raw):
                 web, telefono, empleados = "", "", 0
                 about_url = emp["link"].rstrip("/") + "/about/"
+
+                # Pausa larga cada 20 empresas para imitar comportamiento humano
+                if i > 0 and i % 20 == 0:
+                    pausa = 90 + (i * 2)  # 90s en empresa 20, 130s en empresa 40
+                    print(f"  [Seguridad] Pausa de {pausa}s después de {i} empresas...")
+                    time.sleep(pausa)
+
                 try:
                     page.goto(about_url, wait_until="domcontentloaded", timeout=15_000)
-                    # Esperar que cargue el contenido real (LinkedIn es SPA)
+
+                    # Detectar si LinkedIn pidió verificación — parar inmediatamente
+                    url_actual = page.url.lower()
+                    if "checkpoint" in url_actual or "challenge" in url_actual or "authwall" in url_actual:
+                        print(f"  ⛔ LinkedIn solicitó verificación en empresa {i+1}. Deteniendo para proteger la cuenta.")
+                        break
+
                     try:
                         page.wait_for_selector("section, main", timeout=5_000)
                     except Exception:
                         pass
-                    time.sleep(2)
+                    time.sleep(random.uniform(3, 7))  # delay humano entre páginas
 
                     data = page.evaluate(self._JS_ABOUT) or {}
                     web       = data.get("web", "") or ""
                     telefono  = data.get("telefono", "") or ""
                     empleados = int(data.get("empleados", 0) or 0)
-                    # Ciudad real según LinkedIn (puede diferir de la ciudad buscada)
                     ciudad_real = data.get("ciudad", "").strip() or ciudad
                     depto_real  = _CIUDAD_DEPARTAMENTO.get(ciudad_real.lower(), depto)
 
@@ -386,99 +408,176 @@ class LinkedInAutoScraper(BaseScraperAdapter):
     @staticmethod
     def _aplicar_filtro_ciudad(page, ciudad: str) -> None:
         """
-        Clic en el botón 'Ubicaciones' (dropdown directo en la barra de filtros),
-        escribe la ciudad, selecciona la primera sugerencia de Colombia y confirma.
+        Clic en 'Ubicaciones' → escribe la ciudad → primera sugerencia → Mostrar resultados.
+        Guarda capturas de pantalla en debug_li_*.png para diagnóstico visual.
         """
+        _DBG = _ROOT / "debug_li_{}.png"
+
+        def snap(nombre: str):
+            try:
+                page.screenshot(path=str(_DBG).format(nombre))
+                print(f"  [filtro ciudad] 📸 debug_li_{nombre}.png guardada")
+            except Exception:
+                pass
+
         try:
             time.sleep(2)
+            snap("1_antes_ubicaciones")
 
-            # Clic en el botón "Ubicaciones" de la barra de filtros
-            abierto = False
-            for txt in ["Ubicaciones", "Locations"]:
-                try:
-                    btn = page.locator(f"button:has-text('{txt}')").first
-                    if btn.is_visible(timeout=4000):
-                        btn.click()
-                        time.sleep(2)
-                        abierto = True
-                        break
-                except Exception:
-                    pass
+            # 1. Clic en botón Ubicaciones — busca en buttons y divs con role=button
+            res_btn = page.evaluate("""() => {
+                const todos = Array.from(document.querySelectorAll(
+                    'button, [role="button"], [role="tab"]'
+                ));
+                const btn = todos.find(b => {
+                    const t = (b.innerText || b.textContent || b.getAttribute('aria-label') || '')
+                               .toLowerCase();
+                    return t.includes('ubicaci') || t.includes('location');
+                });
+                if (btn) {
+                    btn.scrollIntoView({block:'center'});
+                    btn.click();
+                    return 'OK:' + (btn.innerText || btn.getAttribute('aria-label') || '').trim().slice(0,50);
+                }
+                const etiquetas = todos.slice(0,25).map(b =>
+                    (b.innerText || b.getAttribute('aria-label') || '').trim().slice(0,20)
+                );
+                return 'FAIL:' + etiquetas.join(' | ');
+            }""")
+            print(f"  [filtro ciudad] Ubicaciones: {res_btn}")
 
-            if not abierto:
-                print("  [filtro ciudad] No se encontró botón Ubicaciones")
+            if "FAIL" in res_btn:
+                snap("1b_ubicaciones_fallo")
                 return
 
-            # El input aparece dentro del dropdown
-            loc_input = None
-            for sel in [
-                "input[placeholder*='iudad']",
-                "input[placeholder*='ubica']",
-                "input[placeholder*='ocation']",
-                "input[placeholder*='Agrega']",
-                "input[placeholder*='Add']",
-                "input[aria-label*='ubica']",
-                "input[aria-label*='ocation']",
-                # Fallback genérico: cualquier input visible en el dropdown abierto
-                "div[data-view-name*='search-filter'] input",
-                "div[id*='filter'] input",
-            ]:
-                try:
-                    inp = page.locator(sel).first
-                    if inp.is_visible(timeout=1500):
-                        loc_input = inp
-                        break
-                except Exception:
-                    pass
-
-            if loc_input is None:
-                print("  [filtro ciudad] No se encontró input de ubicación")
-                return
-
-            # Escribir letra a letra para activar el autocompletado
-            loc_input.click()
-            time.sleep(0.5)
-            loc_input.press_sequentially(ciudad, delay=80)
             time.sleep(2.5)
+            snap("2_dropdown_abierto")
 
-            # Seleccionar sugerencia que diga "Colombia"
-            seleccionado = False
-            for sel in ["[role='option']", "div[role='listbox'] li", "li[role='option']"]:
-                try:
-                    opciones = page.locator(sel).all()
-                    if not opciones:
-                        continue
-                    for op in opciones[:6]:
-                        txt = op.text_content() or ""
-                        if "Colombia" in txt:
-                            op.click()
-                            seleccionado = True
-                            time.sleep(1.5)
-                            break
-                    if seleccionado:
-                        break
-                    # Si ninguna dice Colombia, elegir la primera
-                    if opciones:
-                        opciones[0].click()
-                        time.sleep(1.5)
-                        seleccionado = True
-                        break
-                except Exception:
-                    pass
+            # 2. Encontrar y enfocar el input del dropdown
+            res_inp = page.evaluate("""() => {
+                const inputs = Array.from(document.querySelectorAll('input')).filter(i => {
+                    const r = i.getBoundingClientRect();
+                    return r.width > 0 && r.height > 0;
+                });
+                // Excluir barra de búsqueda principal (type=search o en el nav)
+                const inp = inputs.find(i => {
+                    const ph = (i.placeholder || '').toLowerCase();
+                    const ar = (i.getAttribute('aria-label') || '').toLowerCase();
+                    const tp = (i.type || '').toLowerCase();
+                    if (tp === 'search') return false;
+                    return ph.includes('ciudad') || ph.includes('ubica') || ph.includes('location')
+                        || ph.includes('agrega') || ph.includes('add')
+                        || ar.includes('ciudad') || ar.includes('ubica') || ar.includes('location');
+                }) || inputs.find(i => i.type !== 'search');
+                if (inp) {
+                    inp.focus();
+                    return 'OK:ph=' + inp.placeholder + '|tp=' + inp.type + '|ar=' + (inp.getAttribute('aria-label')||'');
+                }
+                return 'FAIL:inputs=' + inputs.map(i => 'ph='+i.placeholder+'|tp='+i.type).join(', ');
+            }""")
+            print(f"  [filtro ciudad] Input: {res_inp}")
 
-            # Clic en "Mostrar resultados"
-            for txt in ["Mostrar resultados", "Show results", "Aplicar", "Apply"]:
-                try:
-                    ok = page.locator(f"button:has-text('{txt}')").first
-                    if ok.is_visible(timeout=2000):
-                        ok.click()
-                        time.sleep(3)
-                        print(f"  [filtro ciudad] ✅ {ciudad} aplicado")
-                        return
-                except Exception:
-                    pass
+            if not res_inp.startswith("OK"):
+                snap("2b_input_no_encontrado")
+                return
 
-            print(f"  [filtro ciudad] No se encontró 'Mostrar resultados'")
+            # 3. Escribir ciudad
+            time.sleep(0.3)
+            page.keyboard.type(ciudad, delay=100)
+            print(f"  [filtro ciudad] Escribió '{ciudad}' — esperando sugerencias...")
+            time.sleep(3)
+            snap("3_sugerencias")
+
+            # 4. Clic en primera sugerencia que tenga texto (espera activa)
+            res_sug = "FAIL: sin sugerencias"
+            for intento in range(3):
+                res_sug = page.evaluate("""() => {
+                    const sels = ['[role="option"]','li[role="option"]','div[role="option"]',
+                                  '[role="listbox"] li','[role="listbox"] div'];
+                    for (const s of sels) {
+                        const items = Array.from(document.querySelectorAll(s));
+                        // Solo considerar elementos con texto visible
+                        const con_texto = items.filter(i => (i.innerText || '').trim().length > 0);
+                        if (con_texto.length > 0) {
+                            con_texto[0].click();
+                            return 'OK:' + con_texto[0].innerText.trim().slice(0,50);
+                        }
+                    }
+                    return 'FAIL: sin sugerencias con texto';
+                }""")
+                print(f"  [filtro ciudad] Sugerencia (intento {intento+1}): {res_sug}")
+                if res_sug.startswith("OK"):
+                    break
+                time.sleep(1.5)
+            time.sleep(2.5)
+            snap("4_sugerencia_seleccionada")
+
+            # 5. Mostrar resultados — buscar junto a "Restablecer" (siempre aparece como par)
+            time.sleep(2)
+            snap("5_antes_mostrar")
+
+            res_show = page.evaluate("""() => {
+                // Buscar "Restablecer" — su hermano en el mismo contenedor ES "Mostrar resultados"
+                const todos = Array.from(document.querySelectorAll('*'));
+                const restablecer = todos.find(el => {
+                    const t = (el.innerText || el.textContent || '').trim().toLowerCase();
+                    return (t === 'restablecer' || t === 'reset') && el.children.length === 0;
+                });
+
+                if (restablecer) {
+                    // Subir hasta encontrar el contenedor que tiene ambos botones
+                    let contenedor = restablecer.parentElement;
+                    for (let i = 0; i < 5 && contenedor; i++) {
+                        const hijos = Array.from(contenedor.querySelectorAll(
+                            'button, a, [role="button"], div[tabindex]'
+                        )).filter(h => {
+                            const t = (h.innerText || h.textContent || '').trim().toLowerCase();
+                            return t.length > 0 && !t.includes('restablecer') && !t.includes('reset');
+                        });
+                        if (hijos.length > 0) {
+                            // Preferir el que tenga texto tipo "mostrar" o tenga número
+                            const preferido = hijos.find(h => {
+                                const t = (h.innerText || '').toLowerCase();
+                                return t.includes('mostrar') || t.includes('show') || /\d/.test(t);
+                            }) || hijos[hijos.length - 1];
+                            preferido.click();
+                            return 'OK-restablecer-sibling:' + (preferido.innerText || '').trim().slice(0, 50);
+                        }
+                        contenedor = contenedor.parentElement;
+                    }
+                    return 'FAIL-no-sibling: Restablecer encontrado pero sin hermano';
+                }
+
+                // Si no hay "Restablecer", buscar cualquier elemento con texto de acción
+                const accion = todos.find(el => {
+                    const t = (el.innerText || el.textContent || '').trim().toLowerCase();
+                    const r = el.getBoundingClientRect();
+                    return r.width > 50 && r.height > 20 && t.length < 60 && (
+                        t.includes('mostrar') || t.includes('show result') ||
+                        t.includes('aplicar') || t.includes('apply') || t.includes('done')
+                    );
+                });
+                if (accion) { accion.click(); return 'OK-accion:' + (accion.innerText||'').trim().slice(0,50); }
+
+                return 'FAIL-sin-restablecer';
+            }""")
+            print(f"  [filtro ciudad] Mostrar resultados: {res_show}")
+
+            if res_show.startswith("OK"):
+                time.sleep(3)
+                snap("5_filtro_aplicado")
+                print(f"  [filtro ciudad] ✅ {ciudad} aplicado")
+            else:
+                # NO presionar Escape — cerrar con clic fuera del dropdown
+                print(f"  [filtro ciudad] ⚠ No encontró botón. Cerrando con clic externo...")
+                page.mouse.click(640, 200)
+                time.sleep(2)
+                snap("5_clic_externo")
+                print(f"  [filtro ciudad] Continuando sin confirmar filtro")
 
         except Exception as e:
             print(f"  [filtro ciudad] ERROR: {e}")
+            try:
+                snap("error")
+            except Exception:
+                pass

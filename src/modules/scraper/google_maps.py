@@ -1,9 +1,14 @@
 """
 GoogleMapsScraper — extrae datos públicos de empresas desde Google Maps.
 
-Modo real  : requiere `playwright install chromium` (ver requirements.txt)
-Modo mock  : activo automáticamente si Playwright no está instalado;
-             genera datos representativos de empresas colombianas para pruebas.
+Estrategias implementadas (según análisis del equipo):
+  1. Google Search → URLs de Maps (más estable que el feed visual)
+  2. Ficha individual → datos completos por empresa
+  3. Selectores múltiples → resistente a cambios de interfaz de Google
+  4. Detección automática de CAPTCHA → mensajes claros, no "0 empresas"
+  5. Comportamiento humano → delays aleatorios, scroll gradual
+
+Modo mock: activo automáticamente si Playwright no está instalado.
 """
 import random
 import time
@@ -11,13 +16,114 @@ from urllib.parse import quote
 
 from .base import BaseScraperAdapter, ProspectoExtraido, _normalizar_texto
 
-# Selectores CSS de Google Maps — basados en atributos estables (ARIA y URL)
-_SEL_FEED = "div[role='feed']"
-_SEL_CARD = "a[href*='/maps/place/']"   # estable: basado en URL del lugar
-_SEL_PHONE = "button[data-item-id^='phone']"
-_SEL_WEB = "a[data-item-id='authority']"
+# ── Variaciones de búsqueda por sector ───────────────────────────────────────
+# Términos que usan las empresas colombianas que necesitan SG-SST (Res. 0312/2019)
+_VARIACIONES_SECTOR: dict[str, list[str]] = {
+    "Construcción": [
+        "constructora", "obras civiles", "ingeniería civil", "empresa constructora",
+        "contratista de obras", "edificaciones", "infraestructura", "obra negra",
+        "acabados de construcción", "interventoría de obras",
+    ],
+    "Manufactura / Industria": [
+        "fábrica", "planta industrial", "industria manufacturera", "taller industrial",
+        "metalmecánica", "ensamblaje", "planta de producción", "manufactura",
+        "empresa industrial", "taller metalmecánico",
+    ],
+    "Transporte y Logística": [
+        "empresa de transporte", "transportadora", "logística", "flota de camiones",
+        "empresa de carga", "mensajería y paquetería", "operador logístico",
+        "transporte de mercancías", "courier", "empresa de mudanzas",
+    ],
+    "Comercio y Retail": [
+        "distribuidora", "almacén mayorista", "empresa comercial", "bodega comercial",
+        "importadora", "exportadora", "comercializadora", "mayorista",
+        "tienda por departamentos", "supermercado",
+    ],
+    "Servicios Empresariales": [
+        "empresa de servicios", "outsourcing", "servicios corporativos", "consultoría empresarial",
+        "call center", "empresa de aseo y mantenimiento", "servicios generales",
+        "empresa de limpieza", "vigilancia y aseo", "facilities",
+    ],
+    "Salud y Clínicas": [
+        "clínica", "hospital", "centro médico", "IPS", "laboratorio clínico",
+        "consultorio médico", "centro de diagnóstico", "clínica odontológica",
+        "centro de rehabilitación", "hogar geriátrico",
+    ],
+    "Educación": [
+        "colegio", "instituto", "universidad", "centro de formación", "academia",
+        "jardín infantil", "escuela", "centro educativo", "SENA",
+        "instituto técnico", "politécnico",
+    ],
+    "Agricultura y Ganadería": [
+        "agroindustria", "finca agrícola", "empresa agropecuaria", "ganadería",
+        "cultivo", "hacienda ganadera", "avícola", "porcícola",
+        "empresa agrícola", "floricultura",
+    ],
+    "Minería y Energía": [
+        "empresa minera", "explotación minera", "empresa energética", "planta eléctrica",
+        "energía solar", "empresa petrolera", "carbón", "cantera",
+        "planta de gas", "empresa de energía",
+    ],
+    "Tecnología y Software": [
+        "empresa de tecnología", "desarrollo de software", "empresa TI",
+        "soluciones tecnológicas", "sistemas informáticos", "empresa de telecomunicaciones",
+        "data center", "soporte técnico empresarial", "empresa de ciberseguridad",
+        "integradora tecnológica",
+    ],
+    "Alimentos y Bebidas": [
+        "empresa de alimentos", "procesadora de alimentos", "planta de alimentos",
+        "empresa de bebidas", "panadería industrial", "lácteos",
+        "cárnica", "empresa de confitería", "planta de jugos", "catering industrial",
+    ],
+    "Seguridad Privada": [
+        "empresa de vigilancia", "seguridad privada", "vigilancia y seguridad",
+        "empresa de guardas", "seguridad electrónica", "monitoreo de alarmas",
+        "empresa de escoltas", "vigilancia industrial", "control de acceso",
+        "empresa de seguridad física",
+    ],
+}
 
-# Ciudades de Colombia con su departamento para enriquecer datos
+# ── Selectores con fallback múltiple (Estrategia 3) ──────────────────────────
+_SEL_FEED   = "div[role='feed']"
+_SEL_CARD   = "a[href*='/maps/place/']"
+
+# Teléfono — de más específico a más general
+_SELS_PHONE = [
+    "button[data-item-id^='phone']",
+    "a[href^='tel:']",
+    "[aria-label*='teléfono']",
+    "[aria-label*='Teléfono']",
+    "[aria-label*='phone']",
+    "[data-tooltip*='teléfono']",
+    "span[aria-label*='teléfono']",
+]
+
+# Sitio web — de más específico a más general
+_SELS_WEB = [
+    "a[data-item-id='authority']",
+    "a[href^='http'][aria-label*='sitio web']",
+    "a[href^='http'][aria-label*='web']",
+    "a[href^='http'][aria-label*='website']",
+    "button[data-item-id='authority']",
+]
+
+# Nombre del lugar en ficha individual
+_SELS_NOMBRE = [
+    "h1.DUwDvf",
+    "h1[class*='fontHeadlineLarge']",
+    "h1",
+    "[data-item-id='title']",
+    "[role='main'] h1",
+]
+
+# Señales de bloqueo / CAPTCHA (Estrategia 4)
+_CAPTCHA_SIGNALS = [
+    "captcha", "unusual traffic", "verify you are human",
+    "not a robot", "unusual activity", "google.com/sorry",
+    "nuestros sistemas han detectado",
+]
+
+# Mapa ciudad → departamento
 _CIUDAD_DEPARTAMENTO: dict[str, str] = {
     "bogotá": "Cundinamarca",    "bogota": "Cundinamarca",
     "medellín": "Antioquia",     "medellin": "Antioquia",
@@ -26,36 +132,25 @@ _CIUDAD_DEPARTAMENTO: dict[str, str] = {
     "bucaramanga": "Santander",
     "pereira": "Risaralda",
     "manizales": "Caldas",
-    "cúcuta": "Norte de Santander",   "cucuta": "Norte de Santander",
-    "ibagué": "Tolima",               "ibague": "Tolima",
+    "cúcuta": "Norte de Santander", "cucuta": "Norte de Santander",
+    "ibagué": "Tolima",             "ibague": "Tolima",
     "cartagena": "Bolívar",
     "santa marta": "Magdalena",
     "villavicencio": "Meta",
     "pasto": "Nariño",
 }
 
-# Datos mock representativos por sector para modo sin Playwright
 _MOCK_EMPRESAS: list[dict] = [
-    {"razon_social": "Constructora Andina SAS", "sector": "Construcción",
-     "telefono": "+57 601 555-0101", "direccion": "Cra 15 # 93-75"},
-    {"razon_social": "Logística Colombiana LTDA", "sector": "Transporte y Logística",
-     "telefono": "+57 601 555-0202", "direccion": "Av. Dorado # 69-76"},
-    {"razon_social": "Industrias Metálicas del Norte SAS", "sector": "Manufactura",
-     "telefono": "+57 601 555-0303", "direccion": "Zona Industrial Calle 13"},
-    {"razon_social": "Servicios de Ingeniería ABC", "sector": "Ingeniería",
-     "telefono": "+57 601 555-0404", "direccion": "Calle 80 # 69-76"},
-    {"razon_social": "Distribuidora de Alimentos XYZ LTDA", "sector": "Alimentos",
-     "telefono": "+57 601 555-0505", "direccion": "Calle 40 Sur # 50-20"},
-    {"razon_social": "Empresa de Seguridad Vigilar SAS", "sector": "Seguridad",
-     "telefono": "+57 601 555-0606", "direccion": "Carrera 7 # 32-29"},
-    {"razon_social": "Clínica Médica Integral", "sector": "Salud",
-     "telefono": "+57 601 555-0707", "direccion": "Av. 19 # 103-37"},
-    {"razon_social": "Taller Automotriz Torres e Hijos", "sector": "Manufactura",
-     "telefono": "+57 601 555-0808", "direccion": "Calle 6 # 30-12, Puente Aranda"},
-    {"razon_social": "Panadería Industrial La Cosecha", "sector": "Alimentos",
-     "telefono": "+57 601 555-0909", "direccion": "Transversal 93 # 52-56"},
-    {"razon_social": "Carpintería Artesanal del Llano SAS", "sector": "Manufactura",
-     "telefono": "+57 601 555-1010", "direccion": "Calle 24 # 42-11"},
+    {"razon_social": "Constructora Andina SAS",         "telefono": "+57 601 555-0101", "direccion": "Cra 15 # 93-75"},
+    {"razon_social": "Logística Colombiana LTDA",        "telefono": "+57 601 555-0202", "direccion": "Av. Dorado # 69-76"},
+    {"razon_social": "Industrias Metálicas del Norte",   "telefono": "+57 601 555-0303", "direccion": "Zona Industrial Calle 13"},
+    {"razon_social": "Servicios de Ingeniería ABC",      "telefono": "+57 601 555-0404", "direccion": "Calle 80 # 69-76"},
+    {"razon_social": "Distribuidora de Alimentos XYZ",   "telefono": "+57 601 555-0505", "direccion": "Calle 40 Sur # 50-20"},
+    {"razon_social": "Empresa de Seguridad Vigilar SAS", "telefono": "+57 601 555-0606", "direccion": "Carrera 7 # 32-29"},
+    {"razon_social": "Clínica Médica Integral",          "telefono": "+57 601 555-0707", "direccion": "Av. 19 # 103-37"},
+    {"razon_social": "Taller Automotriz Torres e Hijos", "telefono": "+57 601 555-0808", "direccion": "Calle 6 # 30-12"},
+    {"razon_social": "Panadería Industrial La Cosecha",  "telefono": "+57 601 555-0909", "direccion": "Transversal 93 # 52-56"},
+    {"razon_social": "Carpintería Artesanal del Llano",  "telefono": "+57 601 555-1010", "direccion": "Calle 24 # 42-11"},
 ]
 
 
@@ -63,7 +158,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
     SOURCE = "Google Maps"
 
-    def __init__(self, headless: bool = False, delay_min: float = 1.5, delay_max: float = 4.0):
+    def __init__(self, headless: bool = False, delay_min: float = 1.2, delay_max: float = 3.8):
         self._headless = headless
         self._delay_min = delay_min
         self._delay_max = delay_max
@@ -71,146 +166,337 @@ class GoogleMapsScraper(BaseScraperAdapter):
     def extraer(self, ciudad: str, sector: str, max_resultados: int = 30) -> list[ProspectoExtraido]:
         try:
             from playwright.sync_api import sync_playwright
-            return self._extraer_playwright(ciudad, sector, max_resultados)
         except ImportError:
-            print(f"  [GoogleMaps] Playwright no instalado → modo mock activo")
+            print("  [GoogleMaps] Playwright no instalado → modo mock activo")
             return self._extraer_mock(ciudad, sector, max_resultados)
 
-    # ── Implementación real con Playwright ────────────────────────────────────
-
-    def _extraer_playwright(self, ciudad: str, sector: str, max_resultados: int) -> list[ProspectoExtraido]:
-        from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
-
-        query = f"{sector} en {ciudad} Colombia"
-        url = f"https://www.google.com/maps/search/{quote(query)}"
-        prospectos: list[ProspectoExtraido] = []
+        terminos = [sector] + _VARIACIONES_SECTOR.get(sector, [])
+        todos: list[ProspectoExtraido] = []
+        vistos: set[str] = set()
+        por_termino = max(max_resultados // len(terminos), 8)
         depto = self._inferir_departamento(ciudad)
 
+        # Un solo Chrome para todas las variaciones — más eficiente y menos sospechoso
         with sync_playwright() as pw:
             browser = pw.chromium.launch(
                 headless=self._headless,
                 args=[
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--lang=es-CO",
+                    "--no-sandbox", "--disable-dev-shm-usage", "--lang=es-CO",
                     "--disable-blink-features=AutomationControlled",
-                    "--disable-infobars",
                     "--window-size=1280,800",
                 ],
             )
             ctx = browser.new_context(
                 user_agent=(
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
                 ),
                 viewport={"width": 1280, "height": 800},
                 locale="es-CO",
-                java_script_enabled=True,
             )
-            # Ocultar flag de automatización que Google detecta
             ctx.add_init_script(
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
             page = ctx.new_page()
 
-            try:
-                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+            for termino in terminos:
+                if len(todos) >= max_resultados:
+                    break
+                print(f"  [GoogleMaps] Buscando: '{termino}' en {ciudad}")
+                parcial = self._buscar_en_maps_directo(page, ciudad, termino, depto, por_termino)
+                nuevas = 0
+                for p in parcial:
+                    clave = p.razon_social.lower().strip()[:30]
+                    if clave not in vistos:
+                        vistos.add(clave)
+                        todos.append(p)
+                        nuevas += 1
+                print(f"    → {nuevas} nuevas (total: {len(todos)})")
+                if len(todos) >= max_resultados:
+                    break
+                # Pausa entre búsquedas para no levantar sospechas
+                time.sleep(random.uniform(3, 6))
 
-                # Aceptar cookies si aparece el aviso de Google
-                for btn_text in ["Aceptar todo", "Accept all", "Acepto"]:
-                    try:
-                        btn = page.get_by_text(btn_text, exact=True)
-                        if btn.is_visible(timeout=2000):
-                            btn.click()
-                            page.wait_for_timeout(1500)
-                            break
-                    except Exception:
-                        pass
+            browser.close()
 
-                # Esperar el feed — hasta 90 segundos por si aparece CAPTCHA que el usuario debe resolver
-                print(f"  [GoogleMaps] Esperando resultados... Si aparece CAPTCHA en el navegador, resuélvelo.")
-                try:
-                    page.wait_for_selector(_SEL_FEED, timeout=90_000)
-                except PWTimeout:
-                    print(f"  [GoogleMaps] Feed no encontrado tras 90s — CAPTCHA no resuelto o sin resultados")
-                    return prospectos
+        print(f"  [GoogleMaps] Total combinado: {len(todos)} empresas únicas")
+        return todos[:max_resultados]
 
-                # Scroll para cargar más resultados
-                scrolls = max(4, max_resultados // 6)
-                for _ in range(scrolls):
-                    page.evaluate(
-                        f"document.querySelector('{_SEL_FEED}')?.scrollBy(0, 800)"
-                    )
-                    self._delay()
 
-                cards = page.locator(_SEL_CARD).all()
-                print(f"  [GoogleMaps] {len(cards)} cards encontradas")
-                for card in cards[:max_resultados]:
-                    prospecto = self._extraer_card(card, ciudad, depto, sector)
-                    if prospecto:
-                        prospectos.append(prospecto)
+    # ── Estrategia 1: Google Search → URLs de Maps ────────────────────────────
 
-            except PWTimeout:
-                print(f"  [GoogleMaps] Timeout cargando {url}")
-            finally:
-                browser.close()
+    def _buscar_urls_google_search(self, page, sector: str, ciudad: str, max_resultados: int) -> list[str]:
+        """
+        Busca en Google con site:google.com/maps para obtener URLs directas.
+        Más estable que el feed de Maps porque los resultados de búsqueda cambian menos.
+        """
+        from playwright.sync_api import TimeoutError as PWTimeout
 
-        return prospectos
+        query = f"{sector} {ciudad} Colombia site:google.com/maps"
+        search_url = f"https://www.google.com/search?q={quote(query)}&num=20&hl=es"
 
-    def _extraer_card(self, card, ciudad: str, depto: str, sector: str):
         try:
-            # aria-label contiene el nombre del lugar — atributo de accesibilidad estable
-            nombre = (card.get_attribute("aria-label") or "").strip()
-            if not nombre:
-                # Fallback: primera línea del contenido de texto
-                texto = card.text_content(timeout=2000) or ""
-                nombre = texto.strip().split("\n")[0].strip()
+            page.goto(search_url, wait_until="domcontentloaded", timeout=25_000)
+            self._aceptar_cookies(page)
+            self._delay()
+
+            # Detectar bloqueo (Estrategia 4)
+            if self._detectar_bloqueo(page):
+                print("  [GoogleMaps] ⛔ Google detectó actividad inusual en Search. Intenta más tarde.")
+                return []
+
+            # Extraer URLs de Maps de los resultados
+            urls: list[str] = page.evaluate("""() => {
+                const links = Array.from(document.querySelectorAll('a[href*="google.com/maps"]'));
+                const urls = links
+                    .map(l => l.href)
+                    .filter(h => h.includes('/maps/place/'));
+                return [...new Set(urls)];
+            }""")
+
+            # También intentar segunda página si hay pocos resultados
+            if len(urls) < 5:
+                try:
+                    next_btn = page.locator("a[aria-label='Página siguiente'], a#pnnext").first
+                    if next_btn.count() > 0 and next_btn.is_visible(timeout=2000):
+                        next_btn.click()
+                        self._delay()
+                        urls2: list[str] = page.evaluate("""() => {
+                            const links = Array.from(document.querySelectorAll('a[href*="google.com/maps"]'));
+                            return [...new Set(links.map(l => l.href).filter(h => h.includes('/maps/place/')))];
+                        }""")
+                        urls = list(dict.fromkeys(urls + urls2))
+                except Exception:
+                    pass
+
+            return urls[:max_resultados]
+
+        except PWTimeout:
+            print("  [GoogleMaps] Timeout en Google Search")
+            return []
+        except Exception as e:
+            print(f"  [GoogleMaps] Error en Google Search: {e}")
+            return []
+
+    # ── Estrategia 2: ficha individual de Maps (por URL directa) ─────────────
+
+    def _extraer_ficha_individual(self, page, url: str, ciudad: str, depto: str, sector: str) -> ProspectoExtraido | None:
+        """
+        Visita la URL directa de un lugar en Maps.
+        Las fichas individuales son mucho más estables que el feed de resultados.
+        """
+        from playwright.sync_api import TimeoutError as PWTimeout
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            time.sleep(random.uniform(0.8, 1.8))
+
+            if self._detectar_bloqueo(page):
+                return None
+
+            # Nombre con múltiples selectores (Estrategia 3)
+            nombre = self._obtener_texto_con_fallback(page, _SELS_NOMBRE)
             if not nombre or len(nombre) < 3:
                 return None
-            # Limpiar: a veces el aria-label incluye dirección después de coma
-            nombre = nombre.split(",")[0].strip()
+
+            # Teléfono con múltiples selectores (Estrategia 3)
+            telefono = self._obtener_atributo_con_fallback(page, _SELS_PHONE, ["data-value", "href", "innerText"])
+            if telefono.startswith("tel:"):
+                telefono = telefono[4:]
+
+            # Sitio web con múltiples selectores (Estrategia 3)
+            web = self._obtener_atributo_con_fallback(page, _SELS_WEB, ["href"])
+            if "google.com" in web or "maps.google" in web:
+                web = ""
+
             return ProspectoExtraido(
                 razon_social=nombre,
                 ciudad=ciudad,
                 departamento=depto,
                 fuente=self.SOURCE,
                 sector_economico=sector,
-                confianza=0.75,
+                telefono=telefono,
+                sitio_web=web,
+                confianza=0.85,
             )
+        except PWTimeout:
+            return None
         except Exception:
             return None
 
-    # ── Enriquecimiento de detalle por empresa (clic en card) ─────────────────
+    # ── Estrategia 2B: feed directo de Maps (fallback) ────────────────────────
 
-    def enriquecer_detalle(self, page, prospecto: ProspectoExtraido) -> ProspectoExtraido:
-        """Enriquece un prospecto con teléfono y web desde la ficha de Maps."""
+    def _buscar_en_maps_directo(self, page, ciudad: str, sector: str, depto: str, max_resultados: int) -> list[ProspectoExtraido]:
+        """Búsqueda directa en Google Maps — más frágil pero funciona sin Google Search."""
+        from playwright.sync_api import TimeoutError as PWTimeout
+
+        query = f"{sector} en {ciudad} Colombia"
+        url = f"https://www.google.com/maps/search/{quote(query)}"
+        prospectos: list[ProspectoExtraido] = []
+
         try:
-            telefono_el = page.locator(_SEL_PHONE).first
-            if telefono_el.is_visible(timeout=2000):
-                prospecto.telefono = telefono_el.get_attribute("data-value") or ""
+            print(f"  [GoogleMaps] Abriendo: {url[:80]}")
+            page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+            print(f"  [GoogleMaps] URL actual: {page.url[:80]}")
+            self._aceptar_cookies(page)
+            time.sleep(2)
 
-            web_el = page.locator(_SEL_WEB).first
-            if web_el.is_visible(timeout=2000):
-                prospecto.sitio_web = web_el.get_attribute("href") or ""
+            # Detectar bloqueo (Estrategia 4)
+            if self._detectar_bloqueo(page):
+                print("  [GoogleMaps] ⛔ Google Maps solicitó verificación. Extracción detenida.")
+                return prospectos
+
+            print(f"  [GoogleMaps] Esperando feed div[role='feed']...")
+            try:
+                page.wait_for_selector(_SEL_FEED, timeout=30_000)
+                print(f"  [GoogleMaps] ✅ Feed encontrado")
+            except PWTimeout:
+                # Intentar selector alternativo
+                print(f"  [GoogleMaps] Feed principal no encontrado, probando alternativo...")
+                try:
+                    page.wait_for_selector("div[role='main']", timeout=10_000)
+                    print(f"  [GoogleMaps] ✅ div[role='main'] encontrado (Maps cargó diferente)")
+                except PWTimeout:
+                    print("  [GoogleMaps] ⛔ Maps no cargó ningún contenido en 30s")
+                    return prospectos
+
+            # Scroll gradual (Estrategia 5)
+            self._scroll_gradual(page, max_resultados)
+
+            # Intentar varios selectores de cards
+            cards = page.locator(_SEL_CARD).all()
+            print(f"  [GoogleMaps] Cards con selector '{_SEL_CARD}': {len(cards)}")
+            if not cards:
+                cards = page.locator("a[href*='maps/place']").all()
+                print(f"  [GoogleMaps] Cards alternativo: {len(cards)}")
+
+            for i, card in enumerate(cards[:max_resultados]):
+                nombre = (card.get_attribute("aria-label") or "").strip().split(",")[0].strip()
+                if not nombre or len(nombre) < 3:
+                    continue
+
+                p = ProspectoExtraido(
+                    razon_social=nombre,
+                    ciudad=ciudad,
+                    departamento=depto,
+                    fuente=self.SOURCE,
+                    sector_economico=sector,
+                    confianza=0.70,
+                )
+
+                # Enriquecer con clic en la ficha (Estrategia 2)
+                try:
+                    card.click(timeout=3000)
+                    time.sleep(random.uniform(1.0, 2.0))
+                    telefono = self._obtener_atributo_con_fallback(page, _SELS_PHONE, ["data-value", "href"])
+                    web = self._obtener_atributo_con_fallback(page, _SELS_WEB, ["href"])
+                    if telefono.startswith("tel:"):
+                        telefono = telefono[4:]
+                    if web and "google.com" not in web:
+                        p.sitio_web = web
+                    if telefono:
+                        p.telefono = telefono
+                    p.confianza = 0.80
+                except Exception:
+                    pass
+
+                prospectos.append(p)
+                print(f"    [{i+1:03d}] {nombre[:55]} | tel={p.telefono or '—'}")
+                self._delay()
+
+        except PWTimeout:
+            print("  [GoogleMaps] Timeout cargando Maps")
+
+        return prospectos
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _detectar_bloqueo(self, page) -> bool:
+        """Estrategia 4: detecta CAPTCHA o bloqueo real de Google."""
+        try:
+            url_actual = page.url.lower()
+            # Solo verificar URL — el HTML normal de Maps contiene "captcha" en su JS
+            if "google.com/sorry" in url_actual or "sorry/index" in url_actual:
+                return True
+            # Verificar si hay un iframe de reCAPTCHA visible (bloqueo real)
+            tiene_captcha = page.evaluate("""() => {
+                const iframes = Array.from(document.querySelectorAll('iframe'));
+                return iframes.some(f => (f.src || '').includes('recaptcha') ||
+                                        (f.src || '').includes('captcha'));
+            }""")
+            return bool(tiene_captcha)
         except Exception:
-            pass
-        return prospecto
+            return False
 
-    # ── Mock ──────────────────────────────────────────────────────────────────
+    def _aceptar_cookies(self, page) -> None:
+        for texto in ["Aceptar todo", "Accept all", "Acepto", "I agree"]:
+            try:
+                btn = page.get_by_text(texto, exact=True)
+                if btn.is_visible(timeout=2000):
+                    btn.click()
+                    page.wait_for_timeout(1000)
+                    break
+            except Exception:
+                pass
+
+    def _obtener_texto_con_fallback(self, page, selectores: list[str]) -> str:
+        """Estrategia 3: prueba cada selector hasta obtener texto."""
+        for sel in selectores:
+            try:
+                el = page.locator(sel).first
+                if el.count() > 0 and el.is_visible(timeout=1000):
+                    texto = (el.text_content(timeout=1000) or "").strip()
+                    if texto:
+                        return texto
+            except Exception:
+                pass
+        return ""
+
+    def _obtener_atributo_con_fallback(self, page, selectores: list[str], atributos: list[str]) -> str:
+        """Estrategia 3: prueba cada selector y atributo hasta obtener un valor."""
+        for sel in selectores:
+            try:
+                el = page.locator(sel).first
+                if el.count() > 0 and el.is_visible(timeout=1000):
+                    for attr in atributos:
+                        if attr == "innerText":
+                            valor = (el.text_content(timeout=500) or "").strip()
+                        else:
+                            valor = (el.get_attribute(attr) or "").strip()
+                        if valor:
+                            return valor
+            except Exception:
+                pass
+        return ""
+
+    def _scroll_gradual(self, page, max_resultados: int) -> None:
+        """Estrategia 5: scroll con pasos y tiempos aleatorios, imita comportamiento humano."""
+        pasos = max(4, max_resultados // 6)
+        for _ in range(pasos):
+            pixels = random.randint(400, 900)
+            # Comillas dobles en el selector para evitar conflicto con las simples de role='feed'
+            page.evaluate(f'document.querySelector("{_SEL_FEED}")?.scrollBy(0, {pixels})')
+            time.sleep(random.uniform(0.6, 1.8))
+
+    def _delay(self) -> None:
+        """Estrategia 5: pausa aleatoria entre acciones."""
+        time.sleep(random.uniform(self._delay_min, self._delay_max))
+
+    @staticmethod
+    def _inferir_departamento(ciudad: str) -> str:
+        return _CIUDAD_DEPARTAMENTO.get(_normalizar_texto(ciudad), "Colombia")
+
+    # ── Mock (sin Playwright) ─────────────────────────────────────────────────
 
     def _extraer_mock(self, ciudad: str, sector: str, max_resultados: int) -> list[ProspectoExtraido]:
         depto = self._inferir_departamento(ciudad)
-        seleccionados = random.sample(
-            _MOCK_EMPRESAS, min(max_resultados, len(_MOCK_EMPRESAS))
-        )
+        seleccionados = random.sample(_MOCK_EMPRESAS, min(max_resultados, len(_MOCK_EMPRESAS)))
         return [
             ProspectoExtraido(
                 razon_social=emp["razon_social"],
                 ciudad=ciudad,
                 departamento=depto,
                 fuente=self.SOURCE,
-                sector_economico=emp.get("sector", sector),
+                sector_economico=sector,
                 telefono=emp.get("telefono", ""),
                 direccion=emp.get("direccion", ""),
                 num_empleados=random.randint(5, 80),
@@ -218,12 +504,3 @@ class GoogleMapsScraper(BaseScraperAdapter):
             )
             for emp in seleccionados
         ]
-
-    # ── Utilidades ────────────────────────────────────────────────────────────
-
-    def _delay(self) -> None:
-        time.sleep(random.uniform(self._delay_min, self._delay_max))
-
-    @staticmethod
-    def _inferir_departamento(ciudad: str) -> str:
-        return _CIUDAD_DEPARTAMENTO.get(_normalizar_texto(ciudad), "Colombia")

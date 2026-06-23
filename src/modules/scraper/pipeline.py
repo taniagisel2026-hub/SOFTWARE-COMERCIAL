@@ -87,6 +87,9 @@ class ProspectionPipeline:
         max_por_fuente: int = 30,
         disparar_emails: bool = True,
         solo_nuevas: bool = True,
+        usar_gmaps: bool = True,
+        usar_linkedin: bool = True,
+        usar_webscraper: bool = True,
     ) -> PipelineResult:
         """
         Parámetros:
@@ -101,9 +104,28 @@ class ProspectionPipeline:
 
         print(f"\n[Pipeline] Iniciando: {ciudad} / {sector}")
 
+        # Reconstruir engine con solo los adaptadores seleccionados
+        from .engine import ScraperEngineService
+        from .google_maps import GoogleMapsScraper
+        from .linkedin_auto import LinkedInAutoScraper
+        from .linkedin import LinkedInScraper
+        from .web_scraper import WebScraper
+
+        adapters = []
+        if usar_gmaps:
+            adapters.append(GoogleMapsScraper())
+        if usar_linkedin:
+            li = LinkedInAutoScraper() if LinkedInAutoScraper.sesion_existe() else LinkedInScraper()
+            adapters.append(li)
+
+        engine = ScraperEngineService(
+            adapters=adapters,
+            enriquecer_emails=usar_webscraper,
+        )
+
         # ── Paso 1: Extracción ────────────────────────────────────────────────
         print("[Pipeline] Paso 1/3: Extracción de prospectos...")
-        engine_result: EngineResult = self._engine.extraer_ciudad(ciudad, sector, max_por_fuente)
+        engine_result: EngineResult = engine.extraer_ciudad(ciudad, sector, max_por_fuente)
         resultado.empresas_encontradas = engine_result.total
         print(engine_result.resumen())
 

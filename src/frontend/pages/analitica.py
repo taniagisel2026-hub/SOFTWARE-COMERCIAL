@@ -229,7 +229,6 @@ def render() -> None:
 def _render_pipeline() -> None:
     datos = _metricas_pipeline()
     correo = _metricas_correo()
-    wa = _metricas_whatsapp()
 
     if not datos["ok"]:
         st.error(f"Error: {datos.get('error')}")
@@ -245,10 +244,10 @@ def _render_pipeline() -> None:
     conv      = f"{ganados/total*100:.1f}%" if total else "0%"
 
     c1, c2, c3, c4 = st.columns(4)
-    with c1: tarjeta_kpi("Total Prospectos", str(total), icono="🏢", color="#1B3A6B")
+    with c1: tarjeta_kpi("Total Prospectos", str(total),               icono="🏢", color="#1B3A6B")
     with c2: tarjeta_kpi("Correos Enviados", str(correo.get("total", 0)), icono="📧", color="#7C3AED")
-    with c3: tarjeta_kpi("WhatsApp Enviados", str(wa.get("total", 0)), icono="💬", color="#10B981")
-    with c4: tarjeta_kpi("Tasa de Cierre", conv, icono="🏆", color="#E65C00")
+    with c3: tarjeta_kpi("Nuevos",           str(nuevos),              icono="🆕", color="#10B981")
+    with c4: tarjeta_kpi("Tasa de Cierre",   conv,                     icono="🏆", color="#E65C00")
 
     st.divider()
     separador_seccion("Conversión por etapa del embudo")
