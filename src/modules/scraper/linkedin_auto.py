@@ -129,7 +129,7 @@ class LinkedInAutoScraper(BaseScraperAdapter):
 
     _JS_ABOUT = r"""
     () => {
-        const data = { web: '', telefono: '', empleados: 0 };
+        const data = { web: '', telefono: '', empleados: 0, ciudad: '' };
 
         // Sitio web: primer link externo (no linkedin)
         for (const a of document.querySelectorAll('a[href^="http"]')) {
@@ -144,14 +144,13 @@ class LinkedInAutoScraper(BaseScraperAdapter):
         if (telLink) {
             data.telefono = telLink.href.replace('tel:', '').replace(/\s/g, '').trim();
         }
-        // Si no hay tel: link, buscar en texto
         if (!data.telefono) {
             const body = document.body.innerText || '';
             const m = body.match(/\(?\+?57[\s\-]?\d{3}[\s\-]?\d{3}[\s\-]?\d{4}|\b[36]\d{9}\b|\(\d{3}\)\s?\d{7}/);
             if (m) data.telefono = m[0].trim();
         }
 
-        // Empleados: patrón "X-Y empleados" o "X empleados"
+        // Empleados
         const bodyTxt = document.body.innerText || '';
         let m = bodyTxt.match(/(\d[\d.,]*)\s*[\-–]\s*(\d[\d.,]*)\s*empleados/i);
         if (m) {
@@ -159,6 +158,32 @@ class LinkedInAutoScraper(BaseScraperAdapter):
         } else {
             m = bodyTxt.match(/(\d[\d.,]+)\s*empleados/i);
             if (m) data.empleados = parseInt(m[1].replace(/[.,]/g, ''));
+        }
+
+        // Ciudad real: buscar sección "Sede principal" o "Headquarters"
+        const etiquetas = ['Sede principal','Headquarters','Ubicación','Location'];
+        const todos = Array.from(document.querySelectorAll('dt, h3, span, div, p'));
+        for (const el of todos) {
+            const txt = (el.textContent || '').trim();
+            if (etiquetas.some(e => txt === e)) {
+                // El valor está en el siguiente sibling o dentro del padre
+                const next = el.nextElementSibling;
+                if (next) { data.ciudad = next.textContent.trim().split(',')[0].trim(); break; }
+                const parent = el.parentElement;
+                if (parent) {
+                    const val = parent.textContent.replace(txt, '').trim().split(',')[0].trim();
+                    if (val) { data.ciudad = val; break; }
+                }
+            }
+        }
+        // Fallback: buscar ciudad colombiana en el texto visible
+        if (!data.ciudad) {
+            const ciudades = ['Bogotá','Medellín','Cali','Barranquilla','Bucaramanga',
+                'Pereira','Cartagena','Cúcuta','Ibagué','Villavicencio','Manizales',
+                'Pasto','Armenia','Neiva','Montería','Sincelejo','Valledupar','Popayán'];
+            for (const c of ciudades) {
+                if (bodyTxt.includes(c)) { data.ciudad = c; break; }
+            }
         }
 
         return data;
@@ -318,13 +343,20 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     time.sleep(2)
 
                     data = page.evaluate(self._JS_ABOUT) or {}
-                    web      = data.get("web", "") or ""
-                    telefono = data.get("telefono", "") or ""
+                    web       = data.get("web", "") or ""
+                    telefono  = data.get("telefono", "") or ""
                     empleados = int(data.get("empleados", 0) or 0)
+                    # Ciudad real según LinkedIn (puede diferir de la ciudad buscada)
+                    ciudad_real = data.get("ciudad", "").strip() or ciudad
+                    depto_real  = _CIUDAD_DEPARTAMENTO.get(ciudad_real.lower(), depto)
 
                     tag = "✅" if (web or telefono) else "·"
-                    print(f"    [{i+1:03d}] {emp['nombre'][:45]} {tag} web={bool(web)} tel={telefono or '—'}")
+                    print(f"    [{i+1:03d}] {emp['nombre'][:38]} | {ciudad_real} {tag} tel={telefono or '—'}")
                 except Exception as e:
+                    ciudad_real = ciudad
+                    depto_real  = depto
+                    web = telefono = ""
+                    empleados = 0
                     print(f"    [{i+1:03d}] {emp['nombre'][:45]} ERROR about: {e}")
 
                 # Solo agregar si tiene algún dato de contacto útil
@@ -334,8 +366,8 @@ class LinkedInAutoScraper(BaseScraperAdapter):
 
                 prospectos.append(ProspectoExtraido(
                     razon_social=emp["nombre"],
-                    ciudad=ciudad,
-                    departamento=depto,
+                    ciudad=ciudad_real,
+                    departamento=depto_real,
                     fuente=self.SOURCE,
                     sector_economico=sector,
                     sitio_web=web,
