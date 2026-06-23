@@ -81,13 +81,70 @@ class LinkedInSinSesionError(Exception):
 class LinkedInAutoScraper(BaseScraperAdapter):
     SOURCE = "LinkedIn"
 
-    def __init__(self, max_paginas: int = 5, delay: float = 2.0):
+    def __init__(self, max_paginas: int = 10, delay: float = 2.0):
         self._max_paginas = max_paginas
         self._delay = delay
 
     @staticmethod
     def sesion_existe() -> bool:
         return SESSION_FILE.exists()
+
+    # ── JS de extracción de tarjetas (lista de resultados) ────────────────────
+
+    _JS_LISTA = """
+    () => {
+        function limpiarNombre(raw) {
+            let s = raw.replace(/\\s*(Seguir|Follow|Ver perfil|View profile)[\\s\\S]*$/i, '').trim();
+            for (let k = 5; k <= Math.floor(s.length / 2); k++) {
+                if (s.substring(k, 2 * k) === s.substring(0, k)) { s = s.substring(0, k).trim(); break; }
+            }
+            return s.replace(/[·\\-\\u2013|]+$/, '').trim();
+        }
+        const seen = new Set();
+        const results = [];
+        document.querySelectorAll('a[href*="/company/"]').forEach(a => {
+            const href = a.href.split('?')[0].replace(/\\/+$/, '');
+            if (!href || seen.has(href)) return;
+            if (['/people','/jobs','/posts','/videos','/about','/services'].some(p => href.includes('/company' + p))) return;
+            if (href.match(/\\/company\\/?$/)) return;
+            let name = a.getAttribute('aria-label') || '';
+            if (!name) {
+                const spans = a.querySelectorAll('span[aria-hidden="true"]');
+                if (spans.length > 0) {
+                    const nodes = Array.from(spans[0].childNodes).filter(n => n.nodeType === 3).map(n => n.textContent.trim()).filter(t => t);
+                    name = nodes.length > 0 ? nodes[0] : spans[0].textContent.trim();
+                }
+            }
+            if (!name) name = (a.textContent || '').trim().split('\\n')[0].trim();
+            name = limpiarNombre(name);
+            if (!name || name.length < 2 || ['LinkedIn','Ver perfil','Seguir','Follow','Inicio'].includes(name)) return;
+            seen.add(href);
+            results.push({ href, name });
+        });
+        return results;
+    }
+    """
+
+    # ── JS de extracción de página "Acerca de" ────────────────────────────────
+
+    _JS_ABOUT = """
+    () => {
+        const data = { web: '', telefono: '', empleados: 0 };
+        // Sitio web: primer link externo
+        document.querySelectorAll('a[href^="http"]').forEach(a => {
+            if (!data.web && !a.href.includes('linkedin')) data.web = a.href.split('?')[0];
+        });
+        // Teléfono: link tel: o texto junto a etiqueta
+        const telLink = document.querySelector('a[href^="tel:"]');
+        if (telLink) data.telefono = telLink.href.replace('tel:','').trim();
+        // Empleados: buscar patrón "X-Y empleados" o "X empleados"
+        const bodyTxt = document.body.innerText || '';
+        let m = bodyTxt.match(/(\\d+)\\s*[\\-–]\\s*(\\d+)\\s*empleados/i);
+        if (m) data.empleados = parseInt(m[2]);
+        else { m = bodyTxt.match(/(\\d+)\\s*empleados/i); if (m) data.empleados = parseInt(m[1]); }
+        return data;
+    }
+    """
 
     def extraer(
         self,
@@ -107,13 +164,7 @@ class LinkedInAutoScraper(BaseScraperAdapter):
         ciudad_norm = ciudad.lower().strip()
         depto = _CIUDAD_DEPARTAMENTO.get(ciudad_norm, "Colombia")
         nivel_riesgo = estimar_nivel_riesgo(sector)
-
-        # Solo sector + "Colombia" como keyword — sin geo ID hardcodeado
         keyword = _SECTOR_KEYWORD.get(sector.lower().strip(), sector)
-        search_url = (
-            "https://www.linkedin.com/search/results/companies/"
-            f"?keywords={quote(keyword + ' Colombia')}&origin=GLOBAL_SEARCH_HEADER"
-        )
 
         prospectos: list[ProspectoExtraido] = []
 
@@ -123,10 +174,7 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             )
             ctx = browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                ),
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36",
                 viewport={"width": 1280, "height": 900},
                 locale="es-CO",
             )
@@ -143,7 +191,7 @@ class LinkedInAutoScraper(BaseScraperAdapter):
 
             page = ctx.new_page()
 
-            # Verificar que la sesión sigue activa
+            # Verificar sesión activa
             page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=20_000)
             time.sleep(2)
             if "login" in page.url or "authwall" in page.url:
@@ -153,90 +201,30 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     "Sesión expirada. Corre: python scrape_linkedin_auto.py --solo-login"
                 )
 
-            # Buscar empresas
+            # ── Paso 1: Buscar con keyword ──────────────────────────────────
+            search_url = (
+                "https://www.linkedin.com/search/results/companies/"
+                f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
+            )
             page.goto(search_url, wait_until="domcontentloaded", timeout=20_000)
             time.sleep(3)
 
+            # ── Paso 2: Aplicar filtro de ciudad ────────────────────────────
+            self._aplicar_filtro_ciudad(page, ciudad)
+
+            # ── Paso 3: Recolectar links de empresas (hasta 10 páginas) ─────
             empresas_raw: list[dict] = []
-            pagina = 1
-            max_pag = min(self._max_paginas, max_resultados // 10 + 1)
+            max_pag = min(10, max(1, max_resultados // 10 + 1))
 
-            # JS que extrae nombre limpio y empleados de las tarjetas de empresa
-            _JS_EXTRAER = """
-            () => {
-                function limpiarNombre(raw) {
-                    // Cortar en "Seguir", "Follow", salto de línea largo
-                    let s = raw.replace(/\\s*(Seguir|Follow|Ver perfil|View profile)[\\s\\S]*$/i, '').trim();
-                    // Detectar y eliminar texto duplicado: "Nombre Nombre..." → "Nombre"
-                    for (let k = 5; k <= Math.floor(s.length / 2); k++) {
-                        if (s.substring(k, 2 * k) === s.substring(0, k)) {
-                            s = s.substring(0, k).trim();
-                            break;
-                        }
-                    }
-                    // Quitar trailing separadores
-                    return s.replace(/[·\\-–|]+$/, '').trim();
-                }
-
-                function extraerEmpleados(card) {
-                    const txt = card.textContent || '';
-                    const m = txt.match(/(\\d[\\d.,]+)\\s*(empleados|seguidores|followers)/i);
-                    if (m) return parseInt(m[1].replace(/[.,]/g, ''));
-                    return 0;
-                }
-
-                const seen = new Set();
-                const results = [];
-
-                document.querySelectorAll('a[href*="/company/"]').forEach(a => {
-                    const href = a.href.split('?')[0].replace(/\\/+$/, '');
-                    if (!href || seen.has(href)) return;
-                    if (href.endsWith('/company') || href.includes('/company/people')
-                        || href.includes('/company/jobs') || href.includes('/company/posts')
-                        || href.includes('/company/about') || href.includes('/company/posts')) return;
-
-                    // Nombre: aria-label del link si existe, si no → primer span aria-hidden
-                    let name = a.getAttribute('aria-label') || '';
-                    if (!name) {
-                        const spans = a.querySelectorAll('span[aria-hidden="true"]');
-                        if (spans.length > 0) {
-                            // Tomar solo texto directo del primer span
-                            const nodes = Array.from(spans[0].childNodes)
-                                .filter(n => n.nodeType === 3)
-                                .map(n => n.textContent.trim())
-                                .filter(t => t.length > 0);
-                            name = nodes.length > 0 ? nodes[0] : spans[0].textContent.trim();
-                        }
-                    }
-                    if (!name) name = a.textContent.trim().split('\\n')[0].trim();
-                    name = limpiarNombre(name);
-                    if (!name || name.length < 2) return;
-                    if (['LinkedIn', 'Ver perfil', 'Seguir', 'Follow', 'Inicio'].includes(name)) return;
-
-                    // Empleados: buscar en el li padre
-                    const li = a.closest('li') || a.parentElement;
-                    const numEmp = extraerEmpleados(li);
-
-                    seen.add(href);
-                    results.push({ href, name, numEmp });
-                });
-                return results;
-            }
-            """
-
-            while pagina <= max_pag and len(empresas_raw) < max_resultados:
-                time.sleep(self._delay)
-
-                # Esperar a que aparezca al menos un link de empresa
+            for pagina in range(1, max_pag + 1):
+                print(f"  Página {pagina}...")
                 try:
                     page.wait_for_selector("a[href*='/company/']", timeout=10_000)
                     time.sleep(1.5)
                 except Exception:
                     break
 
-                # Extraer con JavaScript — no depende de clases CSS de LinkedIn
-                items: list[dict] = page.evaluate(_JS_EXTRAER) or []
-
+                items: list[dict] = page.evaluate(self._JS_LISTA) or []
                 nuevos = 0
                 for item in items:
                     if len(empresas_raw) >= max_resultados:
@@ -244,47 +232,45 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     nombre = item.get("name", "").strip()
                     link   = item.get("href", "").strip()
                     if nombre and link and not any(e["link"] == link for e in empresas_raw):
-                        empresas_raw.append({
-                            "nombre": nombre,
-                            "link": link,
-                            "num_emp": item.get("numEmp", 0),
-                        })
+                        empresas_raw.append({"nombre": nombre, "link": link})
                         nuevos += 1
-                        print(f"  [{len(empresas_raw):02d}] {nombre}")
+                        print(f"    [{len(empresas_raw):03d}] {nombre}")
 
-                if not nuevos:
+                if len(empresas_raw) >= max_resultados:
                     break
 
                 # Siguiente página
-                try:
-                    next_btn = page.locator("button[aria-label='Siguiente']").first
-                    if next_btn.is_visible(timeout=2000) and next_btn.is_enabled(timeout=2000):
-                        next_btn.click()
-                        pagina += 1
-                    else:
-                        break
-                except Exception:
-                    break
-
-            # Obtener sitio web de cada empresa
-            for emp in empresas_raw:
-                sitio_web = ""
-                if emp["link"]:
+                avanzado = False
+                for sel in ["button[aria-label='Siguiente']", "button[aria-label='Next']"]:
                     try:
-                        about_url = emp["link"].rstrip("/") + "/about/"
-                        page.goto(about_url, wait_until="domcontentloaded", timeout=12_000)
-                        time.sleep(1.5)
-                        links = page.locator("a[href^='http']").all()
-                        for lnk in links:
-                            try:
-                                href = lnk.get_attribute("href") or ""
-                                if href.startswith("http") and "linkedin" not in href:
-                                    sitio_web = href.split("?")[0]
-                                    break
-                            except Exception:
-                                pass
+                        btn = page.locator(sel).first
+                        if btn.is_visible(timeout=2000) and btn.is_enabled(timeout=1000):
+                            btn.click()
+                            time.sleep(2.5)
+                            avanzado = True
+                            break
                     except Exception:
                         pass
+                if not avanzado or not nuevos:
+                    break
+
+            print(f"  Total empresas encontradas: {len(empresas_raw)}")
+
+            # ── Paso 4: Visitar Acerca de de cada empresa ───────────────────
+            for i, emp in enumerate(empresas_raw):
+                web, telefono, empleados = "", "", 0
+                about_url = emp["link"].rstrip("/") + "/about/"
+                try:
+                    page.goto(about_url, wait_until="domcontentloaded", timeout=15_000)
+                    time.sleep(1.8)
+                    data = page.evaluate(self._JS_ABOUT) or {}
+                    web      = data.get("web", "")
+                    telefono = data.get("telefono", "")
+                    empleados = data.get("empleados", 0) or 0
+                    tag = f"{'✉️' if web else '·'}"
+                    print(f"    [{i+1:03d}] {emp['nombre'][:40]} {tag} tel={telefono or '—'} emp={empleados or '—'}")
+                except Exception:
+                    pass
 
                 prospectos.append(ProspectoExtraido(
                     razon_social=emp["nombre"],
@@ -292,8 +278,9 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     departamento=depto,
                     fuente=self.SOURCE,
                     sector_economico=sector,
-                    sitio_web=sitio_web,
-                    num_empleados=emp["num_emp"],
+                    sitio_web=web,
+                    telefono=telefono,
+                    num_empleados=empleados,
                     nivel_riesgo_arl=nivel_riesgo,
                     confianza=0.8,
                 ))
@@ -305,21 +292,44 @@ class LinkedInAutoScraper(BaseScraperAdapter):
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _extraer_nombre(card) -> str:
-        for sel in ["span[aria-hidden='true']", "span.entity-result__title-text",
-                    "a span[aria-hidden='true']"]:
-            try:
-                el = card.locator(sel).first
-                if el.count() > 0:
-                    txt = (el.text_content(timeout=500) or "").strip()
-                    if txt and len(txt) > 2 and txt.lower() not in ["linkedin", "ver perfil"]:
-                        return txt
-            except Exception:
-                pass
-        return ""
+    def _aplicar_filtro_ciudad(page, ciudad: str) -> None:
+        """Intenta aplicar el filtro de ciudad en LinkedIn. Falla silenciosamente."""
+        try:
+            # Abrir "Todos los filtros"
+            for txt in ["Todos los filtros", "All filters"]:
+                btn = page.locator(f"button:has-text('{txt}')").first
+                if btn.is_visible(timeout=3000):
+                    btn.click()
+                    time.sleep(2)
+                    break
+
+            # Buscar input de ubicación en el panel
+            for placeholder in ["Ciudad, estado o país/región", "Ciudad", "City", "Location", "Ubicación"]:
+                inp = page.locator(f"input[placeholder*='{placeholder}']").first
+                if inp.is_visible(timeout=2000):
+                    inp.fill(ciudad)
+                    time.sleep(2)
+                    # Seleccionar primera sugerencia
+                    for rol in ["div[role='option']", "li[role='option']", "[role='listbox'] li"]:
+                        sug = page.locator(rol).first
+                        if sug.is_visible(timeout=2000):
+                            sug.click()
+                            time.sleep(1)
+                            break
+                    break
+
+            # Confirmar filtros
+            for txt in ["Mostrar resultados", "Show results", "Aplicar"]:
+                ok = page.locator(f"button:has-text('{txt}')").first
+                if ok.is_visible(timeout=2000):
+                    ok.click()
+                    time.sleep(3)
+                    break
+        except Exception:
+            pass  # Si falla, continúa sin filtro de ciudad
 
     @staticmethod
-    def _extraer_link(card) -> str:
+    def _extraer_link(card) -> str:  # kept for compatibility
         try:
             a = card.locator("a[href*='/company/']").first
             if a.count() > 0:
