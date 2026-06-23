@@ -385,32 +385,43 @@ class LinkedInAutoScraper(BaseScraperAdapter):
 
     @staticmethod
     def _aplicar_filtro_ciudad(page, ciudad: str) -> None:
+        """
+        Clic en el botón 'Ubicaciones' (dropdown directo en la barra de filtros),
+        escribe la ciudad, selecciona la primera sugerencia de Colombia y confirma.
+        """
         try:
-            time.sleep(1.5)
-            # Abrir panel "Todos los filtros"
+            time.sleep(2)
+
+            # Clic en el botón "Ubicaciones" de la barra de filtros
             abierto = False
-            for txt in ["Todos los filtros", "All filters"]:
+            for txt in ["Ubicaciones", "Locations"]:
                 try:
                     btn = page.locator(f"button:has-text('{txt}')").first
-                    if btn.is_visible(timeout=3000):
+                    if btn.is_visible(timeout=4000):
                         btn.click()
-                        time.sleep(2.5)
+                        time.sleep(2)
                         abierto = True
                         break
                 except Exception:
                     pass
+
             if not abierto:
+                print("  [filtro ciudad] No se encontró botón Ubicaciones")
                 return
 
-            # Buscar input de ubicación
+            # El input aparece dentro del dropdown
             loc_input = None
             for sel in [
                 "input[placeholder*='iudad']",
                 "input[placeholder*='ubica']",
                 "input[placeholder*='ocation']",
-                "input[placeholder*='City']",
-                "input[aria-label*='iudad']",
+                "input[placeholder*='Agrega']",
+                "input[placeholder*='Add']",
+                "input[aria-label*='ubica']",
                 "input[aria-label*='ocation']",
+                # Fallback genérico: cualquier input visible en el dropdown abierto
+                "div[data-view-name*='search-filter'] input",
+                "div[id*='filter'] input",
             ]:
                 try:
                     inp = page.locator(sel).first
@@ -421,36 +432,42 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     pass
 
             if loc_input is None:
+                print("  [filtro ciudad] No se encontró input de ubicación")
                 return
 
-            # Escribir letra a letra para activar autocompletado
+            # Escribir letra a letra para activar el autocompletado
             loc_input.click()
             time.sleep(0.5)
             loc_input.press_sequentially(ciudad, delay=80)
             time.sleep(2.5)
 
-            # Seleccionar sugerencia con "Colombia"
-            for sel in ["div[role='option']", "li[role='option']", "[role='listbox'] [role='option']"]:
+            # Seleccionar sugerencia que diga "Colombia"
+            seleccionado = False
+            for sel in ["[role='option']", "div[role='listbox'] li", "li[role='option']"]:
                 try:
                     opciones = page.locator(sel).all()
                     if not opciones:
                         continue
-                    seleccionado = False
                     for op in opciones[:6]:
                         txt = op.text_content() or ""
                         if "Colombia" in txt:
                             op.click()
                             seleccionado = True
+                            time.sleep(1.5)
                             break
-                    if not seleccionado and opciones:
+                    if seleccionado:
+                        break
+                    # Si ninguna dice Colombia, elegir la primera
+                    if opciones:
                         opciones[0].click()
-                    time.sleep(1.5)
-                    break
+                        time.sleep(1.5)
+                        seleccionado = True
+                        break
                 except Exception:
                     pass
 
-            # Confirmar
-            for txt in ["Mostrar resultados", "Show results", "Aplicar"]:
+            # Clic en "Mostrar resultados"
+            for txt in ["Mostrar resultados", "Show results", "Aplicar", "Apply"]:
                 try:
                     ok = page.locator(f"button:has-text('{txt}')").first
                     if ok.is_visible(timeout=2000):
@@ -461,5 +478,7 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                 except Exception:
                     pass
 
+            print(f"  [filtro ciudad] No se encontró 'Mostrar resultados'")
+
         except Exception as e:
-            print(f"  [filtro ciudad] {e}")
+            print(f"  [filtro ciudad] ERROR: {e}")
