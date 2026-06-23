@@ -98,15 +98,7 @@ _BLOQUE_SERVICIOS = """\
 
 # ── Firma (siempre al final de todo correo) ───────────────────────────────────
 
-_BLOQUE_FIRMA = """\
-<p style="margin:24px 0 0;font-size:14px;color:#222;line-height:1.8;border-top:1px solid #eeeeee;padding-top:16px;">
-  Cordialmente,<br>
-  <strong>Tania Pe&ntilde;aloza</strong><br>
-  Coordinadora Comercial — Medina SST Empresarial S.A.S.<br>
-  Tel: 601 903 8072 &nbsp;|&nbsp; Cel: 322 818 7963<br>
-  <a href="mailto:medinasstempresarial30@gmail.com" style="color:#333;text-decoration:none;">medinasstempresarial30@gmail.com</a><br>
-  <a href="https://www.medinaempresarialsst.com/" style="color:#333;">www.medinaempresarialsst.com</a>
-</p>"""
+_BLOQUE_FIRMA = ""
 
 # ── Separador visual entre intro y servicios ─────────────────────────────────
 
