@@ -3,6 +3,14 @@
 .env.*
 credentials/
 *.json.secret
+linkedin_session.json
+
+# ── Archivos de depuración ────────────────────────────────────────
+debug_*.png
+debug_*.jpg
+
+# ── Documentos generados ──────────────────────────────────────────
+cotizaciones/
 
 # ── Base de datos local ───────────────────────────────────────────
 *.db
