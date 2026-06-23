@@ -209,15 +209,15 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     "Sesión expirada. Corre: python scrape_linkedin_auto.py --solo-login"
                 )
 
-            # ── Paso 1: Buscar con keyword ──────────────────────────────────
+            # ── Paso 1: Buscar con keyword + Colombia (garantiza resultados colombianos)
             search_url = (
                 "https://www.linkedin.com/search/results/companies/"
-                f"?keywords={quote(keyword)}&origin=GLOBAL_SEARCH_HEADER"
+                f"?keywords={quote(keyword + ' Colombia')}&origin=GLOBAL_SEARCH_HEADER"
             )
             page.goto(search_url, wait_until="domcontentloaded", timeout=20_000)
             time.sleep(3)
 
-            # ── Paso 2: Aplicar filtro de ciudad ────────────────────────────
+            # ── Paso 2: Intentar afinar con filtro de ciudad (mejora opcional)
             self._aplicar_filtro_ciudad(page, ciudad)
 
             # ── Paso 3: Recolectar links de empresas (hasta 10 páginas) ─────
@@ -239,10 +239,10 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                         break
                     nombre = item.get("name", "").strip()
                     link   = item.get("href", "").strip()
-                    es_colombia = item.get("esColombia", True)  # duda → incluir
+                    es_colombia = item.get("esColombia", True)
                     if not es_colombia:
-                        print(f"    [SKIP no Colombia] {nombre}")
-                        continue
+                        print(f"    [SKIP - no es Colombia] {nombre}")
+                        continue  # descarta solo si CONFIRMADAMENTE no es Colombia
                     if nombre and link and not any(e["link"] == link for e in empresas_raw):
                         empresas_raw.append({"nombre": nombre, "link": link})
                         nuevos += 1
