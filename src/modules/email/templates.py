@@ -310,7 +310,7 @@ _PARRAFO_LEGAL = """\
 _PARRAFO_CTA_PRIMER = """\
 <p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
   Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
-  y ayudamos a empresas en <strong>Colombia</strong> a implementar el SG-SST de forma
+  y ayudamos a empresas en <strong>{{ ciudad }}</strong> a implementar el SG-SST de forma
   rápida, sin complicaciones y con acompañamiento continuo.
   Contáctenos — con gusto le explicamos cómo podemos ayudar a
   <strong>{{ razon_social }}</strong> a cumplir estos requisitos sin complicaciones.
@@ -319,7 +319,7 @@ _PARRAFO_CTA_PRIMER = """\
 _PARRAFO_CTA_RECORDATORIO = """\
 <p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
   En <strong>{{ empresa_remitente }}</strong> ya hemos ayudado a varias empresas en
-  Colombia a cumplir los estándares del SG-SST en tiempo récord.
+  {{ ciudad }} a cumplir estos {{ num_estandares }} estándares en tiempo récord.
   Comuníquese con nosotros cuando guste — estamos disponibles para resolver sus dudas.
 </p>"""
 
