@@ -76,7 +76,15 @@ _BLOQUE_SERVICIOS = """\
   <li>Capacitaciones y brigadas de emergencia</li>
   <li>Planos de evacuación y señalización</li>
   <li>Investigación de accidentes de trabajo</li>
-  <li>Certificaciones ISO 9001, 45001, 14001 (alianza con COMPECER)</li>
+  <li>Certificaciones ISO a través de nuestra alianza con COMPECER:
+    <ul style="margin:4px 0 0 18px;line-height:1.9;">
+      <li>ISO 9001:2015 — Gestión de la Calidad</li>
+      <li>ISO 45001:2018 — Seguridad y Salud en el Trabajo</li>
+      <li>ISO 14001:2015 — Gestión Ambiental</li>
+      <li>ISO 27001:2022 — Seguridad de la Información</li>
+      <li>ISO 37001:2016 — Gestión Antisoborno</li>
+    </ul>
+  </li>
 </ul>
 <p style="margin:0 0 6px;font-size:14px;color:#333;">
   Puede escribirme a este correo o contactarme al <strong>322 818 7963</strong>.
