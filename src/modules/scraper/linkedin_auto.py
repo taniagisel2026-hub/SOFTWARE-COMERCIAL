@@ -161,28 +161,64 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             pagina = 1
             max_pag = min(self._max_paginas, max_resultados // 10 + 1)
 
-            # JS que extrae directamente los links de empresa visibles en la página
+            # JS que extrae nombre limpio y empleados de las tarjetas de empresa
             _JS_EXTRAER = """
             () => {
+                function limpiarNombre(raw) {
+                    // Cortar en "Seguir", "Follow", salto de línea largo
+                    let s = raw.replace(/\\s*(Seguir|Follow|Ver perfil|View profile)[\\s\\S]*$/i, '').trim();
+                    // Detectar y eliminar texto duplicado: "Nombre Nombre..." → "Nombre"
+                    for (let k = 5; k <= Math.floor(s.length / 2); k++) {
+                        if (s.substring(k, 2 * k) === s.substring(0, k)) {
+                            s = s.substring(0, k).trim();
+                            break;
+                        }
+                    }
+                    // Quitar trailing separadores
+                    return s.replace(/[·\\-–|]+$/, '').trim();
+                }
+
+                function extraerEmpleados(card) {
+                    const txt = card.textContent || '';
+                    const m = txt.match(/(\\d[\\d.,]+)\\s*(empleados|seguidores|followers)/i);
+                    if (m) return parseInt(m[1].replace(/[.,]/g, ''));
+                    return 0;
+                }
+
                 const seen = new Set();
                 const results = [];
+
                 document.querySelectorAll('a[href*="/company/"]').forEach(a => {
                     const href = a.href.split('?')[0].replace(/\\/+$/, '');
                     if (!href || seen.has(href)) return;
-                    // Ignorar links de navegación (barra superior, etc.)
                     if (href.endsWith('/company') || href.includes('/company/people')
-                        || href.includes('/company/jobs') || href.includes('/company/posts')) return;
+                        || href.includes('/company/jobs') || href.includes('/company/posts')
+                        || href.includes('/company/about') || href.includes('/company/posts')) return;
 
-                    // Buscar el nombre: span[aria-hidden=true] más cercano, o texto del link
-                    let name = '';
-                    const span = a.querySelector('span[aria-hidden="true"]');
-                    if (span) name = span.textContent.trim();
+                    // Nombre: aria-label del link si existe, si no → primer span aria-hidden
+                    let name = a.getAttribute('aria-label') || '';
+                    if (!name) {
+                        const spans = a.querySelectorAll('span[aria-hidden="true"]');
+                        if (spans.length > 0) {
+                            // Tomar solo texto directo del primer span
+                            const nodes = Array.from(spans[0].childNodes)
+                                .filter(n => n.nodeType === 3)
+                                .map(n => n.textContent.trim())
+                                .filter(t => t.length > 0);
+                            name = nodes.length > 0 ? nodes[0] : spans[0].textContent.trim();
+                        }
+                    }
                     if (!name) name = a.textContent.trim().split('\\n')[0].trim();
+                    name = limpiarNombre(name);
                     if (!name || name.length < 2) return;
-                    if (['LinkedIn', 'Ver perfil', 'Seguir', 'Follow'].includes(name)) return;
+                    if (['LinkedIn', 'Ver perfil', 'Seguir', 'Follow', 'Inicio'].includes(name)) return;
+
+                    // Empleados: buscar en el li padre
+                    const li = a.closest('li') || a.parentElement;
+                    const numEmp = extraerEmpleados(li);
 
                     seen.add(href);
-                    results.push({ href, name });
+                    results.push({ href, name, numEmp });
                 });
                 return results;
             }
@@ -208,7 +244,11 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                     nombre = item.get("name", "").strip()
                     link   = item.get("href", "").strip()
                     if nombre and link and not any(e["link"] == link for e in empresas_raw):
-                        empresas_raw.append({"nombre": nombre, "link": link, "num_emp": 0})
+                        empresas_raw.append({
+                            "nombre": nombre,
+                            "link": link,
+                            "num_emp": item.get("numEmp", 0),
+                        })
                         nuevos += 1
                         print(f"  [{len(empresas_raw):02d}] {nombre}")
 
