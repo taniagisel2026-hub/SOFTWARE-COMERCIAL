@@ -91,11 +91,16 @@ class CRMInjectorService:
             if encontrado:
                 return encontrado
 
-        # 2. Nombre normalizado + ciudad
+        # 2. Email exacto — evita duplicados de fichas distintas con el mismo contacto
+        if p.email:
+            por_email = session.query(EmpresaProspecto).filter_by(email_contacto=p.email).first()
+            if por_email:
+                return por_email
+
+        # 3. Nombre normalizado + ciudad
         nombre_norm = _normalizar_nombre_empresa(p.razon_social)
         ciudad_norm = _normalizar_texto(p.ciudad)
 
-        # Busca por prefijo de 25 chars del nombre normalizado para tolerar variaciones menores
         candidatos = (
             session.query(EmpresaProspecto)
             .filter(
