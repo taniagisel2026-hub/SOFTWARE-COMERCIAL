@@ -116,6 +116,15 @@ _SELS_NOMBRE = [
     "[role='main'] h1",
 ]
 
+# Dirección — para extraer ciudad real
+_SELS_ADDR = [
+    "button[data-item-id='address']",
+    "[data-item-id='address']",
+    "button[aria-label*='dirección']",
+    "button[aria-label*='Dirección']",
+    "[data-tooltip='Copiar dirección']",
+]
+
 # Señales de bloqueo / CAPTCHA (Estrategia 4)
 _CAPTCHA_SIGNALS = [
     "captcha", "unusual traffic", "verify you are human",
@@ -389,12 +398,17 @@ class GoogleMapsScraper(BaseScraperAdapter):
                     time.sleep(random.uniform(1.0, 2.0))
                     telefono = self._obtener_atributo_con_fallback(page, _SELS_PHONE, ["data-value", "href"])
                     web = self._obtener_atributo_con_fallback(page, _SELS_WEB, ["href"])
+                    direccion_raw = self._obtener_atributo_con_fallback(page, _SELS_ADDR, ["aria-label", "data-value"])
                     if telefono.startswith("tel:"):
                         telefono = telefono[4:]
                     if web and "google.com" not in web:
                         p.sitio_web = web
                     if telefono:
                         p.telefono = telefono
+                    if direccion_raw:
+                        ciudad_real, depto_real = self._parsear_ciudad_de_direccion(direccion_raw, ciudad, depto)
+                        p.ciudad = ciudad_real
+                        p.departamento = depto_real
                     p.confianza = 0.80
                 except Exception:
                     pass
@@ -484,6 +498,29 @@ class GoogleMapsScraper(BaseScraperAdapter):
     @staticmethod
     def _inferir_departamento(ciudad: str) -> str:
         return _CIUDAD_DEPARTAMENTO.get(_normalizar_texto(ciudad), "Colombia")
+
+    @staticmethod
+    def _parsear_ciudad_de_direccion(direccion: str, ciudad_default: str, depto_default: str) -> tuple[str, str]:
+        """
+        Extrae la ciudad real de una dirección de Google Maps.
+        Formato típico: "Calle 80 #47-21, Medellín, Antioquia, Colombia"
+        o solo: "Dirección: Calle 80 #47-21, Medellín, Antioquia"
+        """
+        # Limpiar prefijos como "Dirección: "
+        texto = re.sub(r"^[Dd]irección[:\s]+", "", direccion).strip()
+        partes = [p.strip() for p in texto.split(",")]
+
+        # Quitar "Colombia" al final y el código postal si hay
+        partes = [p for p in partes if p.lower() not in ("colombia", "") and not p.strip().isdigit()]
+
+        if len(partes) >= 2:
+            ciudad_real = partes[-2] if len(partes) >= 2 else partes[-1]
+            depto_real = partes[-1] if len(partes) >= 2 else depto_default
+            # Validar que no sea un número o código postal
+            if ciudad_real and not ciudad_real.strip().isdigit() and len(ciudad_real.strip()) > 2:
+                return ciudad_real.strip(), depto_real.strip()
+
+        return ciudad_default, depto_default
 
     # ── Mock (sin Playwright) ─────────────────────────────────────────────────
 

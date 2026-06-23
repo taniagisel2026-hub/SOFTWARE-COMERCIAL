@@ -300,10 +300,8 @@ _SEPARADOR = '<hr style="border:none;border-top:2px solid #EEF2F9;margin:24px 0;
 
 _PARRAFO_LEGAL = """\
 <p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
-  Como empresa del sector <strong>{{ sector_economico or "su sector" }}</strong>
-  con <strong>{{ num_empleados }} trabajadores</strong> y riesgo ARL Clase
-  <strong>{{ nivel_riesgo }}</strong>, a <strong>{{ razon_social }}</strong> le aplican
-  exactamente <strong>{{ num_estandares }} estándares mínimos</strong>
+  Como empresa del sector <strong>{{ sector_economico or "su sector" }}</strong>,
+  a <strong>{{ razon_social }}</strong> le aplican estándares mínimos del SG-SST
   ({{ articulo_resolucion }} — Res. 0312/2019). El Decreto 472 de 2015 establece multas
   de hasta <strong>500 SMMLV</strong> por incumplimiento, y el Ministerio del Trabajo
   no anuncia sus visitas de inspección con anticipación.
@@ -312,7 +310,7 @@ _PARRAFO_LEGAL = """\
 _PARRAFO_CTA_PRIMER = """\
 <p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
   Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
-  y ayudamos a empresas en <strong>{{ ciudad }}</strong> a implementar el SG-SST de forma
+  y ayudamos a empresas en <strong>Colombia</strong> a implementar el SG-SST de forma
   rápida, sin complicaciones y con acompañamiento continuo.
   Contáctenos — con gusto le explicamos cómo podemos ayudar a
   <strong>{{ razon_social }}</strong> a cumplir estos requisitos sin complicaciones.
@@ -321,7 +319,7 @@ _PARRAFO_CTA_PRIMER = """\
 _PARRAFO_CTA_RECORDATORIO = """\
 <p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
   En <strong>{{ empresa_remitente }}</strong> ya hemos ayudado a varias empresas en
-  {{ ciudad }} a cumplir estos {{ num_estandares }} estándares en tiempo récord.
+  Colombia a cumplir los estándares del SG-SST en tiempo récord.
   Comuníquese con nosotros cuando guste — estamos disponibles para resolver sus dudas.
 </p>"""
 

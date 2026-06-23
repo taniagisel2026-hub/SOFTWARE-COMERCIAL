@@ -165,26 +165,35 @@ def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_e
         st.rerun()
 
     except Exception as exc:
+        import traceback
         tipo = type(exc).__name__
+        detalle = traceback.format_exc()
+        print(f"[PIPELINE ERROR] {tipo}: {exc}\n{detalle}")
         if "RateLimitExceeded" in tipo:
-            st.warning(f"⏸ Límite diario de correos alcanzado durante el pipeline: {exc}")
+            st.session_state[_CLAVE_RESULTADO] = {"_error": f"⏸ Límite diario de correos: {exc}"}
         elif "GmailAuth" in tipo:
-            st.warning(
-                "🔑 Gmail no autenticado. El scraping continuó pero los correos "
-                "no se enviaron. Configura `credentials/gmail_credentials.json`."
-            )
+            st.session_state[_CLAVE_RESULTADO] = {"_error": "🔑 Gmail no autenticado. Configura `credentials/gmail_credentials.json`."}
         else:
-            st.error(f"❌ Error en el pipeline: `{tipo}: {exc}`")
+            st.session_state[_CLAVE_RESULTADO] = {"_error": f"❌ Error en el pipeline:\n\n`{tipo}: {exc}`\n\n```\n{detalle[-800:]}\n```"}
+        st.rerun()
 
 
 def _mostrar_resultado(r: dict) -> None:
     """Muestra métricas y tabla del último resultado guardado en session_state."""
+    # Mostrar error persistente si el pipeline falló
+    if "_error" in r:
+        st.error(r["_error"])
+        if st.button("🗑 Limpiar error", use_container_width=True):
+            st.session_state.pop(_CLAVE_RESULTADO, None)
+            st.rerun()
+        return
+
     st.success(f"✅ Extracción completada en **{r['duracion']}s** — {r['ciudad']} / {r['sector']}")
 
     c1, c2, c3 = st.columns(3)
-    with c1: tarjeta_kpi("Empresas encontradas", str(r["encontradas"]), icono="🏢", color="#1B3A6B")
-    with c2: tarjeta_kpi("Nuevas en CRM",        str(r["nuevas"]),      icono="✅", color="#10B981")
-    with c3: tarjeta_kpi("Ya existían",           str(r["existentes"]),  icono="🔁", color="#6B7280")
+    with c1: tarjeta_kpi("Encontradas",  str(r["encontradas"]), icono="🏢", color="#1B3A6B")
+    with c2: tarjeta_kpi("Nuevas en CRM", str(r["nuevas"]),     icono="✅", color="#10B981")
+    with c3: tarjeta_kpi("Ya existían",   str(r["existentes"]),  icono="🔁", color="#6B7280")
 
     if r["emails"] > 0:
         st.info(f"📨 **{r['emails']}** correos enviados · {r['sin_contacto']} sin email · {r['fallidos']} fallidos")
@@ -192,9 +201,46 @@ def _mostrar_resultado(r: dict) -> None:
         st.warning("⏸ Envío de correos detenido: límite diario alcanzado.")
 
     if r["errores"]:
-        with st.expander(f"⚠️ {len(r['errores'])} advertencias durante la ejecución"):
+        with st.expander(f"⚠️ {len(r['errores'])} advertencias"):
             for e in r["errores"]:
                 st.markdown(f"- `{e}`")
+
+    # Mostrar empresas recién guardadas hoy para este sector/ciudad
+    try:
+        from datetime import date as _date
+        from src.database.connection import get_session
+        from src.database.models import EmpresaProspecto
+
+        with get_session() as session:
+            recientes = (
+                session.query(EmpresaProspecto)
+                .filter(
+                    EmpresaProspecto.fecha_registro == _date.today(),
+                    EmpresaProspecto.ciudad == r["ciudad"],
+                    EmpresaProspecto.sector_economico == r["sector"],
+                )
+                .order_by(EmpresaProspecto.id_empresa.desc())
+                .all()
+            )
+
+        if recientes:
+            st.markdown(f"**Empresas guardadas hoy ({len(recientes)}):**")
+            filas = [
+                {
+                    "Empresa":   e.razon_social,
+                    "Email":     e.email_contacto or "—",
+                    "Teléfono":  e.telefono or "—",
+                    "Web":       e.sitio_web if hasattr(e, "sitio_web") and e.sitio_web else "—",
+                }
+                for e in recientes
+            ]
+            st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+        elif r["encontradas"] == 0:
+            st.warning("Google Maps no encontró empresas. Intenta con otro sector o ciudad.")
+        else:
+            st.info("Las empresas encontradas ya existían en el CRM o no tenían email.")
+    except Exception:
+        pass
 
     if st.button("🗑 Limpiar resultado", use_container_width=True):
         st.session_state.pop(_CLAVE_RESULTADO, None)
