@@ -956,27 +956,58 @@ def _render_prospectos() -> None:
 
 
 def _enviar_dia1_masivo() -> None:
-    """Envía el correo Día 1 a todas las empresas que aún no lo han recibido."""
+    """Envía el correo Día 1 a todas las empresas pendientes con barra de progreso."""
+    from src.database.connection import get_session
+    from src.modules.email.rate_limiter import RateLimiter
+    from src.modules.email.email_service import EmailService
     from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
 
-    with st.spinner("Enviando primer correo a todos los pendientes..."):
-        resultados = SequenceOrchestrator().enviar_primer_contacto_masivo(creado_por="Panel Web")
+    # Obtener lista de pendientes antes de empezar
+    orq = SequenceOrchestrator(
+        email_svc=EmailService(
+            rate_limiter=RateLimiter(delay_min_s=3, delay_max_s=8)
+        )
+    )
+    with get_session() as s:
+        ids_pendientes = SequenceOrchestrator._ids_sin_dia_1(s)
 
-    if not resultados:
+    total = len(ids_pendientes)
+    if total == 0:
         st.info("Todas las empresas ya recibieron el primer correo.")
         return
 
-    enviados  = [r for r in resultados if r.ok]
-    fallidos  = [r for r in resultados if not r.ok]
-    rate_stop = any("Límite" in r.mensaje or "rate" in r.mensaje.lower() for r in fallidos)
+    st.info(f"Enviando a **{total}** empresas — esto puede tardar unos minutos...")
+    barra    = st.progress(0, text="Iniciando...")
+    contador = st.empty()
+    enviados, fallidos_lst, rate_stop = 0, [], False
+
+    for i, id_emp in enumerate(ids_pendientes):
+        if rate_stop:
+            break
+        try:
+            empresa = SequenceOrchestrator._cargar_dominio(id_emp)
+            barra.progress((i + 1) / total, text=f"Enviando {i+1}/{total}: {empresa.razon_social[:40]}...")
+            r = orq.iniciar_secuencia(empresa, creado_por="Panel Web")
+            if r.ok:
+                enviados += 1
+                contador.markdown(f"✅ {enviados} enviados de {total}")
+            else:
+                fallidos_lst.append(r)
+                if "Límite" in r.mensaje or "rate" in r.mensaje.lower():
+                    rate_stop = True
+        except Exception as exc:
+            fallidos_lst.append(type("R", (), {"razon_social": f"ID {id_emp}", "mensaje": str(exc)})())
+
+    barra.empty()
+    contador.empty()
 
     if enviados:
-        st.success(f"✅ Primer correo enviado a **{len(enviados)}** empresa(s).")
+        st.success(f"✅ Primer correo enviado a **{enviados}** empresa(s).")
     if rate_stop:
-        st.warning("⏸ Se alcanzó el límite diario de envíos. Los restantes se enviarán mañana.")
-    if fallidos and not rate_stop:
-        with st.expander(f"⚠️ {len(fallidos)} error(es)"):
-            for r in fallidos:
+        st.warning(f"⏸ Límite diario alcanzado. Quedan {total - enviados} empresas — se enviarán mañana.")
+    if fallidos_lst and not rate_stop:
+        with st.expander(f"⚠️ {len(fallidos_lst)} error(es)"):
+            for r in fallidos_lst:
                 st.markdown(f"- **{r.razon_social}**: {r.mensaje}")
 
     st.cache_data.clear()
