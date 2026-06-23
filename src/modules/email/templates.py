@@ -101,7 +101,7 @@ _SEPARADOR = '<br>'
 # ── Párrafo legal fijo (personalizado con variables de plantilla) ─────────────
 
 _PARRAFO_LEGAL = """\
-<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+<p style="margin:14px 0;font-size:14px;color:#222;line-height:1.75;">
   Como empresa del sector <strong>{{ sector_economico or "su sector" }}</strong>,
   a <strong>{{ razon_social }}</strong> le aplican estándares mínimos del SG-SST
   ({{ articulo_resolucion }} — Res. 0312/2019). El Decreto 472 de 2015 establece multas
@@ -110,7 +110,7 @@ _PARRAFO_LEGAL = """\
 </p>"""
 
 _PARRAFO_CTA_PRIMER = """\
-<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+<p style="margin:14px 0;font-size:14px;color:#222;line-height:1.75;">
   Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
   y ayudamos a empresas en <strong>{{ ciudad }}</strong> a implementar el SG-SST de forma
   rápida, sin complicaciones y con acompañamiento continuo.
@@ -119,14 +119,14 @@ _PARRAFO_CTA_PRIMER = """\
 </p>"""
 
 _PARRAFO_CTA_RECORDATORIO = """\
-<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+<p style="margin:14px 0;font-size:14px;color:#222;line-height:1.75;">
   En <strong>{{ empresa_remitente }}</strong> ya hemos ayudado a varias empresas en
   {{ ciudad }} a cumplir estos {{ num_estandares }} estándares en tiempo récord.
   Comuníquese con nosotros cuando guste — estamos disponibles para resolver sus dudas.
 </p>"""
 
 _PARRAFO_SEGUIMIENTO_COTIZACION = """\
-<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+<p style="margin:14px 0;font-size:14px;color:#222;line-height:1.75;">
   Hace unos días les enviamos una propuesta para <strong>{{ razon_social }}</strong>
   relacionada con el SG-SST ({{ articulo_resolucion }} — {{ num_estandares }} estándares,
   Riesgo {{ nivel_riesgo }}).
@@ -138,7 +138,7 @@ _PARRAFO_SEGUIMIENTO_COTIZACION = """\
   {% endif %}
   {% endif %}
 </p>
-<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+<p style="margin:14px 0;font-size:14px;color:#222;line-height:1.75;">
   ¿Tiene alguna duda sobre el alcance o la forma de pago? Podemos ajustar la propuesta.
   Contáctenos cuando lo considere y con gusto la revisamos juntos.
 </p>"""
@@ -146,7 +146,7 @@ _PARRAFO_SEGUIMIENTO_COTIZACION = """\
 # ── Ganchos de respaldo por tipo (texto plano, Gemini los reemplaza) ──────────
 
 _PARRAFO_ULTIMO_CONTACTO = """\
-<p style="margin:14px 0;font-size:13px;color:#444;line-height:1.75;">
+<p style="margin:14px 0;font-size:14px;color:#222;line-height:1.75;">
   Este es nuestro último mensaje para no saturar su bandeja de entrada.
   Si en algún momento <strong>{{ razon_social }}</strong> necesita apoyo con el SG-SST,
   mediciones ambientales o certificaciones ISO, con gusto los atendemos.
@@ -204,21 +204,19 @@ class EmailTemplateEngine:
                 razon_social=ctx.razon_social
             )
 
-        # Envolver gancho en <p> con estilo destacado (nosotros controlamos el HTML)
         gancho_html = (
-            f'<p style="margin:0 0 4px;font-size:14px;color:#1B3A6B;'
-            f'font-weight:bold;line-height:1.6;">{gancho_texto}</p>'
+            f'<p style="margin:0 0 12px;font-size:14px;color:#222;line-height:1.7;">'
+            f'{gancho_texto}</p>'
         )
 
-        # Saludo personalizado
         if ctx.nombre_contacto and ctx.nombre_contacto not in ("Gerente", ""):
             saludo_html = (
-                f'<p style="margin:0 0 16px;font-size:13px;color:#444;">'
+                f'<p style="margin:0 0 12px;font-size:14px;color:#222;">'
                 f'Hola <strong>{ctx.nombre_contacto}</strong>,</p>'
             )
         else:
             saludo_html = (
-                f'<p style="margin:0 0 16px;font-size:13px;color:#444;">'
+                f'<p style="margin:0 0 12px;font-size:14px;color:#222;">'
                 f'Buen día, equipo de <strong>{ctx.razon_social}</strong>,</p>'
             )
 
