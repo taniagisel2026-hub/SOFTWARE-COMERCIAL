@@ -100,6 +100,10 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             }
             return s.replace(/[·\\-\\u2013|]+$/, '').trim();
         }
+        const COLOMBIA = ['Bogotá','Bogota','Medellín','Medellin','Cali','Barranquilla',
+            'Bucaramanga','Pereira','Cartagena','Cúcuta','Cucuta','Ibagué','Ibague',
+            'Villavicencio','Manizales','Pasto','Armenia','Neiva','Montería','Colombia',
+            'Cundinamarca','Antioquia','Valle','Santander','Atlántico','Bolivar'];
         const seen = new Set();
         const results = [];
         document.querySelectorAll('a[href*="/company/"]').forEach(a => {
@@ -118,8 +122,12 @@ class LinkedInAutoScraper(BaseScraperAdapter):
             if (!name) name = (a.textContent || '').trim().split('\\n')[0].trim();
             name = limpiarNombre(name);
             if (!name || name.length < 2 || ['LinkedIn','Ver perfil','Seguir','Follow','Inicio'].includes(name)) return;
+            // Detectar si la tarjeta menciona alguna ciudad/dpto colombiano
+            const li = a.closest('li') || a.parentElement;
+            const cardText = li ? (li.textContent || '') : '';
+            const esColombia = COLOMBIA.some(c => cardText.includes(c));
             seen.add(href);
-            results.push({ href, name });
+            results.push({ href, name, esColombia });
         });
         return results;
     }
@@ -231,6 +239,10 @@ class LinkedInAutoScraper(BaseScraperAdapter):
                         break
                     nombre = item.get("name", "").strip()
                     link   = item.get("href", "").strip()
+                    es_colombia = item.get("esColombia", True)  # duda → incluir
+                    if not es_colombia:
+                        print(f"    [SKIP no Colombia] {nombre}")
+                        continue
                     if nombre and link and not any(e["link"] == link for e in empresas_raw):
                         empresas_raw.append({"nombre": nombre, "link": link})
                         nuevos += 1
@@ -293,40 +305,99 @@ class LinkedInAutoScraper(BaseScraperAdapter):
 
     @staticmethod
     def _aplicar_filtro_ciudad(page, ciudad: str) -> None:
-        """Intenta aplicar el filtro de ciudad en LinkedIn. Falla silenciosamente."""
+        """Aplica el filtro de ciudad en LinkedIn usando la UI. Falla silenciosamente."""
         try:
-            # Abrir "Todos los filtros"
-            for txt in ["Todos los filtros", "All filters"]:
-                btn = page.locator(f"button:has-text('{txt}')").first
-                if btn.is_visible(timeout=3000):
-                    btn.click()
-                    time.sleep(2)
-                    break
+            time.sleep(1.5)
+            # ── 1. Abrir panel "Todos los filtros" ────────────────────────
+            abierto = False
+            for txt in ["Todos los filtros", "All filters", "Filtros"]:
+                try:
+                    btn = page.locator(f"button:has-text('{txt}')").first
+                    if btn.is_visible(timeout=3000):
+                        btn.click()
+                        time.sleep(2.5)
+                        abierto = True
+                        break
+                except Exception:
+                    pass
+            if not abierto:
+                print("  [filtro ciudad] no se encontró el botón de filtros")
+                return
 
-            # Buscar input de ubicación en el panel
-            for placeholder in ["Ciudad, estado o país/región", "Ciudad", "City", "Location", "Ubicación"]:
-                inp = page.locator(f"input[placeholder*='{placeholder}']").first
-                if inp.is_visible(timeout=2000):
-                    inp.fill(ciudad)
-                    time.sleep(2)
-                    # Seleccionar primera sugerencia
-                    for rol in ["div[role='option']", "li[role='option']", "[role='listbox'] li"]:
-                        sug = page.locator(rol).first
-                        if sug.is_visible(timeout=2000):
-                            sug.click()
-                            time.sleep(1)
+            # ── 2. Encontrar el input de ubicación ─────────────────────────
+            loc_input = None
+            # Selectores de mayor a menor especificidad
+            selectores = [
+                "input[placeholder*='iudad']",
+                "input[placeholder*='ubica']",
+                "input[placeholder*='ocation']",
+                "input[placeholder*='City']",
+                "input[placeholder*='Where']",
+                "input[placeholder*='Dónde']",
+                "input[aria-label*='iudad']",
+                "input[aria-label*='ocation']",
+            ]
+            for sel in selectores:
+                try:
+                    inp = page.locator(sel).first
+                    if inp.is_visible(timeout=1500):
+                        loc_input = inp
+                        break
+                except Exception:
+                    pass
+
+            if loc_input is None:
+                print("  [filtro ciudad] no se encontró input de ubicación")
+                return
+
+            # ── 3. Escribir ciudad letra a letra para activar autocompletado ──
+            loc_input.click()
+            time.sleep(0.5)
+            loc_input.press_sequentially(ciudad, delay=80)  # 80 ms entre caracteres
+            time.sleep(2.5)
+
+            # ── 4. Seleccionar la primera sugerencia que contenga Colombia ──
+            seleccionado = False
+            for sel in ["div[role='option']", "li[role='option']",
+                        "[role='listbox'] [role='option']", "[role='listbox'] li"]:
+                try:
+                    opciones = page.locator(sel).all()
+                    if not opciones:
+                        continue
+                    for opcion in opciones[:6]:
+                        texto_op = (opcion.text_content() or "").strip()
+                        # Preferir sugerencia que mencione Colombia
+                        if "Colombia" in texto_op or ciudad[:5].lower() in texto_op.lower():
+                            opcion.click()
+                            seleccionado = True
                             break
-                    break
+                    if not seleccionado and opciones:
+                        opciones[0].click()
+                        seleccionado = True
+                    if seleccionado:
+                        time.sleep(1.5)
+                        break
+                except Exception:
+                    pass
 
-            # Confirmar filtros
-            for txt in ["Mostrar resultados", "Show results", "Aplicar"]:
-                ok = page.locator(f"button:has-text('{txt}')").first
-                if ok.is_visible(timeout=2000):
-                    ok.click()
-                    time.sleep(3)
-                    break
-        except Exception:
-            pass  # Si falla, continúa sin filtro de ciudad
+            if not seleccionado:
+                print("  [filtro ciudad] no aparecieron sugerencias")
+                return
+
+            # ── 5. Confirmar / Mostrar resultados ──────────────────────────
+            for txt in ["Mostrar resultados", "Show results", "Aplicar", "Apply", "Ver resultados"]:
+                try:
+                    ok = page.locator(f"button:has-text('{txt}')").first
+                    if ok.is_visible(timeout=2000):
+                        ok.click()
+                        time.sleep(3)
+                        print(f"  [filtro ciudad] ✅ {ciudad} aplicado")
+                        break
+                except Exception:
+                    pass
+
+        except Exception as e:
+            print(f"  [filtro ciudad] error: {e}")
 
     @staticmethod
     def _extraer_link(card) -> str:  # kept for compatibility
