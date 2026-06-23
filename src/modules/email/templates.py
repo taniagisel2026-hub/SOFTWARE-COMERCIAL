@@ -37,10 +37,10 @@ class EmailContext:
 # ── Asuntos (rotan variantes para evitar filtros de spam) ─────────────────────
 
 _ASUNTOS = {
-    "PRIMER_CONTACTO":          "SG-SST para {{ razon_social }} – Cumplimiento Res. 0312/2019",
-    "SEGUIMIENTO_COTIZACION":   "Re: Propuesta SG-SST {{ razon_social }} – ¿Tiene alguna pregunta?",
-    "RECORDATORIO_VENCIMIENTO": "Seguimiento: Servicios SST y certificaciones ISO para {{ razon_social }}",
-    "ULTIMO_CONTACTO":          "Último mensaje: SG-SST para {{ razon_social }}",
+    "PRIMER_CONTACTO":          "Seguridad y Salud en el Trabajo – {{ razon_social }}",
+    "SEGUIMIENTO_COTIZACION":   "Re: propuesta para {{ razon_social }}",
+    "RECORDATORIO_VENCIMIENTO": "{{ razon_social }} – seguimiento SST",
+    "ULTIMO_CONTACTO":          "Para {{ razon_social }}",
 }
 
 # ── Estructura base del correo — estilo personal/texto para evitar Promociones ─
@@ -56,10 +56,8 @@ _BASE_HTML = """\
              font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222222;">
   <div style="max-width:620px;margin:0 auto;">
     {{ body }}
-    <p style="margin:32px 0 0;font-size:11px;color:#aaaaaa;border-top:1px solid #eeeeee;padding-top:10px;">
-      Si no desea recibir más mensajes de nuestra parte,
-      <a href="{{ opt_out_url }}" style="color:#aaaaaa;">haga clic aquí para cancelar</a>.
-      Datos tratados conforme a la Ley 1581 de 2012.
+    <p style="margin:32px 0 0;font-size:11px;color:#cccccc;border-top:1px solid #f5f5f5;padding-top:10px;">
+      Ley 1581 de 2012 — si no desea recibir más mensajes responda este correo con la palabra REMOVER.
     </p>
   </div>
 </body>
