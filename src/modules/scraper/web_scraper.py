@@ -12,6 +12,10 @@ _PATRON_EMAIL = re.compile(
     r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
 )
 
+_PATRON_TELEFONO = re.compile(
+    r'\b(?:\+57[\s\-]?)?(?:60[1-9]|3[0-9]{2})[\s\-]?\d{3}[\s\-]?\d{4}\b'
+)
+
 # Páginas de contacto típicas en sitios colombianos
 _RUTAS_CONTACTO = [
     "/contacto", "/contactenos", "/contactenos.html",
@@ -20,12 +24,11 @@ _RUTAS_CONTACTO = [
     "/empresa", "/about-us",
 ]
 
-# Dominios de email que suelen ser genéricos o de prueba
+# Dominios técnicos/falsos a ignorar (NO incluir gmail/hotmail — PyMEs colombianas los usan)
 _DOMINIOS_FILTRO = {
     "example.com", "test.com", "email.com", "correo.com",
-    "gmail.com", "hotmail.com", "yahoo.com",  # excluir personales
-    "outlook.com", "live.com",
     "sentry.io", "wixpress.com", "wordpress.com",
+    "schemas.org", "w3.org", "jquery.com",
 }
 
 _HEADERS = {
@@ -62,21 +65,66 @@ class WebScraper:
         except Exception:
             return ""
 
+    def extraer_telefono(self, url: str) -> str:
+        """Busca teléfono colombiano en el sitio web."""
+        if not url or not url.startswith("http"):
+            return ""
+        try:
+            import httpx
+            dominio = urlparse(url).netloc
+            urls = [url] + [urljoin(url, r) for r in _RUTAS_CONTACTO]
+            for u in urls[:self._max_paginas]:
+                try:
+                    resp = httpx.get(u, headers=_HEADERS, timeout=self._timeout, follow_redirects=True)
+                    if resp.status_code != 200:
+                        continue
+                    # Buscar en tel: links primero
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    for a in soup.find_all("a", href=True):
+                        if a["href"].startswith("tel:"):
+                            tel = a["href"].replace("tel:", "").strip()
+                            if tel:
+                                return tel
+                    # Buscar patrón colombiano en texto
+                    tels = _PATRON_TELEFONO.findall(resp.text)
+                    if tels:
+                        return tels[0].strip()
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return ""
+
     def enriquecer_prospectos(self, prospectos: list) -> list:
-        """Añade email a cada prospecto que tenga sitio_web pero no tenga email."""
+        """Visita el sitio web de cada prospecto y añade email y/o teléfono si faltan."""
         for p in prospectos:
-            if p.sitio_web and not p.tiene_email:
-                p.email = self.extraer_email(p.sitio_web)
+            if not p.sitio_web:
+                continue
+            necesita_email = not p.tiene_email
+            necesita_tel   = not p.telefono
+            if not necesita_email and not necesita_tel:
+                continue
+            # Una sola pasada al sitio para extraer ambos
+            email, tel = self._buscar_email_y_telefono(p.sitio_web)
+            if necesita_email and email:
+                p.email = email
+            if necesita_tel and tel:
+                p.telefono = tel
         return prospectos
 
     # ── Implementación interna ────────────────────────────────────────────────
 
     def _buscar_email(self, url_base: str) -> str:
+        email, _ = self._buscar_email_y_telefono(url_base)
+        return email
+
+    def _buscar_email_y_telefono(self, url_base: str) -> tuple[str, str]:
         try:
             import httpx
             from bs4 import BeautifulSoup
         except ImportError:
-            return ""
+            return "", ""
 
         dominio = urlparse(url_base).netloc
         urls_a_revisar = [url_base] + [
@@ -84,6 +132,7 @@ class WebScraper:
         ]
 
         emails_encontrados: list[str] = []
+        tel_encontrado = ""
 
         for url in urls_a_revisar[: self._max_paginas]:
             try:
@@ -94,24 +143,32 @@ class WebScraper:
 
                 soup = BeautifulSoup(resp.text, "html.parser")
 
-                # Buscar en texto plano de la página
+                # ── Emails ────────────────────────────────────────────────
                 texto = soup.get_text(" ", strip=True)
                 emails_pagina = _PATRON_EMAIL.findall(texto)
-
-                # También buscar en atributos href: mailto:
                 for tag in soup.find_all("a", href=True):
                     href = tag["href"]
                     if href.startswith("mailto:"):
                         email_raw = href.replace("mailto:", "").split("?")[0].strip()
                         if email_raw:
                             emails_pagina.append(email_raw)
-
                 emails_encontrados.extend(emails_pagina)
+
+                # ── Teléfono ──────────────────────────────────────────────
+                if not tel_encontrado:
+                    for tag in soup.find_all("a", href=True):
+                        if tag["href"].startswith("tel:"):
+                            tel_encontrado = tag["href"].replace("tel:", "").strip()
+                            break
+                    if not tel_encontrado:
+                        tels = _PATRON_TELEFONO.findall(resp.text)
+                        if tels:
+                            tel_encontrado = tels[0].strip()
 
             except Exception:
                 continue
 
-        return self._seleccionar_mejor(emails_encontrados, dominio)
+        return self._seleccionar_mejor(emails_encontrados, dominio), tel_encontrado
 
     @staticmethod
     def _seleccionar_mejor(emails: list[str], dominio_empresa: str) -> str:
