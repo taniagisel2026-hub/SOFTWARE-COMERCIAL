@@ -71,11 +71,19 @@ _BLOQUE_SERVICIOS = """\
 <p style="margin:18px 0 6px;font-size:14px;color:#222;">Entre los servicios que ofrecemos:</p>
 <ul style="margin:0 0 16px 20px;padding:0;font-size:14px;color:#333;line-height:1.9;">
   <li>Implementación y administración del SG-SST</li>
-  <li>Mediciones ambientales (ruido, iluminación, gases, estrés térmico)</li>
-  <li>Batería de Riesgo Psicosocial</li>
-  <li>Capacitaciones y brigadas de emergencia</li>
-  <li>Planos de evacuación y señalización</li>
-  <li>Investigación de accidentes de trabajo</li>
+  <li>Mediciones Ambientales (Luxometría, Sonometría, Dosimetría, Estrés Térmico, Gases y Material Particulado)</li>
+  <li>Batería de Riesgo Psicosocial (Ministerio del Trabajo)</li>
+  <li>Rumba Terapia y programas de Bienestar Laboral</li>
+  <li>Capacitaciones y Talleres SST</li>
+  <li>Formación de Brigadas de Emergencia</li>
+  <li>Planos de Emergencia y señalización</li>
+  <li>Certificación de Estándares Mínimos ante ARL y Ministerio del Trabajo</li>
+  <li>Profesiograma Ocupacional</li>
+  <li>Análisis Ergonómico de Puesto de Trabajo</li>
+  <li>Diseño e instalación de Red Contra Incendios</li>
+  <li>Inspecciones de Puesto de Trabajo</li>
+  <li>Investigación de Accidentes de Trabajo</li>
+  <li>Acompañamiento y asesoría continua en SST</li>
   <li>Certificaciones ISO a través de nuestra alianza con COMPECER:
     <ul style="margin:4px 0 0 18px;line-height:1.9;">
       <li>ISO 9001:2015 — Gestión de la Calidad</li>
