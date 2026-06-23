@@ -151,6 +151,30 @@ class SequenceOrchestrator:
             accion="DIA_1", ok=False, mensaje="Secuencia no iniciada para esta empresa.",
         )
 
+    def enviar_primer_contacto_masivo(
+        self, creado_por: str = "Masivo"
+    ) -> list[ResultadoProcesamiento]:
+        """Envía el Día 1 a todas las empresas que aún no lo han recibido."""
+        resultados: list[ResultadoProcesamiento] = []
+
+        with get_session() as session:
+            ids_pendientes = self._ids_sin_dia_1(session)
+
+        for id_emp in ids_pendientes:
+            try:
+                empresa = self._cargar_dominio(id_emp)
+                r = self.iniciar_secuencia(empresa, creado_por)
+                resultados.append(r)
+                if not r.ok and ("Límite" in r.mensaje or "rate" in r.mensaje.lower()):
+                    break
+            except Exception as exc:
+                resultados.append(ResultadoProcesamiento(
+                    id_empresa=id_emp, razon_social="",
+                    accion="DIA_1", ok=False, mensaje=str(exc),
+                ))
+
+        return resultados
+
     def procesar_pendientes(
         self, creado_por: str = "Scheduler"
     ) -> list[ResultadoProcesamiento]:
@@ -270,6 +294,28 @@ class SequenceOrchestrator:
             )
 
     # ── Consultas de candidatos ───────────────────────────────────────────────
+
+    @staticmethod
+    def _ids_sin_dia_1(session) -> list[int]:
+        """Empresas con email, sin opt-out, que nunca han recibido el Día 1."""
+        tiene_dia_1 = (
+            session.query(HistorialInteracciones.id_empresa)
+            .filter(
+                HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
+                HistorialInteracciones.notas_seguimiento.like(f"{TAG_DIA_1}%"),
+            )
+            .subquery()
+        )
+        rows = (
+            session.query(EmpresaORM.id_empresa)
+            .filter(
+                EmpresaORM.opt_out == False,
+                EmpresaORM.email_contacto.isnot(None),
+                EmpresaORM.id_empresa.notin_(session.query(tiene_dia_1)),
+            )
+            .all()
+        )
+        return [r.id_empresa for r in rows]
 
     @staticmethod
     def _ids_candidatos_dia_4(session) -> list[int]:

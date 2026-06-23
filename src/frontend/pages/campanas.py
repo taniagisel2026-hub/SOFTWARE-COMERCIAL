@@ -925,24 +925,22 @@ def _render_prospectos() -> None:
 
     # ── Acción masiva ──────────────────────────────────────────────────────────
     separador_seccion("Acciones masivas")
-    nuevos_con_email = [p for p in filtrados if p["Estado"] == "NUEVO" and p["_tiene_email"]]
 
     col_m1, col_m2, col_m3 = st.columns(3)
     with col_m1:
-        if st.button(
-            f"🚀 Enviar PRIMER CONTACTO a {len(nuevos_con_email)} prospectos nuevos",
-            type="primary",
-            use_container_width=True,
-            disabled=len(nuevos_con_email) == 0,
-        ):
-            _disparar_lote(nuevos_con_email)
+        st.markdown(
+            "<small style='color:#6B7280;'>Envía el correo de presentación a todas las empresas que aún no lo han recibido e inicia su cadencia Día 4 / Día 8.</small>",
+            unsafe_allow_html=True,
+        )
+        if st.button("🚀 Enviar Día 1 a todos los pendientes", type="primary", use_container_width=True):
+            _enviar_dia1_masivo()
 
     with col_m2:
         st.markdown(
-            "<small style='color:#6B7280;'>Ejecutar una vez al día — envía Día 4 (WhatsApp) y Día 8 (correo) a quien corresponda automáticamente.</small>",
+            "<small style='color:#6B7280;'>Ejecutar una vez al día — envía Día 4 y Día 8 a quien corresponda según la cadencia.</small>",
             unsafe_allow_html=True,
         )
-        if st.button("⚙️ Ejecutar cadencia automática (Día 4 y Día 8)", use_container_width=True):
+        if st.button("⚙️ Ejecutar cadencia (Día 4 y Día 8)", use_container_width=True):
             _ejecutar_cadencia()
 
     with col_m3:
@@ -955,6 +953,33 @@ def _render_prospectos() -> None:
                 "prospectos_crm.csv",
                 "text/csv",
             )
+
+
+def _enviar_dia1_masivo() -> None:
+    """Envía el correo Día 1 a todas las empresas que aún no lo han recibido."""
+    from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
+
+    with st.spinner("Enviando primer correo a todos los pendientes..."):
+        resultados = SequenceOrchestrator().enviar_primer_contacto_masivo(creado_por="Panel Web")
+
+    if not resultados:
+        st.info("Todas las empresas ya recibieron el primer correo.")
+        return
+
+    enviados  = [r for r in resultados if r.ok]
+    fallidos  = [r for r in resultados if not r.ok]
+    rate_stop = any("Límite" in r.mensaje or "rate" in r.mensaje.lower() for r in fallidos)
+
+    if enviados:
+        st.success(f"✅ Primer correo enviado a **{len(enviados)}** empresa(s).")
+    if rate_stop:
+        st.warning("⏸ Se alcanzó el límite diario de envíos. Los restantes se enviarán mañana.")
+    if fallidos and not rate_stop:
+        with st.expander(f"⚠️ {len(fallidos)} error(es)"):
+            for r in fallidos:
+                st.markdown(f"- **{r.razon_social}**: {r.mensaje}")
+
+    st.cache_data.clear()
 
 
 def _ejecutar_cadencia() -> None:
