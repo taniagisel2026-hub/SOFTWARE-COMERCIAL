@@ -21,7 +21,7 @@ class RateLimiter:
     """
 
     _CANAL_DEFAULTS = {
-        "EMAIL":     {"max_dia": 150, "delay_min": 45,  "delay_max": 180},
+        "EMAIL":     {"max_dia": 30,  "delay_min": 45,  "delay_max": 180},
         "WHATSAPP":  {"max_dia": 30,  "delay_min": 30,  "delay_max": 120},
     }
 
