@@ -242,8 +242,6 @@ class EmailTemplateEngine:
                 + gancho_html
                 + _jinja.from_string(_PARRAFO_LEGAL).render(**data)
                 + _jinja.from_string(_PARRAFO_CTA_PRIMER).render(**data)
-                + _SEPARADOR
-                + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data)
                 + firma
             )
 
@@ -253,8 +251,6 @@ class EmailTemplateEngine:
                 + gancho_html
                 + _jinja.from_string(_PARRAFO_LEGAL).render(**data)
                 + _jinja.from_string(_PARRAFO_CTA_RECORDATORIO).render(**data)
-                + _SEPARADOR
-                + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data)
                 + firma
             )
 
@@ -263,8 +259,6 @@ class EmailTemplateEngine:
                 saludo_html
                 + gancho_html
                 + _jinja.from_string(_PARRAFO_ULTIMO_CONTACTO).render(**data)
-                + _SEPARADOR
-                + _jinja.from_string(_BLOQUE_SERVICIOS).render(**data)
                 + firma
             )
 
