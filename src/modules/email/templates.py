@@ -128,8 +128,10 @@ _PARRAFO_CTA_PRIMER = """\
   Soy <strong>{{ nombre_asesora }}</strong> de <strong>{{ empresa_remitente }}</strong>
   y ayudamos a empresas en <strong>{{ ciudad }}</strong> a implementar el SG-SST de forma
   rápida, sin complicaciones y con acompañamiento continuo.
+  Adicionalmente, a través de nuestra alianza con <strong>COMPECER</strong> podemos
+  acompañarlos en procesos de certificación ISO (9001, 45001, 14001, entre otras).
   Contáctenos — con gusto le explicamos cómo podemos ayudar a
-  <strong>{{ razon_social }}</strong> a cumplir estos requisitos sin complicaciones.
+  <strong>{{ razon_social }}</strong>.
 </p>"""
 
 _PARRAFO_CTA_RECORDATORIO = """\
