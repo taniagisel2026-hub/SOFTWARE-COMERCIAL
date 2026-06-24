@@ -752,6 +752,80 @@ def _render_prospectos() -> None:
     with c3: tarjeta_kpi("Con email", str(sum(1 for p in datos if p["_tiene_email"])), icono="📧", color="#7C3AED")
     with c4: tarjeta_kpi("Cierres", str(estados.count("CERRADO_GANADO")), icono="✅", color="#10B981")
 
+    # ── Envío de correo de prueba ─────────────────────────────────────────────
+    with st.expander("🧪 Enviar correo de prueba a mi correo"):
+        st.caption("Elige una empresa real del CRM, selecciona la plantilla y recibe el correo en tu propio correo para revisar cómo queda.")
+        with st.form("form_correo_prueba"):
+            nombres_prueba = [p["Empresa"] for p in datos if p["_tiene_email"]]
+            empresa_prueba = st.selectbox(
+                "Empresa (datos reales del CRM)",
+                options=["— Selecciona —"] + nombres_prueba,
+            )
+            col_p1, col_p2 = st.columns(2)
+            email_prueba = col_p1.text_input(
+                "Enviar a este correo",
+                value="taniagisel2026@gmail.com",
+                placeholder="tucorreo@gmail.com",
+            )
+            plantilla_prueba = col_p2.selectbox(
+                "Plantilla",
+                options=[
+                    ("PRIMER_CONTACTO",         "Día 1 — Primer contacto"),
+                    ("RECORDATORIO_VENCIMIENTO", "Día 4 — Recordatorio"),
+                    ("ULTIMO_CONTACTO",          "Día 8 — Último contacto"),
+                ],
+                format_func=lambda x: x[1],
+            )
+            enviar_prueba = st.form_submit_button("Enviar correo de prueba", type="primary")
+
+        if enviar_prueba:
+            if empresa_prueba == "— Selecciona —" or not email_prueba:
+                st.warning("Selecciona una empresa e ingresa un correo destino.")
+            else:
+                id_emp_prueba = next(p["ID"] for p in datos if p["Empresa"] == empresa_prueba)
+                tipo_sel = plantilla_prueba[0]
+                with st.spinner(f"Enviando a {email_prueba}..."):
+                    try:
+                        from src.database.connection import get_session
+                        from src.database.models import EmpresaProspecto as _ORM
+                        from src.domain.resolution_0312 import ESPECIFICACIONES, clasificar_nivel_estandares
+                        from src.modules.email.gmail_client import GmailClient
+                        from src.modules.email.templates import EmailTemplateEngine, EmailContext
+                        from src.config import get_config
+
+                        with get_session() as _s:
+                            _e = _s.get(_ORM, id_emp_prueba)
+                            nivel = clasificar_nivel_estandares(_e.num_empleados, _e.nivel_riesgo_arl)
+                            spec  = ESPECIFICACIONES[nivel]
+                            cfg   = get_config()
+                            ctx_prueba = EmailContext(
+                                razon_social=_e.razon_social,
+                                nombre_contacto=_e.nombre_contacto or "",
+                                ciudad=_e.ciudad,
+                                departamento=_e.departamento,
+                                num_estandares=spec.num_estandares,
+                                nivel_riesgo=_e.nivel_riesgo_arl,
+                                articulo_resolucion=spec.articulo_resolucion,
+                                empresa_remitente=cfg.empresa_nombre,
+                                email_remitente=cfg.empresa_email,
+                                opt_out_url=f"mailto:{cfg.empresa_email}?subject=Exclusión Base de Datos - {_e.razon_social}",
+                                sector_economico=_e.sector_economico or "",
+                                num_empleados=_e.num_empleados,
+                                nombre_asesora=cfg.asesora_nombre,
+                            )
+
+                        engine = EmailTemplateEngine()
+                        asunto, html = engine.renderizar(tipo_sel, ctx_prueba)
+                        gmail = GmailClient.from_config()
+                        gmail.send(
+                            to=email_prueba,
+                            subject=f"[PRUEBA] {asunto}",
+                            html_body=html,
+                        )
+                        st.success(f"Correo de prueba enviado a **{email_prueba}** con datos de **{empresa_prueba}**.")
+                    except Exception as exc:
+                        st.error(f"Error al enviar: {exc}")
+
     # ── Agregar prospecto manual ───────────────────────────────────────────────
     with st.expander("➕ Agregar prospecto manualmente"):
         with st.form("form_prospecto_manual"):
