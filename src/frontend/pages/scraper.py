@@ -11,10 +11,17 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 _CIUDADES = [
+    # Principales
     "Bogotá D.C.", "Medellín", "Cali", "Barranquilla", "Bucaramanga",
-    "Pereira", "Manizales", "Ibagué", "Cúcuta", "Santa Marta",
-    "Cartagena", "Villavicencio", "Pasto", "Armenia", "Neiva",
-    "Montería", "Sincelejo", "Valledupar", "Popayán", "Tunja",
+    "Cartagena", "Soacha", "Tunja", "Ibagué", "Santa Marta",
+    # Cundinamarca / Clúster Bogotá
+    "Chía", "Cota", "Facatativá", "Fusagasugá", "Zipaquirá",
+    "Villeta", "Girardot", "Mosquera", "La Vega", "Cajicá",
+    "Sopó", "La Calera", "Guaduas", "Flandes", "Tocancipá",
+    "Madrid", "Sibaté",
+    # Otras ciudades de cobertura
+    "Cúcuta", "Pereira", "Manizales", "Valledupar", "Floridablanca",
+    "Barrancabermeja", "Lebrija", "Melgar",
 ]
 
 _SECTORES = [
