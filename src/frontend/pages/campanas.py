@@ -601,10 +601,53 @@ def _auto_cadencia() -> None:
         from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
         resultados = SequenceOrchestrator().procesar_pendientes(creado_por="Auto")
         enviados = [r for r in resultados if r.ok and r.accion in ("DIA_4", "DIA_8")]
-        if enviados:
-            st.toast(f"Cadencia automática: {len(enviados)} correo(s) enviados hoy.", icon="✅")
+        dia4 = [r for r in enviados if r.accion == "DIA_4"]
+        dia8 = [r for r in enviados if r.accion == "DIA_8"]
+        st.session_state["_cadencia_resultado_hoy"] = {
+            "dia4": [r.razon_social for r in dia4],
+            "dia8": [r.razon_social for r in dia8],
+        }
     except Exception:
         pass
+
+
+def _render_resumen_cadencia() -> None:
+    """Muestra qué correos de cadencia se enviaron hoy."""
+    resultado = st.session_state.get("_cadencia_resultado_hoy")
+    hoy = str(date.today())
+
+    # También consulta la BD para mostrar todo lo enviado hoy
+    try:
+        from src.database.connection import get_session
+        from src.database.models import HistorialInteracciones, EmpresaProspecto as _EmpORM
+        from src.modules.outreach.sequence_orchestrator import TAG_DIA_1, TAG_DIA_4, TAG_DIA_8
+        from datetime import datetime
+
+        with get_session() as s:
+            def _contar(tag):
+                return (
+                    s.query(HistorialInteracciones)
+                    .filter(
+                        HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
+                        HistorialInteracciones.notas_seguimiento.like(f"{tag}%"),
+                        HistorialInteracciones.fecha_interaccion >= datetime.strptime(hoy, "%Y-%m-%d"),
+                    )
+                    .count()
+                )
+            n1 = _contar(TAG_DIA_1)
+            n4 = _contar(TAG_DIA_4)
+            n8 = _contar(TAG_DIA_8)
+    except Exception:
+        n1 = n4 = n8 = 0
+
+    separador_seccion(f"Cadencia de hoy — {hoy}")
+    c1, c2, c3 = st.columns(3)
+    with c1: tarjeta_kpi("Día 1 enviados hoy", str(n1), icono="📨", color="#1D4ED8")
+    with c2: tarjeta_kpi("Día 4 enviados hoy", str(n4), icono="📨", color="#7C3AED")
+    with c3: tarjeta_kpi("Día 8 enviados hoy", str(n8), icono="📨", color="#059669")
+
+    if n4 == 0 and n8 == 0:
+        st.info("Hoy no había empresas pendientes de Día 4 o Día 8.")
 
 
 def render() -> None:
@@ -617,6 +660,7 @@ def render() -> None:
         st.rerun()
 
     st.caption("Gestión de prospectos, secuencias de correo y control Ley 1581/2012")
+    _render_resumen_cadencia()
 
     tab_prospectos, tab_firmados, tab_optout = st.tabs([
         "📋 Prospectos en CRM",
