@@ -591,7 +591,25 @@ def _render_ficha_cliente(id_empresa: int) -> None:
 
 # ── Página principal ──────────────────────────────────────────────────────────
 
+def _auto_cadencia() -> None:
+    """Ejecuta la cadencia automáticamente una vez al día al abrir el software."""
+    hoy = str(date.today())
+    if st.session_state.get("_cadencia_ejecutada") == hoy:
+        return
+    st.session_state["_cadencia_ejecutada"] = hoy
+    try:
+        from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
+        resultados = SequenceOrchestrator().procesar_pendientes(creado_por="Auto")
+        enviados = [r for r in resultados if r.ok and r.accion in ("DIA_4", "DIA_8")]
+        if enviados:
+            st.toast(f"Cadencia automática: {len(enviados)} correo(s) enviados hoy.", icon="✅")
+    except Exception:
+        pass
+
+
 def render() -> None:
+    _auto_cadencia()
+
     col_t, col_r = st.columns([6, 1])
     col_t.title("✉️ Campañas y Habeas Data")
     if col_r.button("🔄", help="Actualizar datos", use_container_width=True):
