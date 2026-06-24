@@ -137,7 +137,9 @@ _PARRAFO_CTA_PRIMER = """\
 _PARRAFO_CTA_RECORDATORIO = """\
 <p style="margin:14px 0;font-size:14px;color:#222;line-height:1.75;">
   En <strong>{{ empresa_remitente }}</strong> ya hemos ayudado a varias empresas en
-  {{ ciudad }} a cumplir estos {{ num_estandares }} estándares en tiempo récord.
+  {{ ciudad }} a cumplir los estándares del SG-SST en tiempo récord.
+  Adicionalmente, a través de nuestra alianza con <strong>COMPECER</strong> podemos
+  acompañarlos en procesos de certificación ISO (9001, 45001, 14001, entre otras).
   Comuníquese con nosotros cuando guste — estamos disponibles para resolver sus dudas.
 </p>"""
 
