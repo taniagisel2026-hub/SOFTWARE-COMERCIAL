@@ -109,30 +109,9 @@ def render() -> None:
             disabled=not usar_gmaps,
         )
 
-        st.divider()
-        separador_seccion("Extracción en lote")
-        st.caption("Extrae todos los sectores de una ciudad de forma automática.")
-        ciudad_lote = st.selectbox("📍 Ciudad", ciudades_region, key="sc_ciudad_lote")
-        sectores_lote = st.multiselect(
-            "Sectores a extraer",
-            _SECTORES,
-            default=_SECTORES,
-            key="sc_sectores_lote",
-        )
-        max_lote = st.slider("Máximo por sector", 5, 100, 30, 5, key="sc_max_lote")
-        iniciar_lote = st.button(
-            "🚀 Iniciar extracción en lote",
-            type="secondary",
-            use_container_width=True,
-            disabled=not sectores_lote,
-        )
-
     # ── Resultado / Log ───────────────────────────────────────────────────────
     with col_resultado:
         separador_seccion("Resultado de la sesión")
-
-        if iniciar_lote and sectores_lote:
-            _ejecutar_lote(ciudad_lote, sectores_lote, max_lote)
 
         if iniciar:
             _ejecutar_pipeline(ciudad, sector, max_empresas, disparar_emails, usar_gmaps, usar_li, usar_web)
@@ -142,6 +121,34 @@ def render() -> None:
             _mostrar_resultado(st.session_state[_CLAVE_RESULTADO])
         elif not iniciar:
             _mostrar_historial()
+
+    # ── Extracción en lote (ancho completo) ──────────────────────────────────
+    st.divider()
+    separador_seccion("Extracción en lote")
+    st.caption("Extrae todos los sectores de una ciudad de forma automática.")
+
+    col_lote1, col_lote2, col_lote3 = st.columns([2, 3, 1])
+    with col_lote1:
+        ciudad_lote = st.selectbox("📍 Ciudad", ciudades_region, key="sc_ciudad_lote")
+    with col_lote2:
+        sectores_lote = st.multiselect(
+            "Sectores a extraer",
+            _SECTORES,
+            default=_SECTORES,
+            key="sc_sectores_lote",
+        )
+    with col_lote3:
+        max_lote = st.slider("Máximo por sector", 5, 100, 30, 5, key="sc_max_lote")
+
+    iniciar_lote = st.button(
+        "🚀 Iniciar extracción en lote",
+        type="secondary",
+        use_container_width=True,
+        disabled=not sectores_lote,
+    )
+
+    if iniciar_lote and sectores_lote:
+        _ejecutar_lote(ciudad_lote, sectores_lote, max_lote)
 
 
 def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_emails: bool,
