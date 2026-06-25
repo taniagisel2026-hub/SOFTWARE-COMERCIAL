@@ -182,7 +182,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
         terminos = [sector] + _VARIACIONES_SECTOR.get(sector, [])
         todos: list[ProspectoExtraido] = []
         vistos: set[str] = set()
-        por_termino = max(max_resultados // len(terminos), 8)
+        por_termino = max(25, max_resultados // 3)
         depto = self._inferir_departamento(ciudad)
 
         # Un solo Chrome para todas las variaciones — más eficiente y menos sospechoso
@@ -484,7 +484,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
     def _scroll_gradual(self, page, max_resultados: int) -> None:
         """Estrategia 5: scroll con pasos y tiempos aleatorios, imita comportamiento humano."""
-        pasos = max(4, max_resultados // 6)
+        pasos = max(8, max_resultados // 3)
         for _ in range(pasos):
             pixels = random.randint(400, 900)
             # Comillas dobles en el selector para evitar conflicto con las simples de role='feed'
