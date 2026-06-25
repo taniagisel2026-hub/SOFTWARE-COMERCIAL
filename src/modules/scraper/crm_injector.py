@@ -97,7 +97,11 @@ class CRMInjectorService:
             if por_email:
                 return por_email
 
-        # 3. Nombre normalizado + ciudad
+        # 3. Nombre normalizado + ciudad — solo si el prospecto no tiene email
+        # Si tiene email y no coincidió en paso 2, es un contacto distinto de la misma empresa
+        if p.email:
+            return None
+
         nombre_norm = _normalizar_nombre_empresa(p.razon_social)
         ciudad_norm = _normalizar_texto(p.ciudad)
 

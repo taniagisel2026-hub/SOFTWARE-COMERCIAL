@@ -24,6 +24,22 @@ _CIUDADES = [
     "Barrancabermeja", "Lebrija", "Melgar",
 ]
 
+_REGIONES: dict[str, list[str]] = {
+    "Bogotá + Cundinamarca": [
+        "Bogotá D.C.", "Soacha", "Chía", "Cota", "Facatativá", "Fusagasugá",
+        "Zipaquirá", "Villeta", "Girardot", "Mosquera", "La Vega", "Cajicá",
+        "Sopó", "La Calera", "Guaduas", "Flandes", "Tocancipá", "Madrid", "Sibaté",
+    ],
+    "Antioquia": ["Medellín"],
+    "Valle del Cauca": ["Cali"],
+    "Costa Caribe": ["Barranquilla", "Cartagena", "Valledupar", "Santa Marta"],
+    "Santander": ["Bucaramanga", "Floridablanca", "Lebrija", "Barrancabermeja"],
+    "Eje Cafetero": ["Pereira", "Manizales"],
+    "Boyacá / Tolima": ["Tunja", "Ibagué", "Melgar", "Flandes"],
+    "Norte de Santander": ["Cúcuta"],
+    "Todo el país": _CIUDADES,
+}
+
 _SECTORES = [
     "Construcción", "Manufactura / Industria", "Transporte y Logística",
     "Comercio y Retail", "Servicios Empresariales", "Salud y Clínicas",
@@ -44,7 +60,9 @@ def render() -> None:
     with col_config:
         separador_seccion("Parámetros de extracción")
 
-        ciudad = st.selectbox("📍 Ciudad objetivo", _CIUDADES, key="sc_ciudad")
+        region = st.selectbox("🗺️ Región", list(_REGIONES.keys()), key="sc_region")
+        ciudades_region = _REGIONES[region]
+        ciudad = st.selectbox("📍 Ciudad objetivo", ciudades_region, key="sc_ciudad")
         sector = st.selectbox("🏭 Sector económico", _SECTORES, key="sc_sector")
         max_empresas = st.slider(
             "📊 Máximo de empresas por fuente",

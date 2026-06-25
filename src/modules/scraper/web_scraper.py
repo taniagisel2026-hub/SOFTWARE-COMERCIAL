@@ -97,34 +97,47 @@ class WebScraper:
         return ""
 
     def enriquecer_prospectos(self, prospectos: list) -> list:
-        """Visita el sitio web de cada prospecto y añade email y/o teléfono si faltan."""
+        """
+        Visita el sitio web de cada prospecto y añade email y teléfono.
+        Si el dominio tiene varios correos corporativos, crea un registro por cada uno.
+        """
+        from copy import copy
+        resultado: list = []
         for p in prospectos:
             if not p.sitio_web:
+                resultado.append(p)
                 continue
-            necesita_email = not p.tiene_email
-            necesita_tel   = not p.telefono
-            if not necesita_email and not necesita_tel:
-                continue
-            # Una sola pasada al sitio para extraer ambos
-            email, tel = self._buscar_email_y_telefono(p.sitio_web)
-            if necesita_email and email:
-                p.email = email
-            if necesita_tel and tel:
+            emails, tel = self._buscar_todos_emails_y_telefono(p.sitio_web)
+            if not p.tiene_email and emails:
+                p.email = emails[0]
+            if not p.telefono and tel:
                 p.telefono = tel
-        return prospectos
+            resultado.append(p)
+            # Crear un prospecto adicional por cada email extra del mismo dominio
+            for email_extra in emails[1:]:
+                if email_extra == p.email:
+                    continue
+                clon = copy(p)
+                clon.email = email_extra
+                resultado.append(clon)
+        return resultado
 
     # ── Implementación interna ────────────────────────────────────────────────
 
     def _buscar_email(self, url_base: str) -> str:
-        email, _ = self._buscar_email_y_telefono(url_base)
-        return email
+        emails, _ = self._buscar_todos_emails_y_telefono(url_base)
+        return emails[0] if emails else ""
 
     def _buscar_email_y_telefono(self, url_base: str) -> tuple[str, str]:
+        emails, tel = self._buscar_todos_emails_y_telefono(url_base)
+        return (emails[0] if emails else ""), tel
+
+    def _buscar_todos_emails_y_telefono(self, url_base: str) -> tuple[list[str], str]:
         try:
             import httpx
             from bs4 import BeautifulSoup
         except ImportError:
-            return "", ""
+            return [], ""
 
         dominio = urlparse(url_base).netloc
         urls_a_revisar = [url_base] + [
@@ -168,31 +181,27 @@ class WebScraper:
             except Exception:
                 continue
 
-        return self._seleccionar_mejor(emails_encontrados, dominio), tel_encontrado
+        return self._seleccionar_todos_del_dominio(emails_encontrados, dominio), tel_encontrado
 
     @staticmethod
-    def _seleccionar_mejor(emails: list[str], dominio_empresa: str) -> str:
+    def _seleccionar_todos_del_dominio(emails: list[str], dominio_empresa: str) -> list[str]:
         """
-        Prioriza emails del dominio de la empresa sobre emails genéricos.
-        Filtra los personales (gmail, hotmail, etc.).
+        Retorna todos los emails corporativos del dominio de la empresa.
+        Prioriza los del mismo dominio; incluye genéricos (gmail) solo si no hay corporativos.
         """
         if not emails:
-            return ""
+            return []
 
-        # Normalizar
         emails_limpios = list({e.lower().strip() for e in emails
                                if _PATRON_EMAIL.fullmatch(e.strip())})
+        emails_limpios = [e for e in emails_limpios if e.split("@")[-1] not in _DOMINIOS_FILTRO]
 
-        # 1er filtro: eliminar dominios de redes sociales y genéricos
-        emails_limpios = [
-            e for e in emails_limpios
-            if e.split("@")[-1] not in _DOMINIOS_FILTRO
-        ]
+        dominio_base = dominio_empresa.lstrip("www.") if dominio_empresa else ""
+        corporativos = [e for e in emails_limpios if dominio_base and dominio_base in e]
 
-        # Prioridad: email del mismo dominio corporativo
-        for email in emails_limpios:
-            if dominio_empresa and dominio_empresa.lstrip("www.") in email:
-                return email
+        # Si hay emails del mismo dominio, devolver solo esos (más confiables)
+        if corporativos:
+            return corporativos
 
-        # Cualquier email no filtrado
-        return emails_limpios[0] if emails_limpios else ""
+        # Si no hay corporativos, devolver cualquier email encontrado
+        return emails_limpios[:3]
