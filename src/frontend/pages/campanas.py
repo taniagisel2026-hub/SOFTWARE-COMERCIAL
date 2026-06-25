@@ -921,23 +921,31 @@ def _render_prospectos() -> None:
                 else:
                     st.error(f"❌ Error al crear el prospecto: {msg}")
 
-    # ── Eliminar prospecto ────────────────────────────────────────────────────
-    with st.expander("🗑️ Eliminar prospecto"):
+    # ── Eliminar prospectos ───────────────────────────────────────────────────
+    with st.expander("🗑️ Eliminar prospectos"):
         if datos:
-            nombres_para_borrar = [f"{p['Empresa']} (ID {p['ID']})" for p in datos]
-            sel_borrar = st.selectbox("Selecciona el prospecto a eliminar", nombres_para_borrar, key="sel_borrar")
-            nombre_a_borrar = sel_borrar.split(" (ID")[0]
-            st.warning(f"⚠️ Esto eliminará **{nombre_a_borrar}** y todo su historial. Esta acción no se puede deshacer.")
-            if st.button(f"Sí, eliminar {nombre_a_borrar}", type="secondary", key="btn_borrar"):
-                id_borrar = int(sel_borrar.split("ID ")[-1].rstrip(")"))
-                from ...database.connection import get_session
-                from ...database.models import EmpresaProspecto as _EmpModel, HistorialInteracciones as _HistModel
-                with get_session() as _s:
-                    _s.query(_HistModel).filter(_HistModel.id_empresa == id_borrar).delete()
-                    _s.query(_EmpModel).filter(_EmpModel.id_empresa == id_borrar).delete()
-                    _s.commit()
-                st.session_state["_msg_crm"] = ("ok", f"🗑️ {nombre_a_borrar} eliminado correctamente.")
-                st.rerun()
+            st.caption("Selecciona uno o varios prospectos y haz clic en Eliminar seleccionados.")
+            opciones = {f"{p['Empresa']} — {p['Ciudad']} — {p['Email']}": p["ID"] for p in datos}
+            seleccionados = st.multiselect(
+                "Prospectos a eliminar",
+                options=list(opciones.keys()),
+                placeholder="Busca por nombre, ciudad o email...",
+                key="multi_borrar",
+            )
+            if seleccionados:
+                st.warning(f"⚠️ Se eliminarán **{len(seleccionados)}** prospecto(s) y todo su historial. Esta acción no se puede deshacer.")
+                if st.button(f"Sí, eliminar {len(seleccionados)} seleccionado(s)", type="secondary", key="btn_borrar_multi"):
+                    from ...database.connection import get_session
+                    from ...database.models import EmpresaProspecto as _EmpModel, HistorialInteracciones as _HistModel
+                    ids_borrar = [opciones[s] for s in seleccionados]
+                    with get_session() as _s:
+                        for id_b in ids_borrar:
+                            _s.query(_HistModel).filter(_HistModel.id_empresa == id_b).delete()
+                            _s.query(_EmpModel).filter(_EmpModel.id_empresa == id_b).delete()
+                        _s.commit()
+                    st.cache_data.clear()
+                    st.session_state["_msg_crm"] = ("ok", f"🗑️ {len(ids_borrar)} prospecto(s) eliminado(s) correctamente.")
+                    st.rerun()
         else:
             st.info("No hay prospectos para eliminar.")
 
