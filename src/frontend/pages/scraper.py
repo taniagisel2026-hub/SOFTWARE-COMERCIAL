@@ -109,9 +109,30 @@ def render() -> None:
             disabled=not usar_gmaps,
         )
 
+        st.divider()
+        separador_seccion("Extracción en lote")
+        st.caption("Extrae todos los sectores de una ciudad de forma automática.")
+        ciudad_lote = st.selectbox("📍 Ciudad", ciudades_region, key="sc_ciudad_lote")
+        sectores_lote = st.multiselect(
+            "Sectores a extraer",
+            _SECTORES,
+            default=_SECTORES,
+            key="sc_sectores_lote",
+        )
+        max_lote = st.slider("Máximo por sector", 5, 100, 30, 5, key="sc_max_lote")
+        iniciar_lote = st.button(
+            "🚀 Iniciar extracción en lote",
+            type="secondary",
+            use_container_width=True,
+            disabled=not sectores_lote,
+        )
+
     # ── Resultado / Log ───────────────────────────────────────────────────────
     with col_resultado:
         separador_seccion("Resultado de la sesión")
+
+        if iniciar_lote and sectores_lote:
+            _ejecutar_lote(ciudad_lote, sectores_lote, max_lote)
 
         if iniciar:
             _ejecutar_pipeline(ciudad, sector, max_empresas, disparar_emails, usar_gmaps, usar_li, usar_web)
@@ -351,3 +372,41 @@ def _mostrar_historial() -> None:
     separador_seccion(f"Historial de extracciones — {hist['total']} prospectos en total")
     df = pd.DataFrame(hist["sesiones"])
     st.dataframe(df, use_container_width=True, hide_index=True)
+
+
+def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> None:
+    """Corre el pipeline para cada sector de forma secuencial mostrando progreso."""
+    total_nuevas = 0
+    with st.status(f"Extrayendo {len(sectores)} sectores en {ciudad}...", expanded=True) as status:
+        for i, sector in enumerate(sectores, 1):
+            st.write(f"**{i}/{len(sectores)}** — {sector}...")
+            try:
+                from src.modules.scraper.pipeline import ProspectionPipeline
+                resultado = ProspectionPipeline().ejecutar(
+                    ciudad=ciudad,
+                    sector=sector,
+                    max_por_fuente=max_por_sector,
+                    disparar_emails=False,
+                    usar_gmaps=True,
+                    usar_linkedin=False,
+                    usar_webscraper=True,
+                )
+                total_nuevas += resultado.empresas_nuevas
+                st.write(f"  ✅ {resultado.empresas_nuevas} nuevas · {resultado.empresas_existentes} ya existían")
+            except Exception as exc:
+                st.write(f"  ⚠️ Error: {exc}")
+
+        # Guardar última sesión en lote
+        import json as _json
+        from datetime import date as _date
+        _log_path = Path(__file__).parent.parent.parent.parent / "data" / "ultima_extraccion.json"
+        _log_path.parent.mkdir(parents=True, exist_ok=True)
+        _log_path.write_text(_json.dumps({
+            "fecha": str(_date.today()),
+            "ciudad": ciudad,
+            "sector": f"{len(sectores)} sectores",
+            "nuevas": total_nuevas,
+        }), encoding="utf-8")
+
+        st.cache_data.clear()
+        status.update(label=f"Lote completado — {total_nuevas} empresas nuevas en total", state="complete")
