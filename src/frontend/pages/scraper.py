@@ -84,22 +84,6 @@ def render() -> None:
                 "Para extracción real: `playwright install chromium`"
             )
 
-        # ── Estado sesión LinkedIn ─────────────────────────────────────────
-        try:
-            from src.modules.scraper.linkedin_auto import LinkedInAutoScraper
-            _li_sesion = LinkedInAutoScraper.sesion_existe()
-        except Exception:
-            _li_sesion = False
-
-        if _li_sesion:
-            st.success("🔗 LinkedIn: sesión activa — extracción directa habilitada.")
-        else:
-            st.warning(
-                "🔗 LinkedIn: sin sesión configurada.\n\n"
-                "Para habilitarlo, corre **una sola vez** en cmd:\n\n"
-                "```\npython scrape_linkedin_auto.py --solo-login\n```"
-            )
-
         iniciar = st.button(
             "🚀 Iniciar Extracción",
             type="primary",
