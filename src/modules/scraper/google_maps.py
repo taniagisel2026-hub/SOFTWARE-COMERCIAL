@@ -20,66 +20,52 @@ from .base import BaseScraperAdapter, ProspectoExtraido, _normalizar_texto
 # Términos que usan las empresas colombianas que necesitan SG-SST (Res. 0312/2019)
 _VARIACIONES_SECTOR: dict[str, list[str]] = {
     "Construcción": [
-        "constructora", "obras civiles", "ingeniería civil", "empresa constructora",
-        "contratista de obras", "edificaciones", "infraestructura", "obra negra",
-        "acabados de construcción", "interventoría de obras",
+        "constructora", "obras civiles", "empresa constructora",
+        "contratista de obras", "edificaciones",
     ],
     "Manufactura / Industria": [
-        "fábrica", "planta industrial", "industria manufacturera", "taller industrial",
-        "metalmecánica", "ensamblaje", "planta de producción", "manufactura",
-        "empresa industrial", "taller metalmecánico",
+        "fábrica", "planta industrial", "metalmecánica",
+        "taller industrial", "manufactura",
     ],
     "Transporte y Logística": [
-        "empresa de transporte", "transportadora", "logística", "flota de camiones",
-        "empresa de carga", "mensajería y paquetería", "operador logístico",
-        "transporte de mercancías", "courier", "empresa de mudanzas",
+        "empresa de transporte", "transportadora", "operador logístico",
+        "empresa de carga", "logística",
     ],
     "Comercio y Retail": [
-        "distribuidora", "almacén mayorista", "empresa comercial", "bodega comercial",
-        "importadora", "exportadora", "comercializadora", "mayorista",
-        "tienda por departamentos", "supermercado",
+        "distribuidora", "comercializadora", "importadora",
+        "almacén mayorista", "mayorista",
     ],
     "Servicios Empresariales": [
-        "empresa de servicios", "outsourcing", "servicios corporativos", "consultoría empresarial",
-        "call center", "empresa de aseo y mantenimiento", "servicios generales",
-        "empresa de limpieza", "vigilancia y aseo", "facilities",
+        "empresa de servicios", "outsourcing", "empresa de aseo y mantenimiento",
+        "servicios generales", "consultoría empresarial",
     ],
     "Salud y Clínicas": [
-        "clínica", "hospital", "centro médico", "IPS", "laboratorio clínico",
-        "consultorio médico", "centro de diagnóstico", "clínica odontológica",
-        "centro de rehabilitación", "hogar geriátrico",
+        "clínica", "centro médico", "IPS",
+        "laboratorio clínico", "hospital",
     ],
     "Educación": [
-        "colegio", "instituto", "universidad", "centro de formación", "academia",
-        "jardín infantil", "escuela", "centro educativo", "SENA",
-        "instituto técnico", "politécnico",
+        "colegio", "instituto", "centro de formación",
+        "academia", "jardín infantil",
     ],
     "Agricultura y Ganadería": [
-        "agroindustria", "finca agrícola", "empresa agropecuaria", "ganadería",
-        "cultivo", "hacienda ganadera", "avícola", "porcícola",
-        "empresa agrícola", "floricultura",
+        "agroindustria", "empresa agropecuaria", "avícola",
+        "ganadería", "cultivo",
     ],
     "Minería y Energía": [
-        "empresa minera", "explotación minera", "empresa energética", "planta eléctrica",
-        "energía solar", "empresa petrolera", "carbón", "cantera",
-        "planta de gas", "empresa de energía",
+        "empresa minera", "empresa energética", "energía solar",
+        "cantera", "planta eléctrica",
     ],
     "Tecnología y Software": [
         "empresa de tecnología", "desarrollo de software", "empresa TI",
-        "soluciones tecnológicas", "sistemas informáticos", "empresa de telecomunicaciones",
-        "data center", "soporte técnico empresarial", "empresa de ciberseguridad",
-        "integradora tecnológica",
+        "soluciones tecnológicas", "soporte técnico empresarial",
     ],
     "Alimentos y Bebidas": [
-        "empresa de alimentos", "procesadora de alimentos", "planta de alimentos",
-        "empresa de bebidas", "panadería industrial", "lácteos",
-        "cárnica", "empresa de confitería", "planta de jugos", "catering industrial",
+        "empresa de alimentos", "planta de alimentos", "lácteos",
+        "cárnica", "panadería industrial",
     ],
     "Seguridad Privada": [
-        "empresa de vigilancia", "seguridad privada", "vigilancia y seguridad",
-        "empresa de guardas", "seguridad electrónica", "monitoreo de alarmas",
-        "empresa de escoltas", "vigilancia industrial", "control de acceso",
-        "empresa de seguridad física",
+        "empresa de vigilancia", "seguridad privada",
+        "seguridad electrónica", "monitoreo de alarmas", "vigilancia industrial",
     ],
 }
 
@@ -167,7 +153,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
     SOURCE = "Google Maps"
 
-    def __init__(self, headless: bool = False, delay_min: float = 0.6, delay_max: float = 1.8):
+    def __init__(self, headless: bool = True, delay_min: float = 0.5, delay_max: float = 1.2):
         self._headless = headless
         self._delay_min = delay_min
         self._delay_max = delay_max
