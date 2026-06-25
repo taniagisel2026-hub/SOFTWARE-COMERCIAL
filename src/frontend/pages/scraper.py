@@ -256,62 +256,62 @@ def _mostrar_resultado(r: dict) -> None:
 
 @st.cache_data(ttl=60)
 def _cargar_historial() -> dict:
-    """Carga historial de sesiones de scraping desde HISTORIAL_INTERACCIONES."""
+    """Carga historial de extracciones agrupado por fecha, ciudad y sector."""
     try:
         from sqlalchemy import func
         from src.database.connection import get_session
-        from src.database.models import EmpresaProspecto, HistorialInteracciones
+        from src.database.models import EmpresaProspecto
 
         with get_session() as session:
-            # Prospectos por fuente de origen como proxy del historial de scraping
-            por_fuente = (
+            sesiones = (
                 session.query(
-                    EmpresaProspecto.fuente_origen,
-                    func.count(EmpresaProspecto.id_empresa),
-                )
-                .group_by(EmpresaProspecto.fuente_origen)
-                .all()
-            )
-            por_ciudad = (
-                session.query(
+                    EmpresaProspecto.fecha_registro,
                     EmpresaProspecto.ciudad,
-                    EmpresaProspecto.fuente_origen,
+                    EmpresaProspecto.sector_economico,
                     func.count(EmpresaProspecto.id_empresa),
                 )
-                .group_by(EmpresaProspecto.ciudad, EmpresaProspecto.fuente_origen)
-                .order_by(func.count(EmpresaProspecto.id_empresa).desc())
-                .limit(12)
+                .group_by(
+                    EmpresaProspecto.fecha_registro,
+                    EmpresaProspecto.ciudad,
+                    EmpresaProspecto.sector_economico,
+                )
+                .order_by(EmpresaProspecto.fecha_registro.desc())
                 .all()
             )
+            total = session.query(func.count(EmpresaProspecto.id_empresa)).scalar() or 0
+
         return {
             "ok": True,
-            "fuentes": [{"Fuente": f or "Desconocida", "Total": n} for f, n in por_fuente],
-            "detalle": [{"Ciudad": c, "Fuente": f or "—", "Prospectos": n} for c, f, n in por_ciudad],
+            "total": total,
+            "sesiones": [
+                {
+                    "Fecha": str(fecha),
+                    "Ciudad": ciudad or "—",
+                    "Sector": sector or "—",
+                    "Extraídas": n,
+                }
+                for fecha, ciudad, sector, n in sesiones
+            ],
         }
     except Exception as exc:
-        return {"ok": False, "error": str(exc), "fuentes": [], "detalle": []}
+        return {"ok": False, "error": str(exc), "total": 0, "sesiones": []}
 
 
 def _mostrar_historial() -> None:
-    """Muestra estadísticas históricas mientras no hay sesión activa."""
+    """Muestra historial de extracciones por fecha, ciudad y sector."""
     hist = _cargar_historial()
 
     if not hist["ok"]:
         st.info("⬅️ Configura los parámetros y presiona **Iniciar Extracción**.")
         return
 
-    if not hist["fuentes"]:
+    if not hist["sesiones"]:
         st.info(
             "⬅️ Configura los parámetros y presiona **Iniciar Extracción**.\n\n"
-            "Los resultados de extracciones anteriores aparecerán aquí."
+            "El historial de extracciones aparecerá aquí."
         )
         return
 
-    separador_seccion("Historial de prospectos por fuente")
-    df_f = pd.DataFrame(hist["fuentes"])
-    st.dataframe(df_f, use_container_width=True, hide_index=True)
-
-    if hist["detalle"]:
-        separador_seccion("Detalle por ciudad y fuente")
-        df_d = pd.DataFrame(hist["detalle"])
-        st.dataframe(df_d, use_container_width=True, hide_index=True)
+    separador_seccion(f"Historial de extracciones — {hist['total']} prospectos en total")
+    df = pd.DataFrame(hist["sesiones"])
+    st.dataframe(df, use_container_width=True, hide_index=True)
