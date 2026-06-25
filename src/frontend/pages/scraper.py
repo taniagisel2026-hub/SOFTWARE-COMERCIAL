@@ -151,6 +151,17 @@ def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_e
             "duracion":      round(resultado.duracion_s, 1),
             "errores":       resultado.errores[:10],
         }
+        # Guardar última sesión en archivo para persistir entre recargas
+        import json as _json
+        from datetime import date as _date
+        _log_path = Path(__file__).parent.parent.parent.parent / "data" / "ultima_extraccion.json"
+        _log_path.parent.mkdir(parents=True, exist_ok=True)
+        _log_path.write_text(_json.dumps({
+            "fecha":    str(_date.today()),
+            "ciudad":   resultado.ciudad,
+            "sector":   resultado.sector,
+            "nuevas":   resultado.empresas_nuevas,
+        }), encoding="utf-8")
         # Invalidar caché del dashboard y campañas
         st.cache_data.clear()
         st.rerun()
@@ -296,14 +307,18 @@ def _mostrar_historial() -> None:
         )
         return
 
-    # Tarjeta con la última extracción — suma todas las filas de la fecha más reciente
-    ultima_fecha = hist["sesiones"][0]["Fecha"]
-    ultima_ciudad = hist["sesiones"][0]["Ciudad"]
-    total_ultima = sum(s["Extraídas"] for s in hist["sesiones"] if s["Fecha"] == ultima_fecha and s["Ciudad"] == ultima_ciudad)
-    st.info(
-        f"**Última extracción:** {ultima_ciudad} · "
-        f"**{total_ultima} empresas** · {ultima_fecha}"
-    )
+    # Tarjeta con la última extracción — lee del archivo persistente
+    import json as _json
+    _log_path = Path(__file__).parent.parent.parent.parent / "data" / "ultima_extraccion.json"
+    if _log_path.exists():
+        try:
+            _ult = _json.loads(_log_path.read_text(encoding="utf-8"))
+            st.info(
+                f"**Última extracción:** {_ult['ciudad']} · {_ult['sector']} · "
+                f"**{_ult['nuevas']} empresas nuevas** · {_ult['fecha']}"
+            )
+        except Exception:
+            pass
 
     separador_seccion(f"Historial de extracciones — {hist['total']} prospectos en total")
     df = pd.DataFrame(hist["sesiones"])
