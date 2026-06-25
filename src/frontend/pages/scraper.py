@@ -138,7 +138,7 @@ def render() -> None:
             key="sc_sectores_lote",
         )
     with col_lote3:
-        max_lote = st.slider("Máximo por sector", 5, 100, 20, 5, key="sc_max_lote")
+        max_lote = st.slider("Máximo por sector", 5, 100, 30, 5, key="sc_max_lote")
 
     iniciar_lote = st.button(
         "🚀 Iniciar extracción en lote",
