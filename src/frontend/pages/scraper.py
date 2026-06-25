@@ -307,7 +307,7 @@ def _mostrar_historial() -> None:
         )
         return
 
-    # Tarjeta con la última extracción — lee del archivo persistente
+    # Tarjeta con la última extracción — archivo persistente o respaldo del historial
     import json as _json
     _log_path = Path(__file__).parent.parent.parent.parent / "data" / "ultima_extraccion.json"
     if _log_path.exists():
@@ -319,6 +319,16 @@ def _mostrar_historial() -> None:
             )
         except Exception:
             pass
+    else:
+        # Respaldo: usar la fila más reciente del historial
+        ultima = hist["sesiones"][0]
+        ultima_fecha = ultima["Fecha"]
+        ultima_ciudad = ultima["Ciudad"]
+        total_ultima = sum(s["Extraídas"] for s in hist["sesiones"] if s["Fecha"] == ultima_fecha and s["Ciudad"] == ultima_ciudad)
+        st.info(
+            f"**Última extracción:** {ultima_ciudad} · "
+            f"**{total_ultima} empresas** · {ultima_fecha}"
+        )
 
     separador_seccion(f"Historial de extracciones — {hist['total']} prospectos en total")
     df = pd.DataFrame(hist["sesiones"])
