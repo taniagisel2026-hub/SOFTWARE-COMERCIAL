@@ -924,27 +924,32 @@ def _render_prospectos() -> None:
     # ── Eliminar prospectos ───────────────────────────────────────────────────
     with st.expander("🗑️ Eliminar prospectos"):
         if datos:
-            st.caption("Selecciona uno o varios prospectos y haz clic en Eliminar seleccionados.")
-            opciones = {f"{p['Empresa']} — {p['Ciudad']} — {p['Email']}": p["ID"] for p in datos}
-            seleccionados = st.multiselect(
-                "Prospectos a eliminar",
-                options=list(opciones.keys()),
-                placeholder="Busca por nombre, ciudad o email...",
-                key="multi_borrar",
+            st.caption("Marca la casilla de los prospectos que deseas eliminar y haz clic en el botón.")
+            import pandas as _pd_del
+            _filas = [
+                {"✓": False, "Empresa": p["Empresa"], "Ciudad": p["Ciudad"], "Email": p["Email"]}
+                for p in datos
+            ]
+            _edited = st.data_editor(
+                _pd_del.DataFrame(_filas),
+                column_config={"✓": st.column_config.CheckboxColumn("✓", width="small")},
+                hide_index=True,
+                use_container_width=True,
+                key="tabla_borrar",
             )
-            if seleccionados:
-                st.warning(f"⚠️ Se eliminarán **{len(seleccionados)}** prospecto(s) y todo su historial. Esta acción no se puede deshacer.")
-                if st.button(f"Sí, eliminar {len(seleccionados)} seleccionado(s)", type="secondary", key="btn_borrar_multi"):
+            _ids_sel = [datos[i]["ID"] for i, row in _edited.iterrows() if row["✓"]]
+            if _ids_sel:
+                st.warning(f"⚠️ Se eliminarán **{len(_ids_sel)}** prospecto(s) y todo su historial. Esta acción no se puede deshacer.")
+                if st.button(f"Sí, eliminar {len(_ids_sel)} seleccionado(s)", type="secondary", key="btn_borrar_multi"):
                     from ...database.connection import get_session
                     from ...database.models import EmpresaProspecto as _EmpModel, HistorialInteracciones as _HistModel
-                    ids_borrar = [opciones[s] for s in seleccionados]
                     with get_session() as _s:
-                        for id_b in ids_borrar:
+                        for id_b in _ids_sel:
                             _s.query(_HistModel).filter(_HistModel.id_empresa == id_b).delete()
                             _s.query(_EmpModel).filter(_EmpModel.id_empresa == id_b).delete()
                         _s.commit()
                     st.cache_data.clear()
-                    st.session_state["_msg_crm"] = ("ok", f"🗑️ {len(ids_borrar)} prospecto(s) eliminado(s) correctamente.")
+                    st.session_state["_msg_crm"] = ("ok", f"🗑️ {len(_ids_sel)} prospecto(s) eliminado(s) correctamente.")
                     st.rerun()
         else:
             st.info("No hay prospectos para eliminar.")
