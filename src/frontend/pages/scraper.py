@@ -296,6 +296,13 @@ def _mostrar_historial() -> None:
         )
         return
 
+    # Tarjeta con la última extracción
+    ultima = hist["sesiones"][0]
+    st.info(
+        f"**Última extracción:** {ultima['Ciudad']} · {ultima['Sector']} · "
+        f"**{ultima['Extraídas']} empresas** · {ultima['Fecha']}"
+    )
+
     separador_seccion(f"Historial de extracciones — {hist['total']} prospectos en total")
     df = pd.DataFrame(hist["sesiones"])
     st.dataframe(df, use_container_width=True, hide_index=True)
