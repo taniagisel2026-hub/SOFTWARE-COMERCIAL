@@ -150,6 +150,13 @@ def render() -> None:
     if iniciar_lote and sectores_lote:
         _ejecutar_lote(ciudad_lote, sectores_lote, max_lote)
 
+    if "_lote_resultado" in st.session_state:
+        r = st.session_state["_lote_resultado"]
+        st.success(
+            f"**Última extracción en lote** — {r['ciudad']} · {r['sectores']} sectores · "
+            f"**{r['nuevas']} empresas nuevas** · {r['fecha']}"
+        )
+
 
 def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_emails: bool,
                        usar_gmaps: bool = True, usar_li: bool = True, usar_web: bool = True) -> None:
@@ -417,3 +424,9 @@ def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> Non
 
         st.cache_data.clear()
         status.update(label=f"Lote completado — {total_nuevas} empresas nuevas en total", state="complete")
+        st.session_state["_lote_resultado"] = {
+            "ciudad": ciudad,
+            "sectores": len(sectores),
+            "nuevas": total_nuevas,
+            "fecha": str(_date.today()),
+        }
