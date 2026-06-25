@@ -61,10 +61,10 @@ class CRMInjectorService:
         resultado = InyeccionLoteResult()
 
         for prospecto in prospectos:
-            # Omitir prospectos sin email — sin correo no se puede iniciar la cadencia
-            if not prospecto.email:
+            # Omitir prospectos sin email ni WhatsApp — sin ninguno no hay canal de contacto
+            if not prospecto.email and not prospecto.whatsapp:
                 resultado.omitidas += 1
-                print(f"  [CRM] Omitido (sin email): {prospecto.razon_social[:50]}")
+                print(f"  [CRM] Omitido (sin email ni WhatsApp): {prospecto.razon_social[:50]}")
                 continue
 
             try:
@@ -125,6 +125,8 @@ class CRMInjectorService:
         """Enriquece el registro existente con datos nuevos sin sobreescribir datos previos."""
         if p.telefono and not existente.telefono:
             existente.telefono = p.telefono
+        if p.whatsapp and not existente.whatsapp:
+            existente.whatsapp = p.whatsapp
         if p.email and not existente.email_contacto:
             existente.email_contacto = p.email
         if p.direccion and not existente.direccion:
@@ -153,6 +155,7 @@ class CRMInjectorService:
             departamento=p.departamento[:100] if p.departamento else "",
             direccion=p.direccion[:300] if p.direccion else None,
             telefono=p.telefono[:30] if p.telefono else None,
+            whatsapp=p.whatsapp[:30] if p.whatsapp else None,
             email_contacto=p.email[:150] if p.email else None,
             nombre_contacto=p.nombre_contacto[:150] if p.nombre_contacto else None,
             cargo_contacto=p.cargo_contacto[:100] if p.cargo_contacto else None,

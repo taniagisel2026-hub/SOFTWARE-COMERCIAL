@@ -98,7 +98,7 @@ class WebScraper:
 
     def enriquecer_prospectos(self, prospectos: list) -> list:
         """
-        Visita el sitio web de cada prospecto y añade email y teléfono.
+        Visita el sitio web de cada prospecto y añade email, teléfono y WhatsApp.
         Si el dominio tiene varios correos corporativos, crea un registro por cada uno.
         """
         from copy import copy
@@ -107,11 +107,13 @@ class WebScraper:
             if not p.sitio_web:
                 resultado.append(p)
                 continue
-            emails, tel = self._buscar_todos_emails_y_telefono(p.sitio_web)
+            emails, tel, wa = self._buscar_todos_emails_telefono_whatsapp(p.sitio_web)
             if not p.tiene_email and emails:
                 p.email = emails[0]
             if not p.telefono and tel:
                 p.telefono = tel
+            if not p.whatsapp and wa:
+                p.whatsapp = wa
             resultado.append(p)
             # Crear un prospecto adicional por cada email extra del mismo dominio
             for email_extra in emails[1:]:
@@ -125,14 +127,18 @@ class WebScraper:
     # ── Implementación interna ────────────────────────────────────────────────
 
     def _buscar_email(self, url_base: str) -> str:
-        emails, _ = self._buscar_todos_emails_y_telefono(url_base)
+        emails, _, _wa = self._buscar_todos_emails_telefono_whatsapp(url_base)
         return emails[0] if emails else ""
 
     def _buscar_email_y_telefono(self, url_base: str) -> tuple[str, str]:
-        emails, tel = self._buscar_todos_emails_y_telefono(url_base)
+        emails, tel, _wa = self._buscar_todos_emails_telefono_whatsapp(url_base)
         return (emails[0] if emails else ""), tel
 
     def _buscar_todos_emails_y_telefono(self, url_base: str) -> tuple[list[str], str]:
+        emails, tel, _wa = self._buscar_todos_emails_telefono_whatsapp(url_base)
+        return emails, tel
+
+    def _buscar_todos_emails_telefono_whatsapp(self, url_base: str) -> tuple[list[str], str, str]:
         try:
             import httpx
             from bs4 import BeautifulSoup
@@ -146,6 +152,7 @@ class WebScraper:
 
         emails_encontrados: list[str] = []
         tel_encontrado = ""
+        wa_encontrado = ""
 
         for url in urls_a_revisar[: self._max_paginas]:
             try:
@@ -167,6 +174,16 @@ class WebScraper:
                             emails_pagina.append(email_raw)
                 emails_encontrados.extend(emails_pagina)
 
+                # ── WhatsApp (wa.me links) ────────────────────────────────
+                if not wa_encontrado:
+                    for tag in soup.find_all("a", href=True):
+                        href = tag["href"]
+                        if "wa.me/" in href or "api.whatsapp.com/send" in href:
+                            num = re.sub(r"[^\d+]", "", href.split("wa.me/")[-1].split("?")[0])
+                            if num:
+                                wa_encontrado = f"+{num.lstrip('+')}"
+                                break
+
                 # ── Teléfono ──────────────────────────────────────────────
                 if not tel_encontrado:
                     for tag in soup.find_all("a", href=True):
@@ -181,7 +198,7 @@ class WebScraper:
             except Exception:
                 continue
 
-        return self._seleccionar_todos_del_dominio(emails_encontrados, dominio), tel_encontrado
+        return self._seleccionar_todos_del_dominio(emails_encontrados, dominio), tel_encontrado, wa_encontrado
 
     @staticmethod
     def _seleccionar_todos_del_dominio(emails: list[str], dominio_empresa: str) -> list[str]:

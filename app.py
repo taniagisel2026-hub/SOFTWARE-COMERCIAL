@@ -22,13 +22,14 @@ st.set_page_config(
     },
 )
 
-from src.database.init_db import create_tables, migrate_add_opt_out, migrate_add_referido_compecer
+from src.database.init_db import create_tables, migrate_add_opt_out, migrate_add_referido_compecer, migrate_add_whatsapp
 from src.frontend.styles import aplicar_estilos
 from src.frontend.pages import dashboard, cotizador, scraper, campanas, analitica, contenido, compecer
 
 create_tables()
 migrate_add_opt_out()
 migrate_add_referido_compecer()
+migrate_add_whatsapp()
 
 aplicar_estilos()
 

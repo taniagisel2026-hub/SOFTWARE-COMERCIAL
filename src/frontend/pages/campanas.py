@@ -589,6 +589,88 @@ def _render_ficha_cliente(id_empresa: int) -> None:
     st.divider()
 
 
+# ── WhatsApp ──────────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=15)
+def _cargar_prospectos_whatsapp() -> dict:
+    """Carga prospectos con WhatsApp registrado."""
+    try:
+        from src.database.connection import get_session
+        from src.database.models import EmpresaProspecto
+
+        with get_session() as session:
+            rows = (
+                session.query(EmpresaProspecto)
+                .filter(
+                    EmpresaProspecto.opt_out == False,
+                    EmpresaProspecto.whatsapp.isnot(None),
+                    EmpresaProspecto.whatsapp != "",
+                )
+                .order_by(EmpresaProspecto.fecha_registro.desc())
+                .all()
+            )
+            return {
+                "ok": True,
+                "data": [
+                    {
+                        "ID":        r.id_empresa,
+                        "Empresa":   r.razon_social,
+                        "Ciudad":    r.ciudad,
+                        "Sector":    r.sector_economico or "—",
+                        "WhatsApp":  r.whatsapp,
+                        "Email":     r.email_contacto or "—",
+                        "Estado":    r.estado_prospecto,
+                        "Registro":  str(r.fecha_registro),
+                    }
+                    for r in rows
+                ],
+            }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "data": []}
+
+
+def _render_whatsapp() -> None:
+    resultado = _cargar_prospectos_whatsapp()
+
+    if not resultado["ok"]:
+        st.error(f"Error al cargar datos: {resultado['error']}")
+        return
+
+    datos = resultado["data"]
+    separador_seccion(f"Prospectos con WhatsApp — {len(datos)} contactos")
+
+    if not datos:
+        st.info(
+            "Todavía no hay prospectos con WhatsApp registrado. "
+            "El Motor de Prospección extrae WhatsApp automáticamente cuando "
+            "encuentra enlaces wa.me en el sitio web de la empresa."
+        )
+        return
+
+    st.caption(
+        "Estos prospectos tienen número de WhatsApp extraído de su sitio web. "
+        "Cuando active la campaña, podrá enviarles mensajes por WhatsApp Business."
+    )
+
+    df = pd.DataFrame(datos)[["Empresa", "Ciudad", "Sector", "WhatsApp", "Email", "Estado", "Registro"]]
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    st.divider()
+    st.info(
+        "**Próximamente:** envío masivo por WhatsApp Business API. "
+        "Por ahora puede copiar los números de la tabla y contactarlos manualmente."
+    )
+
+    # Botón para descargar la lista como CSV
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "⬇️ Descargar lista WhatsApp (CSV)",
+        data=csv,
+        file_name=f"whatsapp_prospectos_{date.today()}.csv",
+        mime="text/csv",
+    )
+
+
 # ── Página principal ──────────────────────────────────────────────────────────
 
 def _auto_cadencia() -> None:
@@ -665,14 +747,18 @@ def render() -> None:
     st.caption("Gestión de prospectos, secuencias de correo y control Ley 1581/2012")
     _render_resumen_cadencia()
 
-    tab_prospectos, tab_firmados, tab_optout = st.tabs([
+    tab_prospectos, tab_whatsapp, tab_firmados, tab_optout = st.tabs([
         "📋 Prospectos en CRM",
+        "💬 Campaña WhatsApp",
         "✅ Clientes Firmados",
         "🚫 Lista Negra (Opt-Out)",
     ])
 
     with tab_prospectos:
         _render_prospectos()
+
+    with tab_whatsapp:
+        _render_whatsapp()
 
     with tab_firmados:
         _render_clientes_firmados()

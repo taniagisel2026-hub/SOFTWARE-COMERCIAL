@@ -22,6 +22,7 @@ class EmpresaProspecto(Base):
     departamento: Mapped[str] = mapped_column(String(100), nullable=False)
     direccion: Mapped[Optional[str]] = mapped_column(String(300))
     telefono: Mapped[Optional[str]] = mapped_column(String(30))
+    whatsapp: Mapped[Optional[str]] = mapped_column(String(30))
     email_contacto: Mapped[Optional[str]] = mapped_column(String(150))
     nombre_contacto: Mapped[Optional[str]] = mapped_column(String(150))
     cargo_contacto: Mapped[Optional[str]] = mapped_column(String(100))

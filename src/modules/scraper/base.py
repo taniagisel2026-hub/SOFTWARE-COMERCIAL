@@ -63,6 +63,7 @@ class ProspectoExtraido:
     sector_economico: str = ""
     direccion: str = ""
     telefono: str = ""
+    whatsapp: str = ""
     email: str = ""
     sitio_web: str = ""
     nombre_contacto: str = ""

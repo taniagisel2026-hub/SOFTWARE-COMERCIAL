@@ -95,8 +95,21 @@ def migrate_add_referido_compecer() -> None:
     Base.metadata.create_all(bind=engine)
 
 
+def migrate_add_whatsapp() -> None:
+    """Añade columna whatsapp a empresa_prospecto si no existe."""
+    if not inspect(engine).has_table("empresa_prospecto"):
+        return
+    existing = {col["name"] for col in inspect(engine).get_columns("empresa_prospecto")}
+    if "whatsapp" not in existing:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE empresa_prospecto ADD COLUMN whatsapp VARCHAR(30)"))
+            conn.commit()
+            print("[MIGRACIÓN] Columna 'whatsapp' añadida a empresa_prospecto.")
+
+
 if __name__ == "__main__":
     create_tables()
     migrate_add_opt_out()
     migrate_add_referido_compecer()
+    migrate_add_whatsapp()
     seed_demo_data()
