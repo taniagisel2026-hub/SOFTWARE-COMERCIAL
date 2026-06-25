@@ -24,7 +24,11 @@ def _cargar_prospectos() -> dict:
         with get_session() as session:
             rows = (
                 session.query(EmpresaProspecto)
-                .filter(EmpresaProspecto.opt_out == False)
+                .filter(
+                    EmpresaProspecto.opt_out == False,
+                    EmpresaProspecto.email_contacto.isnot(None),
+                    EmpresaProspecto.email_contacto != "",
+                )
                 .order_by(
                     EmpresaProspecto.fecha_registro.desc(),
                     EmpresaProspecto.id_empresa.desc(),
@@ -591,9 +595,16 @@ def _render_ficha_cliente(id_empresa: int) -> None:
 
 # ── WhatsApp ──────────────────────────────────────────────────────────────────
 
+def _wa_valido(numero: str) -> bool:
+    """WhatsApp válido: mínimo 10 dígitos después de quitar + y espacios."""
+    import re
+    digits = re.sub(r"[^\d]", "", numero or "")
+    return len(digits) >= 10
+
+
 @st.cache_data(ttl=15)
 def _cargar_prospectos_whatsapp() -> dict:
-    """Carga prospectos con WhatsApp registrado."""
+    """Carga prospectos con WhatsApp registrado y número válido (≥10 dígitos)."""
     try:
         from src.database.connection import get_session
         from src.database.models import EmpresaProspecto
@@ -618,11 +629,11 @@ def _cargar_prospectos_whatsapp() -> dict:
                         "Ciudad":    r.ciudad,
                         "Sector":    r.sector_economico or "—",
                         "WhatsApp":  r.whatsapp,
-                        "Email":     r.email_contacto or "—",
                         "Estado":    r.estado_prospecto,
                         "Registro":  str(r.fecha_registro),
                     }
                     for r in rows
+                    if _wa_valido(r.whatsapp)
                 ],
             }
     except Exception as exc:
@@ -652,7 +663,7 @@ def _render_whatsapp() -> None:
         "Cuando active la campaña, podrá enviarles mensajes por WhatsApp Business."
     )
 
-    df = pd.DataFrame(datos)[["Empresa", "Ciudad", "Sector", "WhatsApp", "Email", "Estado", "Registro"]]
+    df = pd.DataFrame(datos)[["Empresa", "Ciudad", "Sector", "WhatsApp", "Estado", "Registro"]]
     st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.divider()
