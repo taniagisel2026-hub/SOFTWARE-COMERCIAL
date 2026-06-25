@@ -104,8 +104,8 @@ _BLOQUE_FIRMA = """\
   <strong>Tania Peñaloza</strong><br>
   Coordinadora Comercial — Medina SST Empresarial S.A.S.<br>
   Tel: 601 903 8072 &nbsp;|&nbsp; Cel: 322 818 7963<br>
-  <a href="mailto:medinasstempresarial30@gmail.com" style="color:#222;text-decoration:none;">medinasstempresarial30@gmail.com</a><br>
-  <a href="https://www.medinaempresarialsst.com" style="color:#222;text-decoration:none;">www.medinaempresarialsst.com</a>
+  <a href="mailto:ministerio@ministeriosst.com" style="color:#222;text-decoration:none;">ministerio@ministeriosst.com</a><br>
+  <a href="https://www.ministeriosst.com" style="color:#222;text-decoration:none;">www.ministeriosst.com</a>
 </p>"""
 
 # ── Separador visual entre intro y servicios ─────────────────────────────────
