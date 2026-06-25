@@ -102,10 +102,10 @@ _BLOQUE_FIRMA = """\
 <p style="margin:24px 0 0;font-size:14px;color:#222;line-height:1.8;">
   Cordialmente,<br>
   <strong>Tania Peñaloza</strong><br>
-  Coordinadora Comercial — Medina SST Empresarial S.A.S.<br>
+  Coordinadora de Proyectos Junior — Medina SST Empresarial S.A.S.<br>
   Tel: 601 903 8072 &nbsp;|&nbsp; Cel: 322 818 7963<br>
   <a href="mailto:ministerio@ministeriosst.com" style="color:#222;text-decoration:none;">ministerio@ministeriosst.com</a><br>
-  <a href="https://www.ministeriosst.com" style="color:#222;text-decoration:none;">www.ministeriosst.com</a>
+  <a href="https://www.medinaempresarialsst.com" style="color:#222;text-decoration:none;">www.medinaempresarialsst.com</a>
 </p>"""
 
 # ── Separador visual entre intro y servicios ─────────────────────────────────
