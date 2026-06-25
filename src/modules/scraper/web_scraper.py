@@ -49,7 +49,7 @@ class WebScraper:
     Degrada gracefully si no están disponibles.
     """
 
-    def __init__(self, timeout: int = 10, max_paginas: int = 3):
+    def __init__(self, timeout: int = 5, max_paginas: int = 2):
         self._timeout = timeout
         self._max_paginas = max_paginas
 
@@ -98,31 +98,47 @@ class WebScraper:
 
     def enriquecer_prospectos(self, prospectos: list) -> list:
         """
-        Visita el sitio web de cada prospecto y añade email, teléfono y WhatsApp.
+        Visita los sitios web en paralelo (hasta 8 hilos) para reducir el tiempo de espera.
         Si el dominio tiene varios correos corporativos, crea un registro por cada uno.
         """
         from copy import copy
-        resultado: list = []
-        for p in prospectos:
-            if not p.sitio_web:
-                resultado.append(p)
-                continue
-            emails, tel, wa = self._buscar_todos_emails_telefono_whatsapp(p.sitio_web)
-            if not p.tiene_email and emails:
-                p.email = emails[0]
-            if not p.telefono and tel:
-                p.telefono = tel
-            if not p.whatsapp and wa:
-                p.whatsapp = wa
-            resultado.append(p)
-            # Crear un prospecto adicional por cada email extra del mismo dominio
-            for email_extra in emails[1:]:
-                if email_extra == p.email:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        con_web    = [p for p in prospectos if p.sitio_web]
+        sin_web    = [p for p in prospectos if not p.sitio_web]
+
+        def _enriquecer_uno(p):
+            try:
+                emails, tel, wa = self._buscar_todos_emails_telefono_whatsapp(p.sitio_web)
+            except Exception:
+                emails, tel, wa = [], "", ""
+            return p, emails, tel, wa
+
+        enriquecidos: list = list(sin_web)
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futuros = {pool.submit(_enriquecer_uno, p): p for p in con_web}
+            for fut in as_completed(futuros):
+                try:
+                    p, emails, tel, wa = fut.result()
+                except Exception:
+                    enriquecidos.append(futuros[fut])
                     continue
-                clon = copy(p)
-                clon.email = email_extra
-                resultado.append(clon)
-        return resultado
+                if not p.tiene_email and emails:
+                    p.email = emails[0]
+                if not p.telefono and tel:
+                    p.telefono = tel
+                if not p.whatsapp and wa:
+                    p.whatsapp = wa
+                enriquecidos.append(p)
+                for email_extra in emails[1:]:
+                    if email_extra == p.email:
+                        continue
+                    clon = copy(p)
+                    clon.email = email_extra
+                    enriquecidos.append(clon)
+
+        return enriquecidos
 
     # ── Implementación interna ────────────────────────────────────────────────
 

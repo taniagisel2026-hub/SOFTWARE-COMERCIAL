@@ -167,7 +167,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
     SOURCE = "Google Maps"
 
-    def __init__(self, headless: bool = False, delay_min: float = 1.2, delay_max: float = 3.8):
+    def __init__(self, headless: bool = False, delay_min: float = 0.6, delay_max: float = 1.8):
         self._headless = headless
         self._delay_min = delay_min
         self._delay_max = delay_max
@@ -224,7 +224,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
                 if len(todos) >= max_resultados:
                     break
                 # Pausa entre búsquedas para no levantar sospechas
-                time.sleep(random.uniform(3, 6))
+                time.sleep(random.uniform(1.5, 3.0))
 
             browser.close()
 
@@ -395,7 +395,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
                 # Enriquecer con clic en la ficha (Estrategia 2)
                 try:
                     card.click(timeout=3000)
-                    time.sleep(random.uniform(1.0, 2.0))
+                    time.sleep(random.uniform(0.5, 1.0))
                     telefono = self._obtener_atributo_con_fallback(page, _SELS_PHONE, ["data-value", "href"])
                     web = self._obtener_atributo_con_fallback(page, _SELS_WEB, ["href"])
                     direccion_raw = self._obtener_atributo_con_fallback(page, _SELS_ADDR, ["aria-label", "data-value"])
@@ -489,7 +489,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
             pixels = random.randint(400, 900)
             # Comillas dobles en el selector para evitar conflicto con las simples de role='feed'
             page.evaluate(f'document.querySelector("{_SEL_FEED}")?.scrollBy(0, {pixels})')
-            time.sleep(random.uniform(0.6, 1.8))
+            time.sleep(random.uniform(0.3, 0.8))
 
     def _delay(self) -> None:
         """Estrategia 5: pausa aleatoria entre acciones."""
