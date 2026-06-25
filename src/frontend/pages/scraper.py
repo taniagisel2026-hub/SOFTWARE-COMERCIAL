@@ -296,11 +296,13 @@ def _mostrar_historial() -> None:
         )
         return
 
-    # Tarjeta con la última extracción
-    ultima = hist["sesiones"][0]
+    # Tarjeta con la última extracción — suma todas las filas de la fecha más reciente
+    ultima_fecha = hist["sesiones"][0]["Fecha"]
+    ultima_ciudad = hist["sesiones"][0]["Ciudad"]
+    total_ultima = sum(s["Extraídas"] for s in hist["sesiones"] if s["Fecha"] == ultima_fecha and s["Ciudad"] == ultima_ciudad)
     st.info(
-        f"**Última extracción:** {ultima['Ciudad']} · {ultima['Sector']} · "
-        f"**{ultima['Extraídas']} empresas** · {ultima['Fecha']}"
+        f"**Última extracción:** {ultima_ciudad} · "
+        f"**{total_ultima} empresas** · {ultima_fecha}"
     )
 
     separador_seccion(f"Historial de extracciones — {hist['total']} prospectos en total")
