@@ -805,7 +805,7 @@ def _render_resumen_cadencia() -> None:
         st.info("Hoy no había empresas pendientes de Día 4 o Día 8.")
 
 
-def _render_enriquecer_facebook() -> None:
+def _render_enriquecer_facebook_DISABLED() -> None:
     separador_seccion("Enriquecer CRM con Facebook Pages")
     st.caption(
         "Busca las páginas de Facebook de empresas que no tienen teléfono "
@@ -1142,12 +1142,11 @@ def render() -> None:
     _render_alertas_respuestas()
     _render_resumen_cadencia()
 
-    tab_prospectos, tab_whatsapp, tab_firmados, tab_optout, tab_facebook = st.tabs([
+    tab_prospectos, tab_whatsapp, tab_firmados, tab_optout = st.tabs([
         "📋 Prospectos en CRM",
         "💬 Campaña WhatsApp",
         "✅ Clientes Firmados",
         "🚫 Lista Negra (Opt-Out)",
-        "🔍 Enriquecer con Facebook",
     ])
 
     with tab_prospectos:
@@ -1161,9 +1160,6 @@ def render() -> None:
 
     with tab_optout:
         _render_lista_negra()
-
-    with tab_facebook:
-        _render_enriquecer_facebook()
 
 
 def _render_clientes_firmados() -> None:

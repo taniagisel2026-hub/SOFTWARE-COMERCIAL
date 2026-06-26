@@ -30,13 +30,12 @@ class InyeccionLoteResult:
     insertadas: int = 0
     actualizadas: int = 0
     omitidas: int = 0
-    pendientes_facebook: int = 0
     ids_nuevos: list[int] = field(default_factory=list)
     errores: list[str] = field(default_factory=list)
 
     @property
     def total_procesadas(self) -> int:
-        return self.insertadas + self.actualizadas + self.omitidas + self.pendientes_facebook
+        return self.insertadas + self.actualizadas + self.omitidas
 
 
 class CRMInjectorService:
@@ -63,21 +62,8 @@ class CRMInjectorService:
 
         for prospecto in prospectos:
             if not prospecto.email and not prospecto.whatsapp:
-                # Sin canal de contacto → guardar como pendiente para enriquecer con Facebook
-                try:
-                    with get_session() as session:
-                        existente = self._buscar_existente(session, prospecto)
-                        if not existente:
-                            nuevo = self._crear_orm(prospecto)
-                            nuevo.estado_prospecto = "PENDIENTE_FACEBOOK"
-                            session.add(nuevo)
-                            resultado.pendientes_facebook += 1
-                            print(f"  [CRM] Pendiente Facebook: {prospecto.razon_social[:50]}")
-                        else:
-                            resultado.actualizadas += 1
-                except Exception as exc:
-                    resultado.omitidas += 1
-                    resultado.errores.append(f"{prospecto.razon_social}: {exc}")
+                resultado.omitidas += 1
+                print(f"  [CRM] Omitido (sin email ni WhatsApp): {prospecto.razon_social[:50]}")
                 continue
 
             try:

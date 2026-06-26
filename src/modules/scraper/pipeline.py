@@ -34,7 +34,6 @@ class PipelineResult:
     empresas_encontradas: int = 0
     empresas_nuevas: int = 0
     empresas_existentes: int = 0
-    empresas_pendientes_facebook: int = 0
     emails_enviados: int = 0
     emails_sin_contacto: int = 0
     emails_fallidos: int = 0
@@ -140,12 +139,10 @@ class ProspectionPipeline:
         inyeccion: InyeccionLoteResult = self._injector.inyectar_lote(engine_result.prospectos)
         resultado.empresas_nuevas = inyeccion.insertadas
         resultado.empresas_existentes = inyeccion.actualizadas
-        resultado.empresas_pendientes_facebook = inyeccion.pendientes_facebook
         resultado.errores.extend(inyeccion.errores)
         print(
             f"  Nuevas: {inyeccion.insertadas} | "
             f"Actualizadas: {inyeccion.actualizadas} | "
-            f"Pendientes FB: {inyeccion.pendientes_facebook} | "
             f"Omitidas: {inyeccion.omitidas}"
         )
 

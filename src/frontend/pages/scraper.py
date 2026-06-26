@@ -152,17 +152,11 @@ def render() -> None:
 
     if "_lote_resultado" in st.session_state:
         r = st.session_state["_lote_resultado"]
-        correos_txt = f" · **{r['correos']} correos**" if r.get("correos") else ""
-        fb_txt = f" · **{r['pendientes_fb']} pend. Facebook**" if r.get("pendientes_fb") else ""
+        correos_txt = f" · **{r['correos']} correos encontrados**" if r.get("correos") else ""
         st.success(
             f"**Última extracción en lote** — {r['ciudad']} · {r['sectores']} sectores · "
-            f"**{r['nuevas']} empresas nuevas**{correos_txt}{fb_txt} · {r['fecha']}"
+            f"**{r['nuevas']} empresas nuevas**{correos_txt} · {r['fecha']}"
         )
-        if r.get("pendientes_fb"):
-            st.warning(
-                f"🔍 **{r['pendientes_fb']} empresas** sin contacto guardadas como pendientes — "
-                "ve a **Campañas → Enriquecer con Facebook** para buscarles teléfono o email."
-            )
 
 
 def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_emails: bool,
@@ -204,7 +198,6 @@ def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_e
             "encontradas":   resultado.empresas_encontradas,
             "nuevas":        resultado.empresas_nuevas,
             "existentes":    resultado.empresas_existentes,
-            "pendientes_fb": resultado.empresas_pendientes_facebook,
             "emails":        resultado.emails_enviados,
             "sin_contacto":  resultado.emails_sin_contacto,
             "fallidos":      resultado.emails_fallidos,
@@ -253,17 +246,10 @@ def _mostrar_resultado(r: dict) -> None:
 
     st.success(f"✅ Extracción completada en **{r['duracion']}s** — {r['ciudad']} / {r['sector']}")
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: tarjeta_kpi("Encontradas",   str(r["encontradas"]),           icono="🏢", color="#1B3A6B")
-    with c2: tarjeta_kpi("Nuevas en CRM", str(r["nuevas"]),                icono="✅", color="#10B981")
-    with c3: tarjeta_kpi("Ya existían",   str(r["existentes"]),            icono="🔁", color="#6B7280")
-    with c4: tarjeta_kpi("Pend. Facebook", str(r.get("pendientes_fb", 0)), icono="🔍", color="#F59E0B")
-
-    if r.get("pendientes_fb", 0) > 0:
-        st.warning(
-            f"🔍 **{r['pendientes_fb']} empresas** sin email ni WhatsApp — "
-            "ve a **Campañas → Enriquecer con Facebook** para buscarles contacto."
-        )
+    c1, c2, c3 = st.columns(3)
+    with c1: tarjeta_kpi("Encontradas",   str(r["encontradas"]), icono="🏢", color="#1B3A6B")
+    with c2: tarjeta_kpi("Nuevas en CRM", str(r["nuevas"]),      icono="✅", color="#10B981")
+    with c3: tarjeta_kpi("Ya existían",   str(r["existentes"]),  icono="🔁", color="#6B7280")
 
     if r["emails"] > 0:
         st.info(f"📨 **{r['emails']}** correos enviados · {r['sin_contacto']} sin email · {r['fallidos']} fallidos")
@@ -418,7 +404,6 @@ def _mostrar_historial() -> None:
 def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> None:
     """Corre el pipeline para cada sector de forma secuencial mostrando progreso."""
     total_nuevas = 0
-    total_pendientes_fb = 0
     with st.status(f"Extrayendo {len(sectores)} sectores en {ciudad}...", expanded=True) as status:
         for i, sector in enumerate(sectores, 1):
             st.write(f"**{i}/{len(sectores)}** — {sector}...")
@@ -434,11 +419,7 @@ def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> Non
                     usar_webscraper=True,
                 )
                 total_nuevas += resultado.empresas_nuevas
-                total_pendientes_fb += resultado.empresas_pendientes_facebook
-                linea = f"  ✅ {resultado.empresas_nuevas} nuevas · {resultado.empresas_existentes} ya existían"
-                if resultado.empresas_pendientes_facebook:
-                    linea += f" · 🔍 {resultado.empresas_pendientes_facebook} pend. Facebook"
-                st.write(linea)
+                st.write(f"  ✅ {resultado.empresas_nuevas} nuevas · {resultado.empresas_existentes} ya existían")
             except Exception as exc:
                 st.write(f"  ⚠️ Error: {exc}")
 
@@ -462,22 +443,19 @@ def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> Non
             "fecha":           str(_date.today()),
             "ciudad":          ciudad,
             "sector":          f"{len(sectores)} sectores",
-            "nuevas":          total_nuevas,
-            "correos":         total_correos,
-            "pendientes_fb":   total_pendientes_fb,
+            "nuevas":   total_nuevas,
+            "correos":  total_correos,
         }), encoding="utf-8")
 
         st.cache_data.clear()
-        label_fb = f" · 🔍 {total_pendientes_fb} pend. Facebook" if total_pendientes_fb else ""
         status.update(
-            label=f"Lote completado — {total_nuevas} empresas nuevas · {total_correos} correos{label_fb}",
+            label=f"Lote completado — {total_nuevas} empresas nuevas · {total_correos} correos encontrados",
             state="complete",
         )
         st.session_state["_lote_resultado"] = {
-            "ciudad":        ciudad,
-            "sectores":      len(sectores),
-            "nuevas":        total_nuevas,
-            "correos":       total_correos,
-            "pendientes_fb": total_pendientes_fb,
-            "fecha":         str(_date.today()),
+            "ciudad":   ciudad,
+            "sectores": len(sectores),
+            "nuevas":   total_nuevas,
+            "correos":  total_correos,
+            "fecha":    str(_date.today()),
         }
