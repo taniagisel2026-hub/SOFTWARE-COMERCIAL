@@ -817,18 +817,34 @@ def _render_resumen_cadencia() -> None:
         _config_path.write_text(_json.dumps(_cfg, indent=2), encoding="utf-8")
         st.rerun()
 
-    # Estado última ejecución
+    # Estado última extracción automática
+    _extrac_path = _data_dir / "scheduler_extraccion_log.json"
+    if _extrac_path.exists():
+        try:
+            _ext = _json.loads(_extrac_path.read_text(encoding="utf-8"))
+            _ext_hora   = _ext.get("ultima_ejecucion", "—")
+            _ext_estado = _ext.get("estado", "—")
+            _ext_ciudad = _ext.get("ciudad", "—")
+            _ext_nuevas = _ext.get("empresas_nuevas", 0)
+            if _ext_estado == "completado":
+                st.info(f"🕵️ **Última extracción automática:** {_ext_hora} · {_ext_ciudad} · {_ext_nuevas} empresa(s) nueva(s)")
+            elif _ext_estado == "en_progreso":
+                st.info(f"🕵️ **Extracción en progreso...** — {_ext_ciudad} · iniciada: {_ext_hora}")
+        except Exception:
+            pass
+
+    # Estado última cadencia de correos
     if _sched_path.exists():
         try:
-            _sched   = _json.loads(_sched_path.read_text(encoding="utf-8"))
-            _hora    = _sched.get("ultima_ejecucion", "—")
-            _estado  = _sched.get("estado", "—")
+            _sched    = _json.loads(_sched_path.read_text(encoding="utf-8"))
+            _hora     = _sched.get("ultima_ejecucion", "—")
+            _estado   = _sched.get("estado", "—")
             _enviados = _sched.get("correos_enviados", 0)
             if _estado == "completado":
                 _d1 = _sched.get("dia1", 0)
                 _d4 = _sched.get("dia4", 0)
                 _d8 = _sched.get("dia8", 0)
-                st.success(f"🤖 **Última ejecución:** {_hora} · Día 1: {_d1} · Día 4: {_d4} · Día 8: {_d8} · Total: {_enviados} correo(s)")
+                st.success(f"🤖 **Última cadencia:** {_hora} · Día 1: {_d1} · Día 4: {_d4} · Día 8: {_d8} · Total: {_enviados} correo(s)")
             elif _estado == "en_progreso":
                 st.info(f"🤖 **Scheduler en progreso...** — iniciado: {_hora}")
             elif _estado == "error":
