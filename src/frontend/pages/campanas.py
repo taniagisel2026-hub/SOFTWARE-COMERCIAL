@@ -863,6 +863,13 @@ def _render_enriquecer_facebook() -> None:
             for e in sin_telefono
         ]
 
+    if not empresas_lista:
+        st.success(
+            "✅ Todas las empresas del CRM ya tienen teléfono o WhatsApp. "
+            "No hay candidatas para enriquecer en este momento."
+        )
+        return
+
     st.info(
         f"**{len(empresas_lista)}** empresas en el CRM sin teléfono ni WhatsApp "
         "— candidatas a enriquecer con Facebook."
@@ -870,10 +877,10 @@ def _render_enriquecer_facebook() -> None:
 
     max_buscar = st.slider(
         "¿Cuántas empresas buscar en esta sesión?",
-        min_value=5, max_value=min(100, len(empresas_lista)),
+        min_value=5,
+        max_value=min(100, len(empresas_lista)),
         value=min(20, len(empresas_lista)),
         step=5,
-        disabled=len(empresas_lista) == 0,
         key="fb_max_buscar",
     )
 
@@ -881,7 +888,6 @@ def _render_enriquecer_facebook() -> None:
         "🔍 Buscar en Facebook",
         type="primary",
         use_container_width=True,
-        disabled=len(empresas_lista) == 0,
     ):
         lote = empresas_lista[:max_buscar]
         progreso = st.progress(0, text="Iniciando búsqueda...")
