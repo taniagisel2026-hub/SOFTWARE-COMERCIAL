@@ -1261,9 +1261,11 @@ def _render_portafolio() -> None:
                     existente.estado_prospecto = "PIDIO_PORTAFOLIO"
                     st.success(f"✅ **{existente.razon_social}** ya estaba en el CRM — estado actualizado a 'Pidió portafolio'.")
                 else:
+                    from datetime import date as _date
+                    import uuid as _uuid
                     nueva = EmpresaProspecto(
                         razon_social=nombre,
-                        nit="Sin NIT",
+                        nit=f"MANUAL-{_uuid.uuid4().hex[:8].upper()}",
                         email_contacto=email,
                         ciudad=ciudad or "Sin especificar",
                         departamento="Sin especificar",
@@ -1273,6 +1275,8 @@ def _render_portafolio() -> None:
                         estado_prospecto="PIDIO_PORTAFOLIO",
                         fuente_origen="Manual",
                         opt_out=False,
+                        fecha_registro=_date.today(),
+                        fecha_ultima_actualizacion=_date.today(),
                     )
                     session.add(nueva)
                     st.success(f"✅ **{nombre}** registrada correctamente.")
