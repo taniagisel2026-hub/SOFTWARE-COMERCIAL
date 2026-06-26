@@ -324,7 +324,7 @@ class SequenceOrchestrator:
             .filter(
                 EmpresaORM.opt_out == False,
                 EmpresaORM.email_contacto.isnot(None),
-                EmpresaORM.estado_prospecto != "CERRADO_GANADO",
+                EmpresaORM.estado_prospecto.notin_(["CERRADO_GANADO", "PIDIO_PORTAFOLIO"]),
                 EmpresaORM.id_empresa.notin_(session.query(tiene_dia_1)),
             )
             .all()
@@ -358,7 +358,7 @@ class SequenceOrchestrator:
             .filter(
                 EmpresaORM.opt_out == False,
                 EmpresaORM.email_contacto.isnot(None),
-                EmpresaORM.estado_prospecto != "CERRADO_GANADO",
+                EmpresaORM.estado_prospecto.notin_(["CERRADO_GANADO", "PIDIO_PORTAFOLIO"]),
                 EmpresaORM.id_empresa.in_(session.query(tiene_dia_1)),
                 EmpresaORM.id_empresa.notin_(session.query(tiene_dia_4)),
             )
@@ -393,7 +393,7 @@ class SequenceOrchestrator:
             .filter(
                 EmpresaORM.opt_out == False,
                 EmpresaORM.email_contacto.isnot(None),
-                EmpresaORM.estado_prospecto != "CERRADO_GANADO",
+                EmpresaORM.estado_prospecto.notin_(["CERRADO_GANADO", "PIDIO_PORTAFOLIO"]),
                 EmpresaORM.id_empresa.in_(session.query(tiene_dia_4_listo)),
                 EmpresaORM.id_empresa.notin_(session.query(tiene_dia_8)),
             )

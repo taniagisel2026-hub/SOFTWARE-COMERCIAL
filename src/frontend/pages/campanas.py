@@ -479,6 +479,7 @@ def _render_ficha_cliente(id_empresa: int) -> None:
         _COLOR_ESTADO = {
             "NUEVO":              "#1D4ED8",
             "EN_SEGUIMIENTO":     "#7C3AED",
+            "PIDIO_PORTAFOLIO":   "#F59E0B",
             "COTIZACION_ENVIADA": "#D97706",
             "NEGOCIACION":        "#EA580C",
             "CERRADO_GANADO":     "#10B981",
@@ -1201,8 +1202,9 @@ def render() -> None:
     _render_alertas_respuestas()
     _render_resumen_cadencia()
 
-    tab_prospectos, tab_whatsapp, tab_firmados, tab_optout = st.tabs([
+    tab_prospectos, tab_portafolio, tab_whatsapp, tab_firmados, tab_optout = st.tabs([
         "📋 Prospectos en CRM",
+        "📁 Pidieron Portafolio",
         "💬 Campaña WhatsApp",
         "✅ Clientes Firmados",
         "🚫 Lista Negra (Opt-Out)",
@@ -1210,6 +1212,9 @@ def render() -> None:
 
     with tab_prospectos:
         _render_prospectos()
+
+    with tab_portafolio:
+        _render_portafolio()
 
     with tab_whatsapp:
         _render_whatsapp()
@@ -1219,6 +1224,56 @@ def render() -> None:
 
     with tab_optout:
         _render_lista_negra()
+
+
+def _render_portafolio() -> None:
+    separador_seccion("Empresas que pidieron el portafolio")
+    st.caption("Estas empresas respondieron el correo y quieren recibir el portafolio. El robot ya no les escribe — el seguimiento es manual.")
+
+    with get_db_session() as session:
+        rows = (
+            session.query(EmpresaProspecto)
+            .filter(EmpresaProspecto.estado_prospecto == "PIDIO_PORTAFOLIO")
+            .order_by(EmpresaProspecto.fecha_ultima_actualizacion.desc())
+            .all()
+        )
+        empresas = [
+            {
+                "id":      r.id_empresa,
+                "nombre":  r.razon_social,
+                "email":   r.email_contacto or "—",
+                "ciudad":  r.ciudad or "—",
+                "sector":  r.sector_economico or "—",
+                "fecha":   r.fecha_ultima_actualizacion.strftime("%Y-%m-%d") if r.fecha_ultima_actualizacion else "—",
+            }
+            for r in rows
+        ]
+
+    if not empresas:
+        st.info("Ninguna empresa ha pedido el portafolio todavía.")
+        return
+
+    tarjeta_kpi("Esperando portafolio", str(len(empresas)), icono="📁", color="#F59E0B")
+    st.divider()
+
+    for emp in empresas:
+        col_info, col_btn = st.columns([5, 2])
+        with col_info:
+            st.markdown(f"**{emp['nombre']}**")
+            st.markdown(
+                f"<small style='color:#6B7280;'>📧 {emp['email']} &nbsp;·&nbsp; 📍 {emp['ciudad']} "
+                f"&nbsp;·&nbsp; 🏭 {emp['sector']} &nbsp;·&nbsp; 📅 {emp['fecha']}</small>",
+                unsafe_allow_html=True,
+            )
+        with col_btn:
+            if st.button("✅ Portafolio enviado", key=f"port_{emp['id']}"):
+                with get_db_session() as session:
+                    e = session.get(EmpresaProspecto, emp["id"])
+                    if e:
+                        e.estado_prospecto = "COTIZACION_ENVIADA"
+                st.success(f"✅ {emp['nombre']} marcada como cotización enviada.")
+                st.rerun()
+        st.divider()
 
 
 def _render_clientes_firmados() -> None:
@@ -1517,7 +1572,7 @@ def _render_prospectos() -> None:
     fc1, fc2, fc3 = st.columns(3)
     filtro_estado = fc1.selectbox(
         "Estado",
-        ["Todos", "NUEVO", "EN_SEGUIMIENTO", "COTIZACION_ENVIADA", "NEGOCIACION", "CERRADO_GANADO"],
+        ["Todos", "NUEVO", "EN_SEGUIMIENTO", "PIDIO_PORTAFOLIO", "COTIZACION_ENVIADA", "NEGOCIACION", "CERRADO_GANADO"],
     )
     ciudades_disponibles = sorted({p["Ciudad"] for p in datos})
     filtro_ciudad = fc2.selectbox("Ciudad", ["Todas"] + ciudades_disponibles)
@@ -1551,7 +1606,7 @@ def _render_prospectos() -> None:
         "COTIZACION_ENVIADA":  "RECORDATORIO_VENCIMIENTO",
         "NEGOCIACION":         "SEGUIMIENTO_COTIZACION",
     }
-    _ESTADOS_OPCIONES = ["NUEVO", "EN_SEGUIMIENTO", "COTIZACION_ENVIADA", "NEGOCIACION", "CERRADO_GANADO", "CERRADO_PERDIDO"]
+    _ESTADOS_OPCIONES = ["NUEVO", "EN_SEGUIMIENTO", "PIDIO_PORTAFOLIO", "COTIZACION_ENVIADA", "NEGOCIACION", "CERRADO_GANADO", "CERRADO_PERDIDO"]
 
     # ── Tabla de prospectos ────────────────────────────────────────────────────
     for p in filtrados:
