@@ -842,6 +842,9 @@ def _render_enriquecer_facebook() -> None:
         return
 
     # ── Panel de enriquecimiento ─────────────────────────────────────────────
+    from src.database.connection import get_session
+    from src.database.models import EmpresaProspecto
+
     with get_session() as session:
         sin_telefono = (
             session.query(EmpresaProspecto)
