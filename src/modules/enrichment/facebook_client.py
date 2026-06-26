@@ -45,37 +45,25 @@ class FacebookPagesClient:
 
     @classmethod
     def from_config(cls) -> "FacebookPagesClient":
-        token_path = Path(__file__).parent.parent.parent.parent / "credentials" / "facebook_token.json"
-        if not token_path.exists():
-            raise FacebookTokenError(
-                f"Token no encontrado en: {token_path}\n"
-                "Crea el archivo con: {\"access_token\": \"TU_TOKEN\"}"
-            )
-        data = json.loads(token_path.read_text(encoding="utf-8"))
-        token = data.get("access_token", "")
+        token = cls._leer_token()
         if not token:
-            raise FacebookTokenError("El archivo facebook_token.json no tiene 'access_token'.")
+            raise FacebookTokenError(
+                "FACEBOOK_ACCESS_TOKEN no está configurado en el archivo .env\n"
+                "Agrega: FACEBOOK_ACCESS_TOKEN=APP_ID|APP_SECRET"
+            )
         return cls(token)
 
     @classmethod
     def token_configurado(cls) -> bool:
-        token_path = Path(__file__).parent.parent.parent.parent / "credentials" / "facebook_token.json"
-        if not token_path.exists():
-            return False
-        try:
-            data = json.loads(token_path.read_text(encoding="utf-8"))
-            return bool(data.get("access_token", "").strip())
-        except Exception:
-            return False
+        return bool(cls._leer_token())
 
     @classmethod
-    def guardar_token(cls, token: str) -> None:
-        token_path = Path(__file__).parent.parent.parent.parent / "credentials" / "facebook_token.json"
-        token_path.parent.mkdir(parents=True, exist_ok=True)
-        token_path.write_text(
-            json.dumps({"access_token": token.strip()}, indent=2),
-            encoding="utf-8",
-        )
+    def _leer_token(cls) -> str:
+        import os
+        from dotenv import load_dotenv
+        env_path = Path(__file__).parent.parent.parent.parent / ".env"
+        load_dotenv(env_path, override=False)
+        return os.getenv("FACEBOOK_ACCESS_TOKEN", "").strip()
 
     def buscar_empresa(self, razon_social: str, ciudad: str = "") -> InfoFacebook | None:
         """

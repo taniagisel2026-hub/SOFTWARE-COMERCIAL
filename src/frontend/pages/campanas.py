@@ -817,25 +817,14 @@ def _render_enriquecer_facebook() -> None:
     # ── Configuración del token ──────────────────────────────────────────────
     token_ok = FacebookPagesClient.token_configurado()
 
-    with st.expander("⚙️ Configuración del token de Facebook", expanded=not token_ok):
-        st.markdown(
-            "Pega aquí tu **App Access Token** de Meta for Developers. "
-            "Este token no expira mientras tu app esté activa.\n\n"
-            "Formato: `123456789|AbCdEfGhIjKlMnOpQrSt`"
+    if token_ok:
+        st.success("✅ Token de Facebook configurado correctamente en `.env`")
+    else:
+        st.error(
+            "Token de Facebook no configurado. "
+            "Abre el archivo `.env` y agrega tu token en la línea:\n\n"
+            "`FACEBOOK_ACCESS_TOKEN=APP_ID|APP_SECRET`"
         )
-        nuevo_token = st.text_input(
-            "Token de acceso",
-            type="password",
-            placeholder="APP_ID|APP_SECRET",
-            key="fb_token_input",
-        )
-        if st.button("💾 Guardar token", use_container_width=True):
-            if nuevo_token.strip():
-                FacebookPagesClient.guardar_token(nuevo_token.strip())
-                st.success("Token guardado correctamente.")
-                st.rerun()
-            else:
-                st.error("El token no puede estar vacío.")
 
     if not token_ok:
         st.info("Configura el token de Facebook para activar el enriquecimiento.")
