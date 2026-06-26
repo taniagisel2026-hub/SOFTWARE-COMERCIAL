@@ -1263,9 +1263,13 @@ def _render_portafolio() -> None:
                 else:
                     nueva = EmpresaProspecto(
                         razon_social=nombre,
+                        nit="Sin NIT",
                         email_contacto=email,
                         ciudad=ciudad or "Sin especificar",
+                        departamento="Sin especificar",
                         sector_economico=sector or "Sin especificar",
+                        nivel_riesgo_arl="I",
+                        num_empleados=0,
                         estado_prospecto="PIDIO_PORTAFOLIO",
                         fuente_origen="Manual",
                         opt_out=False,
