@@ -949,6 +949,126 @@ def _render_enriquecer_facebook() -> None:
     else:
         st.success("✅ Todos los prospectos ya tienen teléfono o WhatsApp.")
 
+    st.divider()
+
+    # ── Sección 3: Buscar contactos adicionales ───────────────────────────────
+    separador_seccion("Buscar contactos adicionales en Facebook")
+    st.caption(
+        "Para empresas que ya tienen email o WhatsApp — busca si Facebook tiene "
+        "correos o números de WhatsApp adicionales y los agrega al CRM."
+    )
+
+    with get_session() as session:
+        con_contacto = (
+            session.query(EmpresaProspecto)
+            .filter(
+                EmpresaProspecto.opt_out == False,
+                EmpresaProspecto.estado_prospecto == "NUEVO",
+            )
+            .order_by(EmpresaProspecto.fecha_registro.desc())
+            .limit(500)
+            .all()
+        )
+        con_contacto_lista = [
+            {
+                "id_empresa":    e.id_empresa,
+                "razon_social":  e.razon_social,
+                "ciudad":        e.ciudad or "",
+                "email_actual":  e.email_contacto or "",
+                "wa_actual":     e.whatsapp or "",
+            }
+            for e in con_contacto
+        ]
+
+    if not con_contacto_lista:
+        st.info("No hay prospectos activos en el CRM.")
+    else:
+        st.info(f"**{len(con_contacto_lista)}** prospectos activos — Facebook puede tener contactos adicionales.")
+        max_adicionales = st.slider(
+            "¿Cuántos revisar en esta sesión?",
+            min_value=5, max_value=min(100, len(con_contacto_lista)),
+            value=min(20, len(con_contacto_lista)),
+            step=5, key="fb_max_adicionales",
+        )
+
+        if st.button("🔎 Buscar contactos adicionales", use_container_width=True, key="fb_btn_adicionales"):
+            lote = con_contacto_lista[:max_adicionales]
+            progreso = st.progress(0, text="Iniciando...")
+            nuevos_emails = 0
+            nuevos_wa = 0
+
+            try:
+                client = FacebookPagesClient.from_config()
+
+                with get_session() as session:
+                    for i, emp in enumerate(lote, 1):
+                        progreso.progress(i / len(lote), text=f"Revisando: {emp['razon_social'][:45]}...")
+                        info = client.buscar_empresa(emp["razon_social"], emp["ciudad"])
+                        if not info:
+                            continue
+
+                        emp_orm = session.get(EmpresaProspecto, emp["id_empresa"])
+                        if not emp_orm:
+                            continue
+
+                        # WhatsApp adicional — actualiza si no tenía
+                        if info.telefono and not emp_orm.whatsapp:
+                            emp_orm.whatsapp = info.telefono[:30]
+                            emp_orm.fecha_ultima_actualizacion = date.today()
+                            nuevos_wa += 1
+
+                        # Email adicional diferente al existente — crea registro clon
+                        email_fb = info.email.lower().strip() if info.email else ""
+                        email_actual = (emp_orm.email_contacto or "").lower().strip()
+                        if email_fb and email_fb != email_actual:
+                            ya_existe = session.query(EmpresaProspecto).filter_by(
+                                email_contacto=email_fb
+                            ).first()
+                            if not ya_existe:
+                                from src.modules.scraper.crm_injector import _generar_nit_temporal
+                                clon = EmpresaProspecto(
+                                    razon_social=emp_orm.razon_social,
+                                    nit=_generar_nit_temporal(emp_orm.razon_social + "_fb", emp_orm.ciudad or ""),
+                                    sector_economico=emp_orm.sector_economico,
+                                    ciudad=emp_orm.ciudad,
+                                    departamento=emp_orm.departamento,
+                                    telefono=emp_orm.telefono,
+                                    whatsapp=info.telefono[:30] if info.telefono else emp_orm.whatsapp,
+                                    email_contacto=email_fb[:150],
+                                    nivel_riesgo_arl=emp_orm.nivel_riesgo_arl or "I",
+                                    num_empleados=emp_orm.num_empleados or 0,
+                                    estado_prospecto="NUEVO",
+                                    fuente_origen="Facebook",
+                                    opt_out=False,
+                                    fecha_registro=date.today(),
+                                    fecha_ultima_actualizacion=date.today(),
+                                )
+                                session.add(clon)
+                                nuevos_emails += 1
+
+                progreso.empty()
+                st.cache_data.clear()
+
+                if nuevos_emails > 0 or nuevos_wa > 0:
+                    st.success(
+                        f"✅ Búsqueda completada — "
+                        f"**{nuevos_emails}** correos adicionales encontrados · "
+                        f"**{nuevos_wa}** WhatsApp agregados."
+                    )
+                    if nuevos_emails > 0:
+                        st.info("Los correos adicionales ya aparecen en la pestaña **Prospectos en CRM**.")
+                    if nuevos_wa > 0:
+                        st.info("Los WhatsApp agregados ya aparecen en la pestaña **Campaña WhatsApp**.")
+                else:
+                    st.info("Facebook no encontró contactos adicionales para las empresas revisadas.")
+
+            except FacebookTokenError as exc:
+                progreso.empty()
+                st.error(f"Error de token: {exc}")
+            except Exception as exc:
+                progreso.empty()
+                st.error(f"Error inesperado: {exc}")
+
 
 def render() -> None:
     _auto_cadencia()
