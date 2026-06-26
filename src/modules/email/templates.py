@@ -8,6 +8,7 @@ Estructura de cada correo:
 
 Si Gemini no está disponible, la intro cae al texto de respaldo (fallback).
 """
+import random
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
@@ -34,13 +35,30 @@ class EmailContext:
     nombre_asesora: str = "Tania Peñaloza"
 
 
-# ── Asuntos (rotan variantes para evitar filtros de spam) ─────────────────────
+# ── Asuntos rotativos por día — cada empresa recibe uno distinto ──────────────
 
 _ASUNTOS = {
-    "PRIMER_CONTACTO":          "Seguridad y Salud en el Trabajo – {{ razon_social }}",
-    "SEGUIMIENTO_COTIZACION":   "Re: propuesta para {{ razon_social }}",
-    "RECORDATORIO_VENCIMIENTO": "{{ razon_social }} – seguimiento SST",
-    "ULTIMO_CONTACTO":          "Para {{ razon_social }}",
+    "PRIMER_CONTACTO": [
+        "📋 {{ razon_social }}: lo que exige la Res. 0312 este año",
+        "¿Está {{ razon_social }} lista para una visita del Mintrabajo?",
+        "⚠️ Estándares SST para empresas en {{ ciudad }}",
+        "Lo que el Mintrabajo revisa primero en {{ sector_economico or 'su sector' }}",
+    ],
+    "RECORDATORIO_VENCIMIENTO": [
+        "📌 {{ razon_social }} — ¿pudieron revisar mi mensaje?",
+        "Re: SST para {{ razon_social }}",
+        "{{ razon_social }}, quería saber si recibieron mi correo",
+        "Seguimiento — Medina SST para {{ razon_social }}",
+    ],
+    "ULTIMO_CONTACTO": [
+        "Último mensaje para {{ razon_social }} — SST",
+        "{{ razon_social }}, antes de cerrar 👋",
+        "✅ Una última cosa para {{ razon_social }}",
+        "Para {{ razon_social }} — mi último intento",
+    ],
+    "SEGUIMIENTO_COTIZACION": [
+        "Re: propuesta para {{ razon_social }}",
+    ],
 }
 
 # ── Estructura base del correo — estilo personal/texto para evitar Promociones ─
@@ -208,7 +226,8 @@ class EmailTemplateEngine:
             )
 
         data = ctx.__dict__
-        asunto = _jinja.from_string(_ASUNTOS[tipo]).render(**data)
+        plantilla_asunto = random.choice(_ASUNTOS[tipo])
+        asunto = _jinja.from_string(plantilla_asunto).render(**data)
 
         # Gemini genera SOLO el gancho (1 oración, texto plano)
         from .ai_generator import generar_cuerpo_ia
