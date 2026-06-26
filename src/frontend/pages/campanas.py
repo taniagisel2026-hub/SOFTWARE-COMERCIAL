@@ -825,10 +825,27 @@ def _render_enriquecer_facebook() -> None:
             "Abre el archivo `.env` y agrega tu token en la línea:\n\n"
             "`FACEBOOK_ACCESS_TOKEN=APP_ID|APP_SECRET`"
         )
-
-    if not token_ok:
         st.info("Configura el token de Facebook para activar el enriquecimiento.")
         return
+
+    # ── Prueba de conexión ───────────────────────────────────────────────────
+    with st.expander("🔌 Probar conexión con Facebook"):
+        empresa_prueba = st.text_input("Nombre de empresa para probar", value="Medina SST Empresarial", key="fb_test_nombre")
+        if st.button("Probar ahora", key="fb_test_btn"):
+            try:
+                import httpx
+                from src.modules.enrichment.facebook_client import FacebookPagesClient
+                token = FacebookPagesClient._leer_token()
+                resp = httpx.get(
+                    "https://graph.facebook.com/v19.0/search",
+                    params={"q": empresa_prueba, "type": "page",
+                            "fields": "id,name,phone,emails,website",
+                            "access_token": token, "limit": 3},
+                    timeout=10,
+                )
+                st.code(resp.text, language="json")
+            except Exception as exc:
+                st.error(f"Error: {exc}")
 
     from src.database.connection import get_session
     from src.database.models import EmpresaProspecto
