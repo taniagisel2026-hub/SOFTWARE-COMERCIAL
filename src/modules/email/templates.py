@@ -40,21 +40,21 @@ class EmailContext:
 _ASUNTOS = {
     "PRIMER_CONTACTO": [
         "📋 {{ razon_social }}: lo que exige la Res. 0312 este año",
-        "¿Está {{ razon_social }} lista para una visita del Mintrabajo?",
-        "⚠️ Estándares SST para empresas en {{ ciudad }}",
-        "Lo que el Mintrabajo revisa primero en {{ sector_economico or 'su sector' }}",
+        "⚠️ ¿Está {{ razon_social }} lista para una visita del Mintrabajo?",
+        "🔔 Estándares SST para empresas en {{ ciudad }}",
+        "📌 Lo que el Mintrabajo revisa primero en {{ sector_economico or 'su sector' }}",
     ],
     "RECORDATORIO_VENCIMIENTO": [
         "📌 {{ razon_social }} — ¿pudieron revisar mi mensaje?",
-        "Re: SST para {{ razon_social }}",
-        "{{ razon_social }}, quería saber si recibieron mi correo",
-        "Seguimiento — Medina SST para {{ razon_social }}",
+        "📩 Re: SST para {{ razon_social }}",
+        "🔔 {{ razon_social }}, quería saber si recibieron mi correo",
+        "💼 Seguimiento — Medina SST para {{ razon_social }}",
     ],
     "ULTIMO_CONTACTO": [
-        "Último mensaje para {{ razon_social }} — SST",
+        "📋 Último mensaje para {{ razon_social }} — SST",
         "{{ razon_social }}, antes de cerrar 👋",
         "✅ Una última cosa para {{ razon_social }}",
-        "Para {{ razon_social }} — mi último intento",
+        "👋 Para {{ razon_social }} — mi último intento",
     ],
     "SEGUIMIENTO_COTIZACION": [
         "Re: propuesta para {{ razon_social }}",
