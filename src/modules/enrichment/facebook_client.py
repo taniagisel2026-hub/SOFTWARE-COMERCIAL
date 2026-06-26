@@ -62,7 +62,7 @@ class FacebookPagesClient:
         import os
         from dotenv import load_dotenv
         env_path = Path(__file__).parent.parent.parent.parent / ".env"
-        load_dotenv(env_path, override=False)
+        load_dotenv(env_path, override=True)
         return os.getenv("FACEBOOK_ACCESS_TOKEN", "").strip()
 
     def buscar_empresa(self, razon_social: str, ciudad: str = "") -> InfoFacebook | None:
