@@ -841,16 +841,23 @@ def _render_enriquecer_facebook() -> None:
         st.info("Configura el token de Facebook para activar el enriquecimiento.")
         return
 
-    # ── Panel de enriquecimiento ─────────────────────────────────────────────
     from src.database.connection import get_session
     from src.database.models import EmpresaProspecto
+    import pandas as pd
 
     with get_session() as session:
+        pendientes = (
+            session.query(EmpresaProspecto)
+            .filter(EmpresaProspecto.estado_prospecto == "PENDIENTE_FACEBOOK")
+            .order_by(EmpresaProspecto.fecha_registro.desc())
+            .limit(200)
+            .all()
+        )
         sin_telefono = (
             session.query(EmpresaProspecto)
             .filter(
                 EmpresaProspecto.opt_out == False,
-                EmpresaProspecto.estado_prospecto != "CERRADO_GANADO",
+                EmpresaProspecto.estado_prospecto == "NUEVO",
                 EmpresaProspecto.telefono.is_(None),
                 EmpresaProspecto.whatsapp.is_(None),
             )
@@ -858,99 +865,89 @@ def _render_enriquecer_facebook() -> None:
             .limit(200)
             .all()
         )
-        empresas_lista = [
-            {"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or ""}
-            for e in sin_telefono
-        ]
+        pendientes_lista   = [{"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or "", "pendiente": True}  for e in pendientes]
+        sin_tel_lista      = [{"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or "", "pendiente": False} for e in sin_telefono]
 
-    if not empresas_lista:
-        st.success(
-            "✅ Todas las empresas del CRM ya tienen teléfono o WhatsApp. "
-            "No hay candidatas para enriquecer en este momento."
-        )
-        return
-
-    st.info(
-        f"**{len(empresas_lista)}** empresas en el CRM sin teléfono ni WhatsApp "
-        "— candidatas a enriquecer con Facebook."
-    )
-
-    max_buscar = st.slider(
-        "¿Cuántas empresas buscar en esta sesión?",
-        min_value=5,
-        max_value=min(100, len(empresas_lista)),
-        value=min(20, len(empresas_lista)),
-        step=5,
-        key="fb_max_buscar",
-    )
-
-    if st.button(
-        "🔍 Buscar en Facebook",
-        type="primary",
-        use_container_width=True,
-    ):
-        lote = empresas_lista[:max_buscar]
+    def _ejecutar_busqueda(lote: list, es_pendiente: bool) -> None:
         progreso = st.progress(0, text="Iniciando búsqueda...")
-        encontrados = []
-
+        encontrados, sin_resultado = [], []
         try:
             client = FacebookPagesClient.from_config()
             for i, emp in enumerate(lote, 1):
                 progreso.progress(i / len(lote), text=f"Buscando: {emp['razon_social'][:50]}...")
                 info = client.buscar_empresa(emp["razon_social"], emp["ciudad"])
                 if info and (info.telefono or info.email):
-                    encontrados.append({
-                        "id_empresa":    emp["id_empresa"],
-                        "razon_social":  emp["razon_social"],
-                        "telefono":      info.telefono,
-                        "email":         info.email,
-                        "nombre_pagina": info.nombre_pagina,
-                        "sitio_web":     info.sitio_web,
-                    })
-
+                    encontrados.append({"id_empresa": emp["id_empresa"], "razon_social": emp["razon_social"],
+                                        "telefono": info.telefono, "email": info.email,
+                                        "nombre_pagina": info.nombre_pagina, "sitio_web": info.sitio_web})
+                else:
+                    sin_resultado.append(emp["id_empresa"])
             progreso.empty()
 
-            if encontrados:
-                # Aplicar al CRM
-                with get_session() as session:
-                    for r in encontrados:
-                        emp_orm = session.get(EmpresaProspecto, r["id_empresa"])
-                        if emp_orm:
-                            if r["telefono"] and not emp_orm.telefono:
-                                emp_orm.telefono = r["telefono"][:30]
-                            if r["email"] and not emp_orm.email_contacto:
-                                emp_orm.email_contacto = r["email"][:150]
-                            if r["sitio_web"] and not emp_orm.fuente_origen:
-                                emp_orm.fuente_origen = "Facebook"
-                            from datetime import date as _date
-                            emp_orm.fecha_ultima_actualizacion = _date.today()
+            with get_session() as session:
+                for r in encontrados:
+                    emp_orm = session.get(EmpresaProspecto, r["id_empresa"])
+                    if emp_orm:
+                        if r["telefono"] and not emp_orm.telefono:
+                            emp_orm.telefono = r["telefono"][:30]
+                        if r["email"] and not emp_orm.email_contacto:
+                            emp_orm.email_contacto = r["email"][:150]
+                        if r["sitio_web"] and not emp_orm.fuente_origen:
+                            emp_orm.fuente_origen = "Facebook"
+                        if es_pendiente:
+                            emp_orm.estado_prospecto = "NUEVO"
+                        emp_orm.fecha_ultima_actualizacion = date.today()
 
-                st.cache_data.clear()
-                st.success(
-                    f"✅ **{len(encontrados)} de {len(lote)}** empresas enriquecidas con datos de Facebook."
-                )
-                import pandas as pd
-                st.dataframe(
-                    pd.DataFrame([{
-                        "Empresa":       r["razon_social"],
-                        "Página FB":     r["nombre_pagina"],
-                        "Teléfono":      r["telefono"] or "—",
-                        "Email":         r["email"] or "—",
-                    } for r in encontrados]),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-            else:
-                st.warning(
-                    f"No se encontraron páginas de Facebook con teléfono o email "
-                    f"para las {len(lote)} empresas buscadas. "
-                    "Muchas PyMEs colombianas no tienen página de Facebook o no publican sus datos."
-                )
+                if es_pendiente:
+                    for id_emp in sin_resultado:
+                        emp_orm = session.get(EmpresaProspecto, id_emp)
+                        if emp_orm:
+                            session.delete(emp_orm)
+
+            st.cache_data.clear()
+
+            if encontrados:
+                st.success(f"✅ **{len(encontrados)}** empresas enriquecidas — pasan a Prospectos o WhatsApp según el dato encontrado.")
+                st.dataframe(pd.DataFrame([{"Empresa": r["razon_social"], "Página FB": r["nombre_pagina"],
+                                            "Teléfono": r["telefono"] or "—", "Email": r["email"] or "—"}
+                                           for r in encontrados]),
+                             use_container_width=True, hide_index=True)
+            if sin_resultado and es_pendiente:
+                st.info(f"🗑 **{len(sin_resultado)}** empresas descartadas — Facebook tampoco encontró contacto.")
+            elif not encontrados:
+                st.warning("No se encontraron páginas de Facebook con teléfono o email para las empresas buscadas.")
 
         except FacebookTokenError as exc:
+            progreso.empty()
             st.error(f"Error de token: {exc}")
         except Exception as exc:
+            progreso.empty()
             st.error(f"Error inesperado: {exc}")
+
+    # ── Sección 1: Pendientes de extracción ──────────────────────────────────
+    separador_seccion(f"Pendientes de extracción — {len(pendientes_lista)} empresas sin contacto")
+    if pendientes_lista:
+        st.warning(
+            f"Estas **{len(pendientes_lista)} empresas** fueron extraídas pero no tenían email ni WhatsApp. "
+            "Si Facebook encuentra contacto pasan al CRM normal; si no, se descartan."
+        )
+        if st.button("🔍 Enriquecer pendientes con Facebook", type="primary", use_container_width=True, key="fb_btn_pendientes"):
+            _ejecutar_busqueda(pendientes_lista, es_pendiente=True)
+    else:
+        st.success("✅ No hay empresas pendientes de buscar en Facebook.")
+
+    st.divider()
+
+    # ── Sección 2: Empresas NUEVO sin teléfono ───────────────────────────────
+    separador_seccion(f"Enriquecer prospectos existentes — {len(sin_tel_lista)} sin teléfono ni WhatsApp")
+    if sin_tel_lista:
+        st.info(f"**{len(sin_tel_lista)}** prospectos ya en el CRM sin teléfono ni WhatsApp.")
+        max_buscar = st.slider("¿Cuántas buscar?", min_value=5, max_value=min(100, len(sin_tel_lista)),
+                               value=min(20, len(sin_tel_lista)), step=5, key="fb_max_buscar")
+        if st.button("🔍 Buscar en Facebook", use_container_width=True, key="fb_btn_nuevos"):
+            _ejecutar_busqueda(sin_tel_lista[:max_buscar], es_pendiente=False)
+    else:
+        st.success("✅ Todos los prospectos ya tienen teléfono o WhatsApp.")
 
 
 def render() -> None:
