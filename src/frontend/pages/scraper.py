@@ -375,28 +375,17 @@ def _mostrar_historial() -> None:
         )
         return
 
-    # Tarjeta con la última extracción — archivo persistente o respaldo del historial
-    import json as _json
-    _log_path = Path(__file__).parent.parent.parent.parent / "data" / "ultima_extraccion.json"
-    if _log_path.exists():
-        try:
-            _ult = _json.loads(_log_path.read_text(encoding="utf-8"))
-            st.info(
-                f"**Última extracción:** {_ult['ciudad']} · {_ult['sector']} · "
-                f"**{_ult['nuevas']} empresas nuevas** · {_ult['fecha']}"
-            )
-        except Exception:
-            pass
-    else:
-        # Respaldo: usar la fila más reciente del historial
-        ultima = hist["sesiones"][0]
-        ultima_fecha = ultima["Fecha"]
-        ultima_ciudad = ultima["Ciudad"]
-        total_ultima = sum(s["Extraídas"] for s in hist["sesiones"] if s["Fecha"] == ultima_fecha and s["Ciudad"] == ultima_ciudad)
-        st.info(
-            f"**Última extracción:** {ultima_ciudad} · "
-            f"**{total_ultima} empresas** · {ultima_fecha}"
-        )
+    # Tarjeta con la última extracción — siempre desde la base de datos
+    ultima = hist["sesiones"][0]
+    ultima_fecha = ultima["Fecha"]
+    ultima_ciudad = ultima["Ciudad"]
+    sectores_ultima = [s["Sector"] for s in hist["sesiones"] if s["Fecha"] == ultima_fecha and s["Ciudad"] == ultima_ciudad]
+    total_ultima = sum(s["Extraídas"] for s in hist["sesiones"] if s["Fecha"] == ultima_fecha and s["Ciudad"] == ultima_ciudad)
+    sectores_txt = f"{len(sectores_ultima)} sector(es)" if len(sectores_ultima) > 1 else sectores_ultima[0]
+    st.info(
+        f"**Última extracción:** {ultima_ciudad} · {sectores_txt} · "
+        f"**{total_ultima} empresa(s) nueva(s)** · {ultima_fecha}"
+    )
 
     separador_seccion(f"Historial de extracciones — {hist['total']} prospectos en total")
     df = pd.DataFrame(hist["sesiones"])
