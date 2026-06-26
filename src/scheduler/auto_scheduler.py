@@ -22,8 +22,16 @@ if str(_ROOT) not in sys.path:
 
 import schedule
 
-_LOG_PATH = _ROOT / "data" / "scheduler_log.json"
+_LOG_PATH    = _ROOT / "data" / "scheduler_log.json"
+_CONFIG_PATH = _ROOT / "data" / "scheduler_config.json"
 _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _auto_dia1_activo() -> bool:
+    try:
+        return json.loads(_CONFIG_PATH.read_text(encoding="utf-8")).get("auto_dia1", False)
+    except Exception:
+        return False
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,7 +67,10 @@ def tarea_cadencia() -> None:
     try:
         from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
 
-        resultados = SequenceOrchestrator().procesar_pendientes(creado_por="Scheduler")
+        resultados = SequenceOrchestrator().procesar_pendientes(
+            creado_por="Scheduler",
+            incluir_dia1=_auto_dia1_activo(),
+        )
         dia1    = [r for r in resultados if r.ok and r.accion == "DIA_1"]
         dia4    = [r for r in resultados if r.ok and r.accion == "DIA_4"]
         dia8    = [r for r in resultados if r.ok and r.accion == "DIA_8"]

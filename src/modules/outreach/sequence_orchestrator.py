@@ -176,16 +176,16 @@ class SequenceOrchestrator:
         return resultados
 
     def procesar_pendientes(
-        self, creado_por: str = "Scheduler"
+        self, creado_por: str = "Scheduler", incluir_dia1: bool = False
     ) -> list[ResultadoProcesamiento]:
         """
         Recorre todos los prospectos activos y avanza los que corresponda.
-        Diseñado para ejecución diaria (botón en GUI).
+        incluir_dia1=True activa el envío automático del primer correo.
         """
         resultados: list[ResultadoProcesamiento] = []
 
         with get_session() as session:
-            candidatos_dia_1 = self._ids_sin_dia_1(session)
+            candidatos_dia_1 = self._ids_sin_dia_1(session) if incluir_dia1 else []
             candidatos_dia_4 = self._ids_candidatos_dia_4(session)
             candidatos_dia_8 = self._ids_candidatos_dia_8(session)
 
