@@ -54,6 +54,9 @@ _BASE_HTML = """\
 </head>
 <body style="margin:0;padding:20px;background-color:#ffffff;
              font-family:Georgia,'Times New Roman',serif;font-size:15px;color:#222222;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:#ffffff;">
+    {{ preheader }}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+  </div>
   <div style="max-width:620px;margin:0 auto;">
     {{ body }}
     <p style="margin:32px 0 0;font-size:11px;color:#cccccc;border-top:1px solid #f5f5f5;padding-top:10px;">
@@ -93,7 +96,7 @@ _BLOQUE_SERVICIOS = """\
   </li>
 </ul>
 <p style="margin:0 0 6px;font-size:15px;color:#333;">
-  Puede escribirme a este correo o contactarme al <strong>322 818 7963</strong> (llamadas) o WhatsApp <strong>312 558 0713</strong>.
+  Escríbame por WhatsApp al <a href="https://wa.me/573125580713" style="color:#222;text-decoration:none;"><strong>312 558 0713</strong></a> y con gusto le explico cómo podemos ayudar a <strong>{{ razon_social }}</strong>.
 </p>"""
 
 # ── Firma (siempre al final de todo correo) ───────────────────────────────────
@@ -141,7 +144,7 @@ _PARRAFO_CTA_RECORDATORIO = """\
   {{ ciudad }} a cumplir los estándares del SG-SST en tiempo récord.
   Adicionalmente, a través de nuestra alianza con <strong>COMPECER</strong> podemos
   acompañarlos en procesos de certificación ISO (9001, 45001, 14001, entre otras).
-  Comuníquese con nosotros cuando guste — estamos disponibles para resolver sus dudas.
+  Escríbanos por WhatsApp al <a href="https://wa.me/573125580713" style="color:#222;text-decoration:none;"><strong>312 558 0713</strong></a> cuando guste — estamos disponibles para resolver sus dudas.
 </p>"""
 
 _PARRAFO_SEGUIMIENTO_COTIZACION = """\
@@ -171,6 +174,13 @@ _PARRAFO_ULTIMO_CONTACTO = """\
   mediciones ambientales o certificaciones ISO, con gusto los atendemos.
   Quedamos a su disposición.
 </p>"""
+
+_PREHEADER = {
+    "PRIMER_CONTACTO":          "El Mintrabajo no avisa antes de inspeccionar — le explicamos cómo estar preparados.",
+    "RECORDATORIO_VENCIMIENTO": "Le escribimos de nuevo porque queremos asegurarnos de que {razon_social} esté protegida.",
+    "SEGUIMIENTO_COTIZACION":   "¿Tiene dudas sobre la propuesta? Con gusto la ajustamos a sus necesidades.",
+    "ULTIMO_CONTACTO":          "Quedamos disponibles para cuando {razon_social} lo necesite — sin presión.",
+}
 
 _GANCHO_FALLBACK = {
     "PRIMER_CONTACTO":          "¿Sabe cuánto puede costarle a {razon_social} no tener el SG-SST al día?",
@@ -275,8 +285,10 @@ class EmailTemplateEngine:
                 + firma
             )
 
+        preheader = _PREHEADER.get(tipo, "").format(razon_social=ctx.razon_social)
         html = _jinja.from_string(_BASE_HTML).render(
             body=body_rendered,
+            preheader=preheader,
             empresa_remitente=ctx.empresa_remitente,
             email_remitente=ctx.email_remitente,
             opt_out_url=ctx.opt_out_url,
