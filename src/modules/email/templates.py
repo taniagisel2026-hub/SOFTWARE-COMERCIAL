@@ -93,7 +93,7 @@ _BLOQUE_SERVICIOS = """\
   </li>
 </ul>
 <p style="margin:0 0 6px;font-size:14px;color:#333;">
-  Puede escribirme a este correo o contactarme al <strong>322 818 7963</strong>.
+  Puede escribirme a este correo o contactarme al <strong>322 818 7963</strong> (llamadas) o WhatsApp <strong>312 558 0713</strong>.
 </p>"""
 
 # ── Firma (siempre al final de todo correo) ───────────────────────────────────
@@ -104,6 +104,7 @@ _BLOQUE_FIRMA = """\
   <strong>Tania Peñaloza</strong><br>
   Coordinadora de Proyectos Junior — Medina SST Empresarial S.A.S.<br>
   Tel: 601 903 8072 &nbsp;|&nbsp; Cel: 322 818 7963<br>
+  WhatsApp: <a href="https://wa.me/573125580713" style="color:#222;text-decoration:none;">312 558 0713</a><br>
   <a href="mailto:ministerio@ministeriosst.com" style="color:#222;text-decoration:none;">ministerio@ministeriosst.com</a><br>
   <a href="https://www.medinaempresarialsst.com" style="color:#222;text-decoration:none;">www.medinaempresarialsst.com</a>
 </p>"""

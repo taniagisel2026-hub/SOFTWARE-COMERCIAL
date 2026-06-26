@@ -686,9 +686,6 @@ def _render_whatsapp() -> None:
 
 def _auto_cadencia() -> None:
     """Ejecuta la cadencia automáticamente una vez al día al abrir el software."""
-    # PAUSADO — pendiente configurar nuevo correo y datos
-    return
-
     hoy = str(date.today())
     if st.session_state.get("_cadencia_ejecutada") == hoy:
         return
