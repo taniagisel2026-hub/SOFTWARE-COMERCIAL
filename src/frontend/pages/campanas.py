@@ -1227,6 +1227,9 @@ def render() -> None:
 
 
 def _render_portafolio() -> None:
+    from src.database.connection import get_session
+    from src.database.models import EmpresaProspecto
+
     separador_seccion("Registrar empresa que pidió portafolio")
     st.caption("Si una empresa te contactó por fuera del sistema, regístrala aquí para hacerle seguimiento.")
 
@@ -1250,7 +1253,7 @@ def _render_portafolio() -> None:
         if not nombre or not email:
             st.warning("El nombre y el correo son obligatorios.")
         else:
-            with get_db_session() as session:
+            with get_session() as session:
                 existente = session.query(EmpresaProspecto).filter(
                     EmpresaProspecto.email_contacto == email
                 ).first()
@@ -1274,7 +1277,7 @@ def _render_portafolio() -> None:
     separador_seccion("Empresas que pidieron el portafolio")
     st.caption("Estas empresas respondieron el correo y quieren recibir el portafolio. El robot ya no les escribe — el seguimiento es manual.")
 
-    with get_db_session() as session:
+    with get_session() as session:
         rows = (
             session.query(EmpresaProspecto)
             .filter(EmpresaProspecto.estado_prospecto == "PIDIO_PORTAFOLIO")
@@ -1311,7 +1314,7 @@ def _render_portafolio() -> None:
             )
         with col_btn:
             if st.button("✅ Portafolio enviado", key=f"port_{emp['id']}"):
-                with get_db_session() as session:
+                with get_session() as session:
                     e = session.get(EmpresaProspecto, emp["id"])
                     if e:
                         e.estado_prospecto = "COTIZACION_ENVIADA"
