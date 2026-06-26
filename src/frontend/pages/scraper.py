@@ -152,9 +152,10 @@ def render() -> None:
 
     if "_lote_resultado" in st.session_state:
         r = st.session_state["_lote_resultado"]
+        correos_txt = f" · **{r['correos']} correos encontrados**" if r.get("correos") else ""
         st.success(
             f"**Última extracción en lote** — {r['ciudad']} · {r['sectores']} sectores · "
-            f"**{r['nuevas']} empresas nuevas** · {r['fecha']}"
+            f"**{r['nuevas']} empresas nuevas**{correos_txt} · {r['fecha']}"
         )
 
 
@@ -279,16 +280,28 @@ def _mostrar_resultado(r: dict) -> None:
             )
 
         if recientes:
-            st.markdown(f"**Empresas guardadas hoy ({len(recientes)}):**")
-            filas = [
-                {
-                    "Empresa":   e.razon_social,
-                    "Email":     e.email_contacto or "—",
-                    "Teléfono":  e.telefono or "—",
-                    "Web":       e.sitio_web if hasattr(e, "sitio_web") and e.sitio_web else "—",
-                }
-                for e in recientes
-            ]
+            from collections import defaultdict
+            grupos: dict = defaultdict(list)
+            for e in recientes:
+                grupos[e.razon_social].append(e)
+
+            filas = []
+            for razon, empresas in grupos.items():
+                emails = [e.email_contacto for e in empresas if e.email_contacto]
+                primer = empresas[0]
+                filas.append({
+                    "Empresa":  razon,
+                    "Correos":  len(emails),
+                    "Email":    emails[0] if emails else "—",
+                    "WhatsApp": primer.whatsapp or "—",
+                    "Teléfono": primer.telefono or "—",
+                })
+
+            total_correos = sum(f["Correos"] for f in filas)
+            st.markdown(
+                f"**Empresas guardadas hoy ({len(grupos)}) — "
+                f"{total_correos} correo(s) encontrado(s):**"
+            )
             st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
         elif r["encontradas"] == 0:
             st.warning("Google Maps no encontró empresas. Intenta con otro sector o ciudad.")
@@ -410,23 +423,39 @@ def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> Non
             except Exception as exc:
                 st.write(f"  ⚠️ Error: {exc}")
 
-        # Guardar última sesión en lote
         import json as _json
         from datetime import date as _date
+        from src.database.connection import get_session as _get_session
+        from src.database.models import EmpresaProspecto as _EP
+        from sqlalchemy import func as _func
+
+        with _get_session() as _s:
+            total_correos = _s.query(_func.count(_EP.id_empresa)).filter(
+                _EP.fecha_registro == _date.today(),
+                _EP.ciudad == ciudad,
+                _EP.email_contacto.isnot(None),
+                _EP.email_contacto != "",
+            ).scalar() or 0
+
         _log_path = Path(__file__).parent.parent.parent.parent / "data" / "ultima_extraccion.json"
         _log_path.parent.mkdir(parents=True, exist_ok=True)
         _log_path.write_text(_json.dumps({
-            "fecha": str(_date.today()),
-            "ciudad": ciudad,
-            "sector": f"{len(sectores)} sectores",
-            "nuevas": total_nuevas,
+            "fecha":    str(_date.today()),
+            "ciudad":   ciudad,
+            "sector":   f"{len(sectores)} sectores",
+            "nuevas":   total_nuevas,
+            "correos":  total_correos,
         }), encoding="utf-8")
 
         st.cache_data.clear()
-        status.update(label=f"Lote completado — {total_nuevas} empresas nuevas en total", state="complete")
+        status.update(
+            label=f"Lote completado — {total_nuevas} empresas nuevas · {total_correos} correos encontrados",
+            state="complete",
+        )
         st.session_state["_lote_resultado"] = {
-            "ciudad": ciudad,
+            "ciudad":   ciudad,
             "sectores": len(sectores),
-            "nuevas": total_nuevas,
-            "fecha": str(_date.today()),
+            "nuevas":   total_nuevas,
+            "correos":  total_correos,
+            "fecha":    str(_date.today()),
         }
