@@ -60,9 +60,7 @@ _ASUNTOS = {
         "Re: propuesta para {{ razon_social }}",
     ],
     "ENVIO_PORTAFOLIO": [
-        "📁 Portafolio de servicios SST — como solicitó {{ razon_social }}",
-        "📋 Aquí está el portafolio que pidió {{ razon_social }}",
-        "✅ Portafolio Medina SST — para {{ razon_social }}",
+        "📁 Portafolio SST",
     ],
 }
 
