@@ -1227,6 +1227,50 @@ def render() -> None:
 
 
 def _render_portafolio() -> None:
+    separador_seccion("Registrar empresa que pidió portafolio")
+    st.caption("Si una empresa te contactó por fuera del sistema, regístrala aquí para hacerle seguimiento.")
+
+    with st.form("form_portafolio_manual"):
+        fc1, fc2 = st.columns(2)
+        nombre  = fc1.text_input("Nombre de la empresa *", placeholder="As Transportes Bogotá")
+        email   = fc2.text_input("Correo electrónico *", placeholder="info@astransportes.com")
+        fc3, fc4 = st.columns(2)
+        ciudad  = fc3.text_input("Ciudad", placeholder="Bogotá")
+        sector  = fc4.selectbox("Sector", [""] + [
+            "Construcción", "Manufactura / Industria", "Transporte y Logística",
+            "Comercio y Retail", "Servicios Empresariales", "Salud y Clínicas",
+            "Minería y Energía", "Tecnología y Software", "Alimentos y Bebidas",
+            "Seguridad Privada", "Hotelería y Turismo", "Petróleo y Gas",
+            "Ingeniería y Consultoría", "Farmacéutico y Químico", "Telecomunicaciones",
+            "Entretenimiento y Eventos",
+        ])
+        guardar = st.form_submit_button("📁 Registrar como 'Pidió portafolio'", type="primary")
+
+    if guardar:
+        if not nombre or not email:
+            st.warning("El nombre y el correo son obligatorios.")
+        else:
+            with get_db_session() as session:
+                existente = session.query(EmpresaProspecto).filter(
+                    EmpresaProspecto.email_contacto == email
+                ).first()
+                if existente:
+                    existente.estado_prospecto = "PIDIO_PORTAFOLIO"
+                    st.success(f"✅ **{existente.razon_social}** ya estaba en el CRM — estado actualizado a 'Pidió portafolio'.")
+                else:
+                    nueva = EmpresaProspecto(
+                        razon_social=nombre,
+                        email_contacto=email,
+                        ciudad=ciudad or "Sin especificar",
+                        sector_economico=sector or "Sin especificar",
+                        estado_prospecto="PIDIO_PORTAFOLIO",
+                        fuente_origen="Manual",
+                        opt_out=False,
+                    )
+                    session.add(nueva)
+                    st.success(f"✅ **{nombre}** registrada correctamente.")
+            st.rerun()
+
     separador_seccion("Empresas que pidieron el portafolio")
     st.caption("Estas empresas respondieron el correo y quieren recibir el portafolio. El robot ya no les escribe — el seguimiento es manual.")
 
