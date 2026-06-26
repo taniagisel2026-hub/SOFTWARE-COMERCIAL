@@ -845,6 +845,8 @@ def _render_enriquecer_facebook() -> None:
     from src.database.models import EmpresaProspecto
     import pandas as pd
 
+    from sqlalchemy import or_, and_
+
     with get_session() as session:
         pendientes = (
             session.query(EmpresaProspecto)
@@ -853,20 +855,32 @@ def _render_enriquecer_facebook() -> None:
             .limit(200)
             .all()
         )
-        sin_telefono = (
+        # Tiene email pero le falta WhatsApp, O tiene WhatsApp pero le falta email
+        incompletos = (
             session.query(EmpresaProspecto)
             .filter(
                 EmpresaProspecto.opt_out == False,
                 EmpresaProspecto.estado_prospecto == "NUEVO",
-                EmpresaProspecto.telefono.is_(None),
-                EmpresaProspecto.whatsapp.is_(None),
+                or_(
+                    and_(
+                        EmpresaProspecto.email_contacto.isnot(None),
+                        EmpresaProspecto.email_contacto != "",
+                        or_(EmpresaProspecto.whatsapp.is_(None), EmpresaProspecto.whatsapp == ""),
+                    ),
+                    and_(
+                        EmpresaProspecto.whatsapp.isnot(None),
+                        EmpresaProspecto.whatsapp != "",
+                        or_(EmpresaProspecto.email_contacto.is_(None), EmpresaProspecto.email_contacto == ""),
+                    ),
+                ),
             )
             .order_by(EmpresaProspecto.fecha_registro.desc())
             .limit(200)
             .all()
         )
-        pendientes_lista   = [{"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or "", "pendiente": True}  for e in pendientes]
-        sin_tel_lista      = [{"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or "", "pendiente": False} for e in sin_telefono]
+        pendientes_lista  = [{"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or "", "pendiente": True}  for e in pendientes]
+        incompletos_lista = [{"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or "",
+                               "tiene_email": bool(e.email_contacto), "tiene_wa": bool(e.whatsapp)} for e in incompletos]
 
     def _ejecutar_busqueda(lote: list, es_pendiente: bool) -> None:
         progreso = st.progress(0, text="Iniciando búsqueda...")
@@ -938,16 +952,55 @@ def _render_enriquecer_facebook() -> None:
 
     st.divider()
 
-    # ── Sección 2: Empresas NUEVO sin teléfono ───────────────────────────────
-    separador_seccion(f"Enriquecer prospectos existentes — {len(sin_tel_lista)} sin teléfono ni WhatsApp")
-    if sin_tel_lista:
-        st.info(f"**{len(sin_tel_lista)}** prospectos ya en el CRM sin teléfono ni WhatsApp.")
-        max_buscar = st.slider("¿Cuántas buscar?", min_value=5, max_value=min(100, len(sin_tel_lista)),
-                               value=min(20, len(sin_tel_lista)), step=5, key="fb_max_buscar")
-        if st.button("🔍 Buscar en Facebook", use_container_width=True, key="fb_btn_nuevos"):
-            _ejecutar_busqueda(sin_tel_lista[:max_buscar], es_pendiente=False)
+    # ── Sección 2: Tienen email O WhatsApp — buscar el que falta ─────────────
+    separador_seccion(f"Completar contacto — {len(incompletos_lista)} empresas con solo email o solo WhatsApp")
+    st.caption("Empresas que tienen un canal de contacto pero les falta el otro.")
+    if incompletos_lista:
+        solo_email = sum(1 for e in incompletos_lista if e["tiene_email"] and not e["tiene_wa"])
+        solo_wa    = sum(1 for e in incompletos_lista if e["tiene_wa"] and not e["tiene_email"])
+        st.info(
+            f"**{solo_email}** tienen email pero les falta WhatsApp · "
+            f"**{solo_wa}** tienen WhatsApp pero les falta email"
+        )
+        max_buscar = st.slider("¿Cuántas buscar?", min_value=5, max_value=min(100, len(incompletos_lista)),
+                               value=min(20, len(incompletos_lista)), step=5, key="fb_max_buscar")
+        if st.button("🔍 Buscar lo que falta en Facebook", use_container_width=True, key="fb_btn_incompletos"):
+            lote = incompletos_lista[:max_buscar]
+            progreso = st.progress(0, text="Iniciando...")
+            wa_encontrados = email_encontrados = 0
+            try:
+                client = FacebookPagesClient.from_config()
+                with get_session() as session:
+                    for i, emp in enumerate(lote, 1):
+                        progreso.progress(i / len(lote), text=f"Buscando: {emp['razon_social'][:45]}...")
+                        info = client.buscar_empresa(emp["razon_social"], emp["ciudad"])
+                        if not info:
+                            continue
+                        emp_orm = session.get(EmpresaProspecto, emp["id_empresa"])
+                        if not emp_orm:
+                            continue
+                        if emp["tiene_email"] and not emp["tiene_wa"] and info.telefono:
+                            emp_orm.whatsapp = info.telefono[:30]
+                            emp_orm.fecha_ultima_actualizacion = date.today()
+                            wa_encontrados += 1
+                        elif emp["tiene_wa"] and not emp["tiene_email"] and info.email:
+                            emp_orm.email_contacto = info.email[:150]
+                            emp_orm.fecha_ultima_actualizacion = date.today()
+                            email_encontrados += 1
+                progreso.empty()
+                st.cache_data.clear()
+                if wa_encontrados or email_encontrados:
+                    st.success(
+                        f"✅ **{wa_encontrados}** WhatsApp agregados · "
+                        f"**{email_encontrados}** emails agregados."
+                    )
+                else:
+                    st.info("Facebook no encontró el dato faltante para las empresas revisadas.")
+            except Exception as exc:
+                progreso.empty()
+                st.error(f"Error: {exc}")
     else:
-        st.success("✅ Todos los prospectos ya tienen teléfono o WhatsApp.")
+        st.success("✅ Todos los prospectos ya tienen email y WhatsApp.")
 
     st.divider()
 
