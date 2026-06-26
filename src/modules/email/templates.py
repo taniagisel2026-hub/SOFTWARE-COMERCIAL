@@ -59,6 +59,11 @@ _ASUNTOS = {
     "SEGUIMIENTO_COTIZACION": [
         "Re: propuesta para {{ razon_social }}",
     ],
+    "ENVIO_PORTAFOLIO": [
+        "📁 Portafolio de servicios SST — como solicitó {{ razon_social }}",
+        "📋 Aquí está el portafolio que pidió {{ razon_social }}",
+        "✅ Portafolio Medina SST — para {{ razon_social }}",
+    ],
 }
 
 # ── Estructura base del correo — estilo personal/texto para evitar Promociones ─
@@ -198,7 +203,31 @@ _PREHEADER = {
     "RECORDATORIO_VENCIMIENTO": "Le escribimos de nuevo porque queremos asegurarnos de que {razon_social} esté protegida.",
     "SEGUIMIENTO_COTIZACION":   "¿Tiene dudas sobre la propuesta? Con gusto la ajustamos a sus necesidades.",
     "ULTIMO_CONTACTO":          "Quedamos disponibles para cuando {razon_social} lo necesite — sin presión.",
+    "ENVIO_PORTAFOLIO":         "Aquí encontrará todo lo que hacemos para proteger a {razon_social} ante el Mintrabajo.",
 }
+
+_URL_PORTAFOLIO = "https://drive.google.com/file/d/1LZRX81E6L1EQp-FnfL76rXOghfSW7STt/view?usp=sharing"
+
+_PARRAFO_PORTAFOLIO = """\
+<p style="margin:14px 0;font-size:15px;color:#222;line-height:1.75;">
+  Tal como nos solicitó, adjunto encontrará el portafolio completo de servicios de
+  <strong>Medina SST Empresarial S.A.S.</strong>, donde detallamos cómo ayudamos a empresas
+  como <strong>{{ razon_social }}</strong> a cumplir los estándares mínimos de la
+  Resolución 0312 de 2019 y a evitar sanciones del Ministerio de Trabajo.
+</p>
+<p style="margin:20px 0;text-align:center;">
+  <a href="{{ url_portafolio }}"
+     style="background-color:#041E42;color:#ffffff;padding:12px 28px;border-radius:4px;
+            text-decoration:none;font-family:Georgia,serif;font-size:15px;font-weight:bold;
+            display:inline-block;">
+    📄 Ver portafolio de servicios
+  </a>
+</p>
+<p style="margin:14px 0;font-size:15px;color:#222;line-height:1.75;">
+  Quedamos atentos a cualquier pregunta. Puede escribirnos directamente por WhatsApp al
+  <a href="https://wa.me/573125580713" style="color:#222;text-decoration:none;"><strong>312 558 0713</strong></a>
+  y con gusto le explicamos cómo nos adaptamos a las necesidades de <strong>{{ razon_social }}</strong>.
+</p>"""
 
 _GANCHO_FALLBACK = {
     "PRIMER_CONTACTO":          "¿Sabe cuánto puede costarle a {razon_social} no tener el SG-SST al día?",
@@ -293,6 +322,13 @@ class EmailTemplateEngine:
                 saludo_html
                 + gancho_html
                 + _jinja.from_string(_PARRAFO_ULTIMO_CONTACTO).render(**data)
+                + firma
+            )
+
+        elif tipo == "ENVIO_PORTAFOLIO":
+            body_rendered = (
+                saludo_html
+                + _jinja.from_string(_PARRAFO_PORTAFOLIO).render(**data, url_portafolio=_URL_PORTAFOLIO)
                 + firma
             )
 

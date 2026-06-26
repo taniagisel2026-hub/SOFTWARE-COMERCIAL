@@ -1259,7 +1259,9 @@ def _render_portafolio() -> None:
                 ).first()
                 if existente:
                     existente.estado_prospecto = "PIDIO_PORTAFOLIO"
-                    st.success(f"✅ **{existente.razon_social}** ya estaba en el CRM — estado actualizado a 'Pidió portafolio'.")
+                    id_envio = existente.id_empresa
+                    nombre_envio = existente.razon_social
+                    st.success(f"✅ **{existente.razon_social}** ya estaba en el CRM — estado actualizado.")
                 else:
                     from datetime import date as _date
                     import uuid as _uuid
@@ -1279,7 +1281,20 @@ def _render_portafolio() -> None:
                         fecha_ultima_actualizacion=_date.today(),
                     )
                     session.add(nueva)
+                    session.flush()
+                    id_envio = nueva.id_empresa
+                    nombre_envio = nombre
                     st.success(f"✅ **{nombre}** registrada correctamente.")
+
+            # Enviar correo con portafolio automáticamente
+            try:
+                from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
+                _orch = SequenceOrchestrator()
+                _emp = _orch._cargar_dominio(id_envio)
+                _orch._email.enviar(_emp, "ENVIO_PORTAFOLIO", creado_por="Portafolio")
+                st.info(f"📧 Correo con portafolio enviado a **{email}**")
+            except Exception as _e:
+                st.warning(f"⚠️ Empresa registrada pero no se pudo enviar el correo: {_e}")
             st.rerun()
 
     separador_seccion("Empresas que pidieron el portafolio")
