@@ -805,7 +805,10 @@ def _render_resumen_cadencia() -> None:
             _estado = _sched.get("estado", "—")
             _enviados = _sched.get("correos_enviados", 0)
             if _estado == "completado":
-                st.success(f"🤖 **Scheduler automático** — última ejecución: {_hora} · {_enviados} correo(s) enviado(s)")
+                _d1 = _sched.get("dia1", 0)
+                _d4 = _sched.get("dia4", 0)
+                _d8 = _sched.get("dia8", 0)
+                st.success(f"🤖 **Scheduler automático** — última ejecución: {_hora} · Día 1: {_d1} · Día 4: {_d4} · Día 8: {_d8} · Total: {_enviados} correo(s)")
             elif _estado == "en_progreso":
                 st.info(f"🤖 **Scheduler en progreso...** — iniciado: {_hora}")
             elif _estado == "error":

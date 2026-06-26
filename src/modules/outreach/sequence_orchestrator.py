@@ -185,10 +185,23 @@ class SequenceOrchestrator:
         resultados: list[ResultadoProcesamiento] = []
 
         with get_session() as session:
+            candidatos_dia_1 = self._ids_sin_dia_1(session)
             candidatos_dia_4 = self._ids_candidatos_dia_4(session)
             candidatos_dia_8 = self._ids_candidatos_dia_8(session)
 
         rate_limit_alcanzado = False
+
+        for id_emp in candidatos_dia_1:
+            if rate_limit_alcanzado:
+                break
+            try:
+                empresa = self._cargar_dominio(id_emp)
+                r = self.iniciar_secuencia(empresa, creado_por)
+            except Exception as exc:
+                r = ResultadoProcesamiento(id_empresa=id_emp, razon_social="?", accion="DIA_1", ok=False, mensaje=str(exc))
+            resultados.append(r)
+            if "Límite" in r.mensaje or "rate" in r.mensaje.lower():
+                rate_limit_alcanzado = True
 
         for id_emp in candidatos_dia_4:
             if rate_limit_alcanzado:

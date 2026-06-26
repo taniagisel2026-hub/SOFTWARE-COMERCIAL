@@ -41,12 +41,13 @@ def _guardar_log(datos: dict) -> None:
 
 
 def tarea_cadencia() -> None:
-    """Ejecuta la cadencia automática de correos (Día 4 + Día 8)."""
+    """Ejecuta la cadencia completa: Día 1 (nuevos prospectos) + Día 4 + Día 8."""
     inicio = datetime.now()
-    log.info("Iniciando cadencia automática...")
+    log.info("Iniciando cadencia automática completa (Día 1 + Día 4 + Día 8)...")
 
     resultado = {
         "ultima_ejecucion": inicio.strftime("%Y-%m-%d %H:%M:%S"),
+        "dia1":             0,
         "dia4":             0,
         "dia8":             0,
         "correos_enviados": 0,
@@ -59,19 +60,21 @@ def tarea_cadencia() -> None:
         from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
 
         resultados = SequenceOrchestrator().procesar_pendientes(creado_por="Scheduler")
+        dia1    = [r for r in resultados if r.ok and r.accion == "DIA_1"]
         dia4    = [r for r in resultados if r.ok and r.accion == "DIA_4"]
         dia8    = [r for r in resultados if r.ok and r.accion == "DIA_8"]
         errores = [f"{r.razon_social}: {r.error}" for r in resultados if not r.ok and r.error]
 
         resultado.update({
+            "dia1":             len(dia1),
             "dia4":             len(dia4),
             "dia8":             len(dia8),
-            "correos_enviados": len(dia4) + len(dia8),
+            "correos_enviados": len(dia1) + len(dia4) + len(dia8),
             "errores":          errores,
             "estado":           "completado",
             "duracion_s":       round((datetime.now() - inicio).total_seconds(), 1),
         })
-        log.info(f"Cadencia completada — Día 4: {len(dia4)} · Día 8: {len(dia8)}")
+        log.info(f"Cadencia completada — Día 1: {len(dia1)} · Día 4: {len(dia4)} · Día 8: {len(dia8)}")
 
     except Exception as exc:
         resultado.update({"estado": "error", "errores": [str(exc)]})
