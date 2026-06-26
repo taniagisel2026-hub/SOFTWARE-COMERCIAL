@@ -61,8 +61,8 @@ class EmailService:
         # 2 ── Verificar límite diario
         self._rate.verificar("EMAIL")
 
-        # 3 ── Delay aleatorio (simula cadencia humana)
-        delay = self._rate.aplicar_delay("EMAIL")
+        # 3 ── Delay aleatorio (simula cadencia humana) — se omite en envíos manuales
+        delay = 0.0 if tipo_plantilla in ("ENVIO_PORTAFOLIO",) else self._rate.aplicar_delay("EMAIL")
 
         # 4 ── Construir contexto dinámico con variables de la empresa y la Res. 0312
         nivel = clasificar_nivel_estandares(empresa.num_empleados, empresa.nivel_riesgo_arl)
