@@ -155,14 +155,14 @@ def tarea_cadencia() -> None:
 def main() -> None:
     log.info("=" * 55)
     log.info("  Medina SST — Scheduler Autónomo activo")
-    log.info("  Extracción: sáb=Facatativá · dom=Fusagasugá · lun=Zipaquirá")
+    log.info("  Extracción: 09:30 sáb=Facatativá · dom=Fusagasugá · lun=Zipaquirá")
     log.info("  Cadencia:   todos los días 08:30")
     log.info("=" * 55)
 
-    # Extracciones por día de la semana (antes del envío de correos)
-    schedule.every().saturday.at("07:00").do(tarea_extraccion, ciudad="Facatativá")
-    schedule.every().sunday.at("07:00").do(tarea_extraccion,   ciudad="Fusagasugá")
-    schedule.every().monday.at("07:00").do(tarea_extraccion,   ciudad="Zipaquirá")
+    # Extracciones por día de la semana (después del envío de correos)
+    schedule.every().saturday.at("09:30").do(tarea_extraccion, ciudad="Facatativá")
+    schedule.every().sunday.at("09:30").do(tarea_extraccion,   ciudad="Fusagasugá")
+    schedule.every().monday.at("09:30").do(tarea_extraccion,   ciudad="Zipaquirá")
 
     # Cadencia de correos diaria
     schedule.every().day.at("08:30").do(tarea_cadencia)
