@@ -49,15 +49,38 @@ _VARIACIONES_SECTOR: dict[str, list[str]] = {
         "consultorio médico", "centro de diagnóstico", "clínica odontológica",
         "centro de rehabilitación", "hogar geriátrico",
     ],
-    "Educación": [
-        "colegio", "instituto", "universidad", "centro de formación", "academia",
-        "jardín infantil", "escuela", "centro educativo", "SENA",
-        "instituto técnico", "politécnico",
+    "Hotelería y Turismo": [
+        "hotel", "hostal", "resort", "agencia de viajes", "operador turístico",
+        "restaurante de cadena", "club campestre", "spa y bienestar",
+        "empresa de eventos", "alojamiento turístico",
     ],
-    "Agricultura y Ganadería": [
-        "agroindustria", "finca agrícola", "empresa agropecuaria", "ganadería",
-        "cultivo", "hacienda ganadera", "avícola", "porcícola",
-        "empresa agrícola", "floricultura",
+    "Petróleo y Gas": [
+        "empresa petrolera", "empresa de gas", "refinería", "estación de servicio industrial",
+        "empresa de perforación", "servicios petroleros", "empresa de hidrocarburos",
+        "ductos y oleoductos", "planta de gas natural", "empresa de combustibles",
+    ],
+    "Ingeniería y Consultoría": [
+        "firma de ingeniería", "consultoría técnica", "empresa de ingeniería",
+        "interventoría", "supervisión de proyectos", "ingeniería eléctrica",
+        "ingeniería mecánica", "diseño estructural", "gerencia de proyectos",
+        "empresa de topografía",
+    ],
+    "Farmacéutico y Químico": [
+        "laboratorio farmacéutico", "empresa química", "droguería mayorista",
+        "distribuidora de medicamentos", "empresa de cosméticos", "laboratorio de análisis",
+        "empresa de plaguicidas", "industria química", "empresa de pinturas", "planta química",
+    ],
+    "Telecomunicaciones": [
+        "empresa de telecomunicaciones", "proveedor de internet", "empresa de cable",
+        "torre de comunicaciones", "empresa de fibra óptica", "call center",
+        "empresa de radiocomunicaciones", "proveedor ISP", "empresa de antenas",
+        "soluciones de conectividad",
+    ],
+    "Entretenimiento y Eventos": [
+        "empresa de eventos", "productora de eventos", "empresa de espectáculos",
+        "empresa de audio y video", "empresa de iluminación", "organizadora de eventos",
+        "empresa de logística de eventos", "empresa de catering", "empresa de decoración",
+        "parque de diversiones",
     ],
     "Minería y Energía": [
         "empresa minera", "explotación minera", "empresa energética", "planta eléctrica",

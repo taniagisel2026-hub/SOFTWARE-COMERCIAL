@@ -43,8 +43,10 @@ _REGIONES: dict[str, list[str]] = {
 _SECTORES = [
     "Construcción", "Manufactura / Industria", "Transporte y Logística",
     "Comercio y Retail", "Servicios Empresariales", "Salud y Clínicas",
-    "Educación", "Agricultura y Ganadería", "Minería y Energía",
-    "Tecnología y Software", "Alimentos y Bebidas", "Seguridad Privada",
+    "Minería y Energía", "Tecnología y Software", "Alimentos y Bebidas",
+    "Seguridad Privada", "Hotelería y Turismo", "Petróleo y Gas",
+    "Ingeniería y Consultoría", "Farmacéutico y Químico", "Telecomunicaciones",
+    "Entretenimiento y Eventos",
 ]
 
 _CLAVE_RESULTADO = "scraper_ultimo_resultado"
