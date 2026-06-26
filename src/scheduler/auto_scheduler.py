@@ -100,7 +100,7 @@ def main() -> None:
     log.info("  Cadencia programada: todos los días 08:00")
     log.info("=" * 50)
 
-    schedule.every().day.at("08:00").do(tarea_cadencia)
+    schedule.every().day.at("08:30").do(tarea_cadencia)
 
     while True:
         schedule.run_pending()
