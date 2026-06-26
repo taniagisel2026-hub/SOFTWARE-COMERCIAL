@@ -805,6 +805,145 @@ def _render_resumen_cadencia() -> None:
         st.info("Hoy no había empresas pendientes de Día 4 o Día 8.")
 
 
+def _render_enriquecer_facebook() -> None:
+    separador_seccion("Enriquecer CRM con Facebook Pages")
+    st.caption(
+        "Busca las páginas de Facebook de empresas que no tienen teléfono "
+        "y extrae su número de contacto automáticamente."
+    )
+
+    from src.modules.enrichment.facebook_client import FacebookPagesClient, FacebookTokenError
+
+    # ── Configuración del token ──────────────────────────────────────────────
+    token_ok = FacebookPagesClient.token_configurado()
+
+    with st.expander("⚙️ Configuración del token de Facebook", expanded=not token_ok):
+        st.markdown(
+            "Pega aquí tu **App Access Token** de Meta for Developers. "
+            "Este token no expira mientras tu app esté activa.\n\n"
+            "Formato: `123456789|AbCdEfGhIjKlMnOpQrSt`"
+        )
+        nuevo_token = st.text_input(
+            "Token de acceso",
+            type="password",
+            placeholder="APP_ID|APP_SECRET",
+            key="fb_token_input",
+        )
+        if st.button("💾 Guardar token", use_container_width=True):
+            if nuevo_token.strip():
+                FacebookPagesClient.guardar_token(nuevo_token.strip())
+                st.success("Token guardado correctamente.")
+                st.rerun()
+            else:
+                st.error("El token no puede estar vacío.")
+
+    if not token_ok:
+        st.info("Configura el token de Facebook para activar el enriquecimiento.")
+        return
+
+    # ── Panel de enriquecimiento ─────────────────────────────────────────────
+    with get_session() as session:
+        sin_telefono = (
+            session.query(EmpresaProspecto)
+            .filter(
+                EmpresaProspecto.opt_out == False,
+                EmpresaProspecto.estado_prospecto != "CERRADO_GANADO",
+                EmpresaProspecto.telefono.is_(None),
+                EmpresaProspecto.whatsapp.is_(None),
+            )
+            .order_by(EmpresaProspecto.fecha_registro.desc())
+            .limit(200)
+            .all()
+        )
+        empresas_lista = [
+            {"id_empresa": e.id_empresa, "razon_social": e.razon_social, "ciudad": e.ciudad or ""}
+            for e in sin_telefono
+        ]
+
+    st.info(
+        f"**{len(empresas_lista)}** empresas en el CRM sin teléfono ni WhatsApp "
+        "— candidatas a enriquecer con Facebook."
+    )
+
+    max_buscar = st.slider(
+        "¿Cuántas empresas buscar en esta sesión?",
+        min_value=5, max_value=min(100, len(empresas_lista)),
+        value=min(20, len(empresas_lista)),
+        step=5,
+        disabled=len(empresas_lista) == 0,
+        key="fb_max_buscar",
+    )
+
+    if st.button(
+        "🔍 Buscar en Facebook",
+        type="primary",
+        use_container_width=True,
+        disabled=len(empresas_lista) == 0,
+    ):
+        lote = empresas_lista[:max_buscar]
+        progreso = st.progress(0, text="Iniciando búsqueda...")
+        encontrados = []
+
+        try:
+            client = FacebookPagesClient.from_config()
+            for i, emp in enumerate(lote, 1):
+                progreso.progress(i / len(lote), text=f"Buscando: {emp['razon_social'][:50]}...")
+                info = client.buscar_empresa(emp["razon_social"], emp["ciudad"])
+                if info and (info.telefono or info.email):
+                    encontrados.append({
+                        "id_empresa":    emp["id_empresa"],
+                        "razon_social":  emp["razon_social"],
+                        "telefono":      info.telefono,
+                        "email":         info.email,
+                        "nombre_pagina": info.nombre_pagina,
+                        "sitio_web":     info.sitio_web,
+                    })
+
+            progreso.empty()
+
+            if encontrados:
+                # Aplicar al CRM
+                with get_session() as session:
+                    for r in encontrados:
+                        emp_orm = session.get(EmpresaProspecto, r["id_empresa"])
+                        if emp_orm:
+                            if r["telefono"] and not emp_orm.telefono:
+                                emp_orm.telefono = r["telefono"][:30]
+                            if r["email"] and not emp_orm.email_contacto:
+                                emp_orm.email_contacto = r["email"][:150]
+                            if r["sitio_web"] and not emp_orm.fuente_origen:
+                                emp_orm.fuente_origen = "Facebook"
+                            from datetime import date as _date
+                            emp_orm.fecha_ultima_actualizacion = _date.today()
+
+                st.cache_data.clear()
+                st.success(
+                    f"✅ **{len(encontrados)} de {len(lote)}** empresas enriquecidas con datos de Facebook."
+                )
+                import pandas as pd
+                st.dataframe(
+                    pd.DataFrame([{
+                        "Empresa":       r["razon_social"],
+                        "Página FB":     r["nombre_pagina"],
+                        "Teléfono":      r["telefono"] or "—",
+                        "Email":         r["email"] or "—",
+                    } for r in encontrados]),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.warning(
+                    f"No se encontraron páginas de Facebook con teléfono o email "
+                    f"para las {len(lote)} empresas buscadas. "
+                    "Muchas PyMEs colombianas no tienen página de Facebook o no publican sus datos."
+                )
+
+        except FacebookTokenError as exc:
+            st.error(f"Error de token: {exc}")
+        except Exception as exc:
+            st.error(f"Error inesperado: {exc}")
+
+
 def render() -> None:
     _auto_cadencia()
 
@@ -818,11 +957,12 @@ def render() -> None:
     _render_alertas_respuestas()
     _render_resumen_cadencia()
 
-    tab_prospectos, tab_whatsapp, tab_firmados, tab_optout = st.tabs([
+    tab_prospectos, tab_whatsapp, tab_firmados, tab_optout, tab_facebook = st.tabs([
         "📋 Prospectos en CRM",
         "💬 Campaña WhatsApp",
         "✅ Clientes Firmados",
         "🚫 Lista Negra (Opt-Out)",
+        "🔍 Enriquecer con Facebook",
     ])
 
     with tab_prospectos:
@@ -836,6 +976,9 @@ def render() -> None:
 
     with tab_optout:
         _render_lista_negra()
+
+    with tab_facebook:
+        _render_enriquecer_facebook()
 
 
 def _render_clientes_firmados() -> None:
