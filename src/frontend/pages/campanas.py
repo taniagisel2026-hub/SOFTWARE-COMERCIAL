@@ -795,6 +795,26 @@ def _render_resumen_cadencia() -> None:
     except Exception:
         n1 = n4 = n8 = 0
 
+    # Estado del scheduler autónomo
+    import json as _json
+    _sched_path = Path(__file__).parent.parent.parent.parent / "data" / "scheduler_log.json"
+    if _sched_path.exists():
+        try:
+            _sched = _json.loads(_sched_path.read_text(encoding="utf-8"))
+            _hora  = _sched.get("ultima_ejecucion", "—")
+            _estado = _sched.get("estado", "—")
+            _enviados = _sched.get("correos_enviados", 0)
+            if _estado == "completado":
+                st.success(f"🤖 **Scheduler automático** — última ejecución: {_hora} · {_enviados} correo(s) enviado(s)")
+            elif _estado == "en_progreso":
+                st.info(f"🤖 **Scheduler en progreso...** — iniciado: {_hora}")
+            elif _estado == "error":
+                st.warning(f"🤖 **Scheduler** — error en última ejecución ({_hora}): {_sched.get('errores', [])}")
+        except Exception:
+            pass
+    else:
+        st.caption("🤖 Scheduler: inicia el software con `start.bat` para activar la cadencia automática.")
+
     separador_seccion(f"Cadencia de hoy — {hoy}")
     c1, c2, c3 = st.columns(3)
     with c1: tarjeta_kpi("Día 1 enviados hoy", str(n1), icono="📨", color="#1D4ED8")

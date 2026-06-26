@@ -35,6 +35,9 @@ google-genai>=1.0.0
 # replicate>=0.25.0       # Para ReplicateImageGenerator (Stable Diffusion XL)
 # httpx>=0.27.0           # Requerido por los generadores de imagen con descarga
 
+# ── Scheduler autónomo ────────────────────────────────────────────
+schedule>=1.2.0
+
 # ── Fase 4: Web Scraping ──────────────────────────────────────────
 playwright>=1.40.0          # Browser automation (después: playwright install chromium)
 httpx>=0.27.0               # HTTP requests para WebScraper
