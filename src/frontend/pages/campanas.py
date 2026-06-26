@@ -1286,15 +1286,6 @@ def _render_portafolio() -> None:
                     nombre_envio = nombre
                     st.success(f"✅ **{nombre}** registrada correctamente.")
 
-            # Enviar correo con portafolio automáticamente
-            try:
-                from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
-                _orch = SequenceOrchestrator()
-                _emp = _orch._cargar_dominio(id_envio)
-                _orch._email.enviar(_emp, "ENVIO_PORTAFOLIO", creado_por="Portafolio")
-                st.info(f"📧 Correo con portafolio enviado a **{email}**")
-            except Exception as _e:
-                st.warning(f"⚠️ Empresa registrada pero no se pudo enviar el correo: {_e}")
             st.rerun()
 
     separador_seccion("Empresas que pidieron el portafolio")
@@ -1336,12 +1327,30 @@ def _render_portafolio() -> None:
                 unsafe_allow_html=True,
             )
         with col_btn:
-            if st.button("✅ Portafolio enviado", key=f"port_{emp['id']}"):
+            btn_enviar = st.button("📧 Enviar portafolio", key=f"enviar_port_{emp['id']}", type="primary")
+            btn_marcar = st.button("✅ Ya enviado", key=f"marcar_port_{emp['id']}")
+
+            if btn_enviar:
+                try:
+                    from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
+                    _orch = SequenceOrchestrator()
+                    _emp_dom = _orch._cargar_dominio(emp["id"])
+                    _orch._email.enviar(_emp_dom, "ENVIO_PORTAFOLIO", creado_por="Portafolio")
+                    with get_session() as session:
+                        e = session.get(EmpresaProspecto, emp["id"])
+                        if e:
+                            e.estado_prospecto = "COTIZACION_ENVIADA"
+                    st.success(f"📧 Portafolio enviado a **{emp['email']}**")
+                    st.rerun()
+                except Exception as _e:
+                    st.error(f"Error al enviar: {_e}")
+
+            if btn_marcar:
                 with get_session() as session:
                     e = session.get(EmpresaProspecto, emp["id"])
                     if e:
                         e.estado_prospecto = "COTIZACION_ENVIADA"
-                st.success(f"✅ {emp['nombre']} marcada como cotización enviada.")
+                st.success(f"✅ {emp['nombre']} marcada como portafolio enviado.")
                 st.rerun()
         st.divider()
 
