@@ -63,7 +63,6 @@ class ScraperEngineService:
     ):
         self._adapters = adapters or [
             GoogleMapsScraper(),
-            PaginasAmarillasScraper(),
         ]
         self._web = web_scraper or WebScraper()
         self._enriquecer_emails = enriquecer_emails

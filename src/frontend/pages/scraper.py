@@ -70,10 +70,9 @@ def render() -> None:
         )
 
         st.markdown("**Fuentes activas:**")
-        usar_gmaps = st.checkbox("🗺️ Google Maps (búsqueda + fichas)",    value=True)
-        usar_pa    = st.checkbox("📒 Páginas Amarillas (directorio CO)",   value=True)
+        usar_gmaps = st.checkbox("🗺️ Google Maps (búsqueda + fichas)",  value=True)
         usar_li    = False
-        usar_web   = st.checkbox("🌐 WebScraper (extracción emails)",      value=True)
+        usar_web   = st.checkbox("🌐 WebScraper (extracción emails)", value=True)
 
         st.divider()
         disparar_emails = st.checkbox(
@@ -115,7 +114,7 @@ def render() -> None:
         separador_seccion("Resultado de la sesión")
 
         if iniciar:
-            _ejecutar_pipeline(ciudad, sector, max_empresas, disparar_emails, usar_gmaps, usar_pa, usar_li, usar_web)
+            _ejecutar_pipeline(ciudad, sector, max_empresas, disparar_emails, usar_gmaps, usar_li, usar_web)
 
         # Mostrar último resultado almacenado en session_state
         if _CLAVE_RESULTADO in st.session_state:
@@ -161,8 +160,7 @@ def render() -> None:
 
 
 def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_emails: bool,
-                       usar_gmaps: bool = True, usar_pa: bool = True,
-                       usar_li: bool = True, usar_web: bool = True) -> None:
+                       usar_gmaps: bool = True, usar_li: bool = True, usar_web: bool = True) -> None:
     """
     Llama a ProspectionPipeline.ejecutar() con st.spinner().
     Almacena el resultado en session_state para persistencia entre reruns.
@@ -189,7 +187,6 @@ def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_e
                 max_por_fuente=max_por_fuente,
                 disparar_emails=disparar_emails,
                 usar_gmaps=usar_gmaps,
-                usar_paginas_amarillas=usar_pa,
                 usar_linkedin=usar_li,
                 usar_webscraper=usar_web,
             )
@@ -418,7 +415,6 @@ def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> Non
                     max_por_fuente=max_por_sector,
                     disparar_emails=False,
                     usar_gmaps=True,
-                    usar_paginas_amarillas=True,
                     usar_linkedin=False,
                     usar_webscraper=True,
                 )

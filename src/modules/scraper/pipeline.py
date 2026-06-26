@@ -88,7 +88,6 @@ class ProspectionPipeline:
         disparar_emails: bool = True,
         solo_nuevas: bool = True,
         usar_gmaps: bool = True,
-        usar_paginas_amarillas: bool = True,
         usar_linkedin: bool = True,
         usar_webscraper: bool = True,
     ) -> PipelineResult:
@@ -110,14 +109,11 @@ class ProspectionPipeline:
         from .google_maps import GoogleMapsScraper
         from .linkedin_auto import LinkedInAutoScraper
         from .linkedin import LinkedInScraper
-        from .paginas_amarillas import PaginasAmarillasScraper
         from .web_scraper import WebScraper
 
         adapters = []
         if usar_gmaps:
             adapters.append(GoogleMapsScraper())
-        if usar_paginas_amarillas:
-            adapters.append(PaginasAmarillasScraper())
         if usar_linkedin:
             li = LinkedInAutoScraper() if LinkedInAutoScraper.sesion_existe() else LinkedInScraper()
             adapters.append(li)
