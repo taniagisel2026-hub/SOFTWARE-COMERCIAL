@@ -682,6 +682,68 @@ def _render_whatsapp() -> None:
     )
 
 
+# ── Alertas de respuestas Gmail ───────────────────────────────────────────────
+
+@st.cache_data(ttl=300)
+def _cargar_respuestas_gmail() -> dict:
+    """Consulta Gmail (cada 5 min) y cruza respuestas con el CRM."""
+    try:
+        from src.modules.email.gmail_client import GmailClient
+        client = GmailClient.from_config()
+        respuestas_raw = client.listar_respuestas(desde_dias=30)
+        if not respuestas_raw:
+            return {"ok": True, "alertas": []}
+
+        emails_respondidos = {r["from_email"] for r in respuestas_raw if r["from_email"]}
+        email_a_resp = {r["from_email"]: r for r in respuestas_raw}
+
+        with get_session() as session:
+            empresas = (
+                session.query(EmpresaProspecto)
+                .filter(
+                    EmpresaProspecto.email_contacto.in_(list(emails_respondidos)),
+                    EmpresaProspecto.opt_out == False,
+                )
+                .all()
+            )
+
+        alertas = []
+        for emp in empresas:
+            email = (emp.email_contacto or "").lower()
+            if email in email_a_resp:
+                resp = email_a_resp[email]
+                alertas.append({
+                    "razon_social": emp.razon_social,
+                    "email":        email,
+                    "asunto":       resp.get("subject", ""),
+                    "fecha":        resp.get("date", ""),
+                })
+
+        return {"ok": True, "alertas": alertas}
+
+    except Exception as exc:
+        tipo = type(exc).__name__
+        if "Auth" in tipo or "auth" in str(exc).lower():
+            return {"ok": False, "error": "no_auth", "alertas": []}
+        return {"ok": True, "alertas": []}
+
+
+def _render_alertas_respuestas() -> None:
+    datos = _cargar_respuestas_gmail()
+    alertas = datos.get("alertas", [])
+    if not alertas:
+        return
+
+    st.warning(
+        f"📬 **{len(alertas)} empresa(s) respondieron tu correo** — "
+        "revísalas en tu bandeja de entrada y haz el seguimiento."
+    )
+    for a in alertas:
+        asunto = a["asunto"] or "sin asunto"
+        st.markdown(f"- **{a['razon_social']}** ({a['email']}) — *{asunto}*")
+    st.divider()
+
+
 # ── Página principal ──────────────────────────────────────────────────────────
 
 def _auto_cadencia() -> None:
@@ -753,6 +815,7 @@ def render() -> None:
         st.rerun()
 
     st.caption("Gestión de prospectos, secuencias de correo y control Ley 1581/2012")
+    _render_alertas_respuestas()
     _render_resumen_cadencia()
 
     tab_prospectos, tab_whatsapp, tab_firmados, tab_optout = st.tabs([
