@@ -1340,8 +1340,7 @@ def _render_portafolio() -> None:
                         e = session.get(EmpresaProspecto, emp["id"])
                         if e:
                             e.estado_prospecto = "COTIZACION_ENVIADA"
-                    st.success(f"📧 Portafolio enviado a **{emp['email']}**")
-                    st.rerun()
+                    st.success(f"📧 Portafolio enviado a **{emp['email']}** — la empresa pasó a Cotización enviada.")
                 except Exception as _e:
                     st.error(f"Error al enviar: {_e}")
 
