@@ -1787,76 +1787,90 @@ def _render_prospectos() -> None:
     }
     _ESTADOS_OPCIONES = ["NUEVO", "EN_SEGUIMIENTO", "PIDIO_PORTAFOLIO", "COTIZACION_ENVIADA", "NEGOCIACION", "CERRADO_GANADO", "CERRADO_PERDIDO"]
 
-    # ── Tabla de prospectos ────────────────────────────────────────────────────
+    # ── Tabla compacta ────────────────────────────────────────────────────────
     _cadencia = _cargar_estado_cadencia().get("data", {})
 
+    filas = []
     for p in filtrados:
-        col_info, col_badge, col_btn = st.columns([4, 2, 2])
+        cad = _cadencia.get(p["ID"], {})
+        filas.append({
+            "Empresa": p["Empresa"],
+            "Ciudad":  p["Ciudad"],
+            "Email":   p["Email"],
+            "Estado":  p["Estado"],
+            "D1": f"✓ {cad['dia1']}" if cad.get("dia1") else "—",
+            "D4": f"✓ {cad['dia4']}" if cad.get("dia4") else "—",
+            "D8": f"✓ {cad['dia8']}" if cad.get("dia8") else "—",
+        })
 
-        with col_info:
-            st.markdown(f"**{p['Empresa']}**")
-            st.markdown(
-                f"<small style='color:#6B7280;'>"
-                f"📍 {p['Ciudad']} &nbsp;·&nbsp; 👥 {p['Empleados']} emp. &nbsp;·&nbsp; "
-                f"📧 {p['Email']} &nbsp;·&nbsp; 🔗 {p['Fuente']}"
-                f"</small>",
-                unsafe_allow_html=True,
-            )
-            cad = _cadencia.get(p["ID"], {})
-            st.markdown(
-                _badge_cadencia(cad.get("dia1"), "D1") +
-                _badge_cadencia(cad.get("dia4"), "D4") +
-                _badge_cadencia(cad.get("dia8"), "D8"),
-                unsafe_allow_html=True,
-            )
+    st.dataframe(
+        pd.DataFrame(filas),
+        use_container_width=True,
+        hide_index=True,
+        height=min(80 + len(filas) * 35, 500),
+        column_config={
+            "D1": st.column_config.TextColumn("D1", width="small"),
+            "D4": st.column_config.TextColumn("D4", width="small"),
+            "D8": st.column_config.TextColumn("D8", width="small"),
+        },
+    )
 
-        with col_badge:
-            estado_actual = p["Estado"]
+    # ── Acciones sobre una empresa ────────────────────────────────────────────
+    st.divider()
+    separador_seccion("Acciones sobre una empresa")
+    _nombres_accion = [p["Empresa"] for p in filtrados]
+    _sel_accion = st.selectbox(
+        "Selecciona una empresa",
+        ["— Ninguna —"] + _nombres_accion,
+        key="sel_accion_empresa",
+    )
+
+    if _sel_accion != "— Ninguna —":
+        p_sel = next(p for p in filtrados if p["Empresa"] == _sel_accion)
+        st.caption(f"📧 {p_sel['Email']} &nbsp;·&nbsp; 📍 {p_sel['Ciudad']}")
+
+        col_estado, col_email = st.columns(2)
+
+        with col_estado:
+            estado_actual = p_sel["Estado"]
             idx_actual = _ESTADOS_OPCIONES.index(estado_actual) if estado_actual in _ESTADOS_OPCIONES else 0
             nuevo_estado = st.selectbox(
-                "Estado", _ESTADOS_OPCIONES,
+                "Cambiar estado", _ESTADOS_OPCIONES,
                 index=idx_actual,
-                key=f"estado_{p['ID']}",
-                label_visibility="collapsed",
+                key=f"estado_sel_{p_sel['ID']}",
             )
             if nuevo_estado != estado_actual:
-                if st.button("Guardar", key=f"save_estado_{p['ID']}", use_container_width=True):
+                if st.button("Guardar estado", key=f"save_sel_{p_sel['ID']}", use_container_width=True):
                     from src.database.connection import get_session
                     from src.database.models import EmpresaProspecto as _EmpMod
                     with get_session() as _s:
-                        _e = _s.get(_EmpMod, p["ID"])
+                        _e = _s.get(_EmpMod, p_sel["ID"])
                         if _e:
                             _e.estado_prospecto = nuevo_estado
                             _e.fecha_ultima_actualizacion = date.today()
-                            _s.commit()
-                    st.session_state["_msg_crm"] = ("ok", f"✅ Estado de {p['Empresa']} actualizado a {nuevo_estado}.")
+                    st.session_state["_msg_crm"] = ("ok", f"✅ {p_sel['Empresa']} → {nuevo_estado}.")
+                    st.cache_data.clear()
                     st.rerun()
 
-        with col_btn:
-            tipo_correo = _TIPO_POR_ESTADO.get(p["Estado"], "PRIMER_CONTACTO")
+        with col_email:
+            tipo_correo = _TIPO_POR_ESTADO.get(p_sel["Estado"], "PRIMER_CONTACTO")
             _etiquetas = {
-                "PRIMER_CONTACTO":        "📨 Día 1 — Primer contacto",
-                "SEGUIMIENTO_COTIZACION": "📨 Día 4 — Seguimiento",
-                "RECORDATORIO_VENCIMIENTO": "📨 Día 8 — Recordatorio",
+                "PRIMER_CONTACTO":          "📨 Enviar Día 1",
+                "SEGUIMIENTO_COTIZACION":   "📨 Enviar Día 4",
+                "RECORDATORIO_VENCIMIENTO": "📨 Enviar Día 8",
             }
             etiqueta_btn = _etiquetas.get(tipo_correo, "📨 Enviar correo")
-            if p["_tiene_email"]:
-                if st.button(etiqueta_btn, key=f"email_{p['ID']}", use_container_width=True):
-                    with st.spinner(f"Enviando a {p['Email']}..."):
-                        ok, msg = _enviar_correo(p["ID"], tipo=tipo_correo)
+            if p_sel["_tiene_email"]:
+                if st.button(etiqueta_btn, key=f"email_sel_{p_sel['ID']}", use_container_width=True, type="primary"):
+                    with st.spinner(f"Enviando a {p_sel['Email']}..."):
+                        ok, msg = _enviar_correo(p_sel["ID"], tipo=tipo_correo)
                     if ok:
                         st.success(msg)
                         st.cache_data.clear()
                     else:
-                        if "Opt-out" in msg or "Límite" in msg:
-                            st.warning(msg)
-                        else:
-                            st.error(msg)
+                        st.warning(msg) if ("Opt-out" in msg or "Límite" in msg) else st.error(msg)
             else:
-                st.button("📨 Sin email", key=f"noemail_{p['ID']}",
-                          disabled=True, use_container_width=True)
-
-        st.divider()
+                st.button("Sin email registrado", disabled=True, use_container_width=True)
 
     # ── Acción masiva ──────────────────────────────────────────────────────────
     separador_seccion("Acciones masivas")
