@@ -2,10 +2,9 @@
 Scheduler autónomo — ejecuta tareas programadas sin intervención manual.
 
 Tareas programadas:
-  - 07:00 sábado   → extracción Facatativá (todos los sectores)
-  - 07:00 domingo  → extracción Fusagasugá (todos los sectores)
-  - 07:00 lunes    → extracción Zipaquirá  (todos los sectores)
-  - 08:30 diario   → cadencia de correos (Día 1 + Día 4 + Día 8)
+  - 08:30 lunes a viernes → cadencia de correos (Día 1 + Día 4 + Día 8)
+
+La extracción de prospectos se realiza manualmente desde la interfaz.
 """
 import json
 import sys
@@ -20,19 +19,9 @@ if str(_ROOT) not in sys.path:
 
 import schedule
 
-_LOG_PATH        = _ROOT / "data" / "scheduler_log.json"
-_LOG_EXTRAC_PATH = _ROOT / "data" / "scheduler_extraccion_log.json"
-_CONFIG_PATH     = _ROOT / "data" / "scheduler_config.json"
+_LOG_PATH    = _ROOT / "data" / "scheduler_log.json"
+_CONFIG_PATH = _ROOT / "data" / "scheduler_config.json"
 _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-_SECTORES = [
-    "Construcción", "Manufactura / Industria", "Transporte y Logística",
-    "Comercio y Retail", "Servicios Empresariales", "Salud y Clínicas",
-    "Minería y Energía", "Tecnología y Software", "Alimentos y Bebidas",
-    "Seguridad Privada", "Hotelería y Turismo", "Petróleo y Gas",
-    "Ingeniería y Consultoría", "Farmacéutico y Químico", "Telecomunicaciones",
-    "Entretenimiento y Eventos",
-]
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,58 +42,6 @@ def _guardar_log(datos: dict) -> None:
     _LOG_PATH.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _guardar_log_extraccion(datos: dict) -> None:
-    _LOG_EXTRAC_PATH.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def tarea_extraccion(ciudad: str) -> None:
-    """Extrae empresas de todos los sectores en la ciudad indicada (sin enviar correos)."""
-    inicio = datetime.now()
-    log.info(f"Iniciando extracción automática — ciudad: {ciudad}")
-
-    resultado = {
-        "ultima_ejecucion": inicio.strftime("%Y-%m-%d %H:%M:%S"),
-        "ciudad": ciudad,
-        "empresas_nuevas": 0,
-        "sectores_procesados": 0,
-        "errores": [],
-        "estado": "en_progreso",
-    }
-    _guardar_log_extraccion(resultado)
-
-    try:
-        from src.modules.scraper.pipeline import ProspectionPipeline
-        pipeline = ProspectionPipeline()
-
-        total_nuevas = 0
-        for sector in _SECTORES:
-            try:
-                r = pipeline.ejecutar(
-                    ciudad=ciudad,
-                    sector=sector,
-                    max_por_fuente=30,
-                    disparar_emails=False,
-                    usar_linkedin=False,
-                )
-                total_nuevas += r.empresas_nuevas
-                resultado["sectores_procesados"] += 1
-                log.info(f"  [{sector}] {r.empresas_nuevas} nuevas")
-            except Exception as exc:
-                resultado["errores"].append(f"{sector}: {exc}")
-                log.warning(f"  [{sector}] Error: {exc}")
-
-        resultado.update({
-            "empresas_nuevas": total_nuevas,
-            "estado": "completado",
-            "duracion_s": round((datetime.now() - inicio).total_seconds(), 1),
-        })
-        log.info(f"Extracción completada — {ciudad}: {total_nuevas} empresas nuevas")
-
-    except Exception as exc:
-        resultado.update({"estado": "error", "errores": [str(exc)]})
-        log.error(f"Error en extracción: {exc}")
-
-    _guardar_log_extraccion(resultado)
 
 
 def tarea_cadencia() -> None:
@@ -156,17 +93,14 @@ def tarea_cadencia() -> None:
 def main() -> None:
     log.info("=" * 55)
     log.info("  Medina SST — Scheduler Autónomo activo")
-    log.info("  Extracción: 09:30 sáb=Facatativá · dom=Fusagasugá · lun=Zipaquirá")
-    log.info("  Cadencia:   todos los días 08:30")
+    log.info("  Cadencia: lunes a viernes 08:30")
     log.info("=" * 55)
 
-    # Extracciones por día de la semana (después del envío de correos)
-    schedule.every().saturday.at("09:30").do(tarea_extraccion, ciudad="Facatativá")
-    schedule.every().sunday.at("09:30").do(tarea_extraccion,   ciudad="Fusagasugá")
-    schedule.every().monday.at("09:30").do(tarea_extraccion,   ciudad="Zipaquirá")
-
-    # Cadencia de correos diaria
-    schedule.every().day.at("08:30").do(tarea_cadencia)
+    schedule.every().monday.at("08:30").do(tarea_cadencia)
+    schedule.every().tuesday.at("08:30").do(tarea_cadencia)
+    schedule.every().wednesday.at("08:30").do(tarea_cadencia)
+    schedule.every().thursday.at("08:30").do(tarea_cadencia)
+    schedule.every().friday.at("08:30").do(tarea_cadencia)
 
     while True:
         schedule.run_pending()
