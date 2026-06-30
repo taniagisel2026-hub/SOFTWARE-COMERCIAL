@@ -84,6 +84,7 @@ def tarea_extraccion(ciudad: str) -> None:
                     sector=sector,
                     max_por_fuente=30,
                     disparar_emails=False,
+                    usar_linkedin=False,
                 )
                 total_nuevas += r.empresas_nuevas
                 resultado["sectores_procesados"] += 1
@@ -132,7 +133,7 @@ def tarea_cadencia() -> None:
         dia1    = [r for r in resultados if r.ok and r.accion == "DIA_1"]
         dia4    = [r for r in resultados if r.ok and r.accion == "DIA_4"]
         dia8    = [r for r in resultados if r.ok and r.accion == "DIA_8"]
-        errores = [f"{r.razon_social}: {r.error}" for r in resultados if not r.ok and r.error]
+        errores = [f"{r.razon_social}: {r.mensaje}" for r in resultados if not r.ok and r.mensaje]
 
         resultado.update({
             "dia1": len(dia1),
