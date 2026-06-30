@@ -3,6 +3,7 @@ from .image_generator import (
     DalleImageGenerator,
     ImageGeneratorService,
     MockImageGenerator,
+    PollinationsImageGenerator,
     ReplicateImageGenerator,
 )
 from .social_publisher import (
@@ -21,6 +22,7 @@ __all__ = [
     "ArticuloGenerado",
     "ImageGeneratorService",
     "MockImageGenerator",
+    "PollinationsImageGenerator",
     "DalleImageGenerator",
     "ReplicateImageGenerator",
     "SocialSchedulerService",

@@ -179,7 +179,8 @@ def _render_generador() -> None:
     with col_opt1:
         gen_tipo = st.selectbox(
             "Motor de imágenes",
-            ["Mock (prompts listos para Midjourney/DALL-E Web)",
+            ["Pollinations IA (gratis, automático)",
+             "Mock (solo guarda el prompt en texto)",
              "DALL-E 3 (requiere OPENAI_API_KEY)",
              "Stable Diffusion XL (requiere REPLICATE_API_TOKEN)"],
             key="gen_imagenes_tipo",
@@ -232,11 +233,12 @@ def _ejecutar_generacion(tema, gen_tipo: str, plataforma: str) -> None:
             DalleImageGenerator,
             ImageGeneratorService,
             MockImageGenerator,
+            PollinationsImageGenerator,
             ReplicateImageGenerator,
         )
         import os
 
-        with st.spinner("Claude generando artículo SST..."):
+        with st.spinner("Gemini generando artículo SST..."):
             svc = ContentGeneratorService()
             articulo = svc.generar(tema=tema)
 
@@ -247,11 +249,14 @@ def _ejecutar_generacion(tema, gen_tipo: str, plataforma: str) -> None:
         elif "Stable Diffusion" in gen_tipo and os.getenv("REPLICATE_API_TOKEN"):
             img_gen = ImageGeneratorService(ReplicateImageGenerator())
             gen_label = "Stable Diffusion XL"
-        else:
+        elif "Mock" in gen_tipo:
             img_gen = ImageGeneratorService(MockImageGenerator())
             gen_label = "Mock"
+        else:
+            img_gen = ImageGeneratorService(PollinationsImageGenerator())
+            gen_label = "Pollinations IA (Flux)"
 
-        with st.spinner(f"Generando 3 imágenes con {gen_label}..."):
+        with st.spinner(f"Generando 3 imágenes con {gen_label} — puede tardar ~30 seg..."):
             imagenes = img_gen.generar_para_articulo(
                 articulo_titulo=articulo.titulo,
                 prompts=articulo.prompts_imagenes,
