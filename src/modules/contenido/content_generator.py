@@ -105,7 +105,9 @@ class ArticuloGenerado:
 
 class ContentGeneratorService:
 
-    MODEL = "gemini-2.5-flash"
+    # Modelo separado del que usan los correos (gemini-2.5-flash en .env)
+    # gemini-1.5-flash: cuota gratuita independiente — 1500 req/día, 15 RPM
+    MODEL = "gemini-1.5-flash"
     _BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
     def __init__(self, api_key: Optional[str] = None):
@@ -124,7 +126,7 @@ class ContentGeneratorService:
         user_prompt = self._construir_prompt_usuario(tema_activo)
         raw_text = self._llamar_gemini(user_prompt)
         articulo = self._parsear_respuesta(raw_text, tema_activo)
-        articulo.modelo_usado = os.getenv("GEMINI_MODEL", self.MODEL)
+        articulo.modelo_usado = os.getenv("GEMINI_CONTENT_MODEL", self.MODEL)
         self._persistir_json(articulo)
         return articulo
 
@@ -132,7 +134,9 @@ class ContentGeneratorService:
         import time
         import requests as _req
 
-        model = os.getenv("GEMINI_MODEL", self.MODEL)
+        # GEMINI_CONTENT_MODEL permite sobrescribir el modelo solo para contenido
+        # sin afectar el gemini-2.5-flash que usan los correos (GEMINI_MODEL)
+        model = os.getenv("GEMINI_CONTENT_MODEL", self.MODEL)
         url = f"{self._BASE_URL}/{model}:generateContent?key={self._api_key}"
         payload = {
             "system_instruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
