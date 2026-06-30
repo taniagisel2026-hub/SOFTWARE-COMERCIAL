@@ -2,13 +2,13 @@
 ImageGeneratorService — motor gráfico automatizado.
 
 Arquitectura de adaptadores: BaseImageGenerator define el contrato; cualquier
-proveedor (DALL-E, Stable Diffusion, Replicate, Midjourney) solo implementa
-generate_one() sin cambiar nada en el resto del sistema.
+proveedor implementa generate_one() sin cambiar nada en el resto del sistema.
 
 Implementaciones disponibles:
-  · MockImageGenerator   — activo por defecto; guarda prompts en disco
-  · DalleImageGenerator  — stub listo para activar con OPENAI_API_KEY
-  · ReplicateImageGenerator — stub listo para activar con REPLICATE_API_TOKEN
+  · PollinationsImageGenerator — activo por defecto; GRATIS, sin API key (Flux model)
+  · MockImageGenerator         — fallback si Pollinations falla; guarda prompts en disco
+  · DalleImageGenerator        — stub listo para activar con OPENAI_API_KEY
+  · ReplicateImageGenerator    — stub listo para activar con REPLICATE_API_TOKEN
 """
 import json
 import os
@@ -121,6 +121,56 @@ class MockImageGenerator(BaseImageGenerator):
         return hints.get(indice, "Imagen relacionada con seguridad y salud en el trabajo en Colombia")
 
 
+# ── PollinationsImageGenerator (por defecto — 100% gratis, sin API key) ──────
+
+class PollinationsImageGenerator(BaseImageGenerator):
+    """
+    Genera imágenes reales usando Pollinations.ai (modelo Flux) — completamente
+    gratuito, sin registro ni API key. Cada imagen tarda ~15-30 segundos.
+
+    Tamaño: 1024x1024 — compatible con Instagram, LinkedIn y Facebook.
+    """
+
+    _BASE = "https://image.pollinations.ai/prompt/{prompt}"
+    _SUFIJO = (
+        ", professional corporate photography, seguridad salud trabajo Colombia, "
+        "clean modern style, high quality, 4k"
+    )
+
+    def generate_one(self, prompt: str, indice: int, output_dir: Path) -> ImageResult:
+        try:
+            import httpx
+            from urllib.parse import quote
+
+            prompt_completo = prompt + self._SUFIJO
+            url = (
+                f"https://image.pollinations.ai/prompt/{quote(prompt_completo)}"
+                f"?width=1024&height=1024&model=flux&nologo=true&seed={indice * 42}"
+            )
+
+            respuesta = httpx.get(url, timeout=90, follow_redirects=True)
+            respuesta.raise_for_status()
+
+            img_path = output_dir / f"imagen_{indice}.png"
+            img_path.write_bytes(respuesta.content)
+
+            return ImageResult(
+                indice=indice,
+                prompt_original=prompt,
+                url_local=str(img_path),
+                url_remota=url,
+                proveedor="pollinations-flux",
+                estado="GENERADA",
+            )
+
+        except Exception as exc:
+            # Fallback silencioso al mock si Pollinations no responde
+            fallback = MockImageGenerator()
+            resultado = fallback.generate_one(prompt, indice, output_dir)
+            resultado.estado = f"ERROR_POLLINATIONS: {exc}"
+            return resultado
+
+
 # ── DalleImageGenerator (stub — activar con OPENAI_API_KEY) ──────────────────
 
 class DalleImageGenerator(BaseImageGenerator):
@@ -221,7 +271,7 @@ class ImageGeneratorService:
     """
 
     def __init__(self, generator: Optional[BaseImageGenerator] = None):
-        self._gen = generator or MockImageGenerator()
+        self._gen = generator or PollinationsImageGenerator()
 
     def generar_para_articulo(
         self,
