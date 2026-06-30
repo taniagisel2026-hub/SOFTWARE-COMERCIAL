@@ -129,7 +129,9 @@ class ContentGeneratorService:
         return articulo
 
     def _llamar_gemini(self, user_prompt: str) -> str:
+        import time
         import requests as _req
+
         model = os.getenv("GEMINI_MODEL", self.MODEL)
         url = f"{self._BASE_URL}/{model}:generateContent?key={self._api_key}"
         payload = {
@@ -137,9 +139,15 @@ class ContentGeneratorService:
             "contents": [{"parts": [{"text": user_prompt}]}],
             "generationConfig": {"temperature": 0.8, "maxOutputTokens": 8192},
         }
-        r = _req.post(url, json=payload, timeout=60)
-        r.raise_for_status()
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+        esperas = [30, 60]  # segundos entre reintentos
+        for intento, espera in enumerate(esperas + [None], start=1):
+            r = _req.post(url, json=payload, timeout=60)
+            if r.status_code == 429 and espera is not None:
+                time.sleep(espera)
+                continue
+            r.raise_for_status()
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
 
     def _construir_prompt_usuario(self, tema: TemaSSTInfo) -> str:
         cfg = get_config()
