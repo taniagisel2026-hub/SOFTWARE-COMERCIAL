@@ -809,7 +809,7 @@ def _render_resumen_cadencia() -> None:
         _cfg = {}
     _dia1_activo = _cfg.get("auto_dia1", False)
     _nuevo_valor = st.toggle(
-        "🤖 Envío automático Día 1 (robot envía primer correo a prospectos nuevos cada día a las 8am)",
+        "🤖 Envío automático Día 1 (robot envía primer correo a prospectos nuevos de lunes a viernes a las 8:30am)",
         value=_dia1_activo,
         key="toggle_auto_dia1",
     )
