@@ -1324,70 +1324,135 @@ def _render_portafolio() -> None:
 
             st.rerun()
 
-    separador_seccion("Empresas que pidieron el portafolio")
-    st.caption("Estas empresas respondieron el correo y quieren recibir el portafolio. El robot ya no les escribe — el seguimiento es manual.")
+    # ── Sección 1: Pendientes de envío ───────────────────────────────────────
+    separador_seccion("Pendientes de envío")
+    st.caption("Estas empresas pidieron el portafolio y aún no se les ha enviado.")
 
     with get_session() as session:
-        rows = (
+        rows_pendientes = (
             session.query(EmpresaProspecto)
             .filter(EmpresaProspecto.estado_prospecto == "PIDIO_PORTAFOLIO")
             .order_by(EmpresaProspecto.fecha_ultima_actualizacion.desc())
             .all()
         )
-        empresas = [
+        pendientes = [
             {
-                "id":      r.id_empresa,
-                "nombre":  r.razon_social,
-                "email":   r.email_contacto or "—",
-                "ciudad":  r.ciudad or "—",
-                "sector":  r.sector_economico or "—",
-                "fecha":   r.fecha_ultima_actualizacion.strftime("%Y-%m-%d") if r.fecha_ultima_actualizacion else "—",
+                "id":     r.id_empresa,
+                "nombre": r.razon_social,
+                "email":  r.email_contacto or "—",
+                "ciudad": r.ciudad or "—",
+                "sector": r.sector_economico or "—",
+                "fecha":  r.fecha_ultima_actualizacion.strftime("%Y-%m-%d") if r.fecha_ultima_actualizacion else "—",
             }
-            for r in rows
+            for r in rows_pendientes
         ]
 
-    if not empresas:
-        st.info("Ninguna empresa ha pedido el portafolio todavía.")
-        return
+    if not pendientes:
+        st.info("No hay empresas esperando portafolio.")
+    else:
+        tarjeta_kpi("Esperando envío", str(len(pendientes)), icono="📁", color="#F59E0B")
+        st.divider()
+        for emp in pendientes:
+            col_info, col_btn = st.columns([5, 2])
+            with col_info:
+                st.markdown(f"**{emp['nombre']}**")
+                st.markdown(
+                    f"<small style='color:#6B7280;'>📧 {emp['email']} &nbsp;·&nbsp; 📍 {emp['ciudad']} "
+                    f"&nbsp;·&nbsp; 🏭 {emp['sector']} &nbsp;·&nbsp; 📅 {emp['fecha']}</small>",
+                    unsafe_allow_html=True,
+                )
+            with col_btn:
+                btn_enviar = st.button("📧 Enviar portafolio", key=f"enviar_port_{emp['id']}", type="primary")
+                btn_marcar = st.button("✅ Ya enviado", key=f"marcar_port_{emp['id']}")
 
-    tarjeta_kpi("Esperando portafolio", str(len(empresas)), icono="📁", color="#F59E0B")
-    st.divider()
+                if btn_enviar:
+                    try:
+                        from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
+                        _orch = SequenceOrchestrator()
+                        _emp_dom = _orch._cargar_dominio(emp["id"])
+                        _orch._email.enviar(_emp_dom, "ENVIO_PORTAFOLIO", creado_por="Portafolio")
+                        with get_session() as session:
+                            e = session.get(EmpresaProspecto, emp["id"])
+                            if e:
+                                e.estado_prospecto = "COTIZACION_ENVIADA"
+                        st.success(f"📧 Portafolio enviado a **{emp['email']}**.")
+                        st.cache_data.clear()
+                        st.rerun()
+                    except Exception as _e:
+                        st.error(f"Error al enviar: {_e}")
 
-    for emp in empresas:
-        col_info, col_btn = st.columns([5, 2])
-        with col_info:
-            st.markdown(f"**{emp['nombre']}**")
-            st.markdown(
-                f"<small style='color:#6B7280;'>📧 {emp['email']} &nbsp;·&nbsp; 📍 {emp['ciudad']} "
-                f"&nbsp;·&nbsp; 🏭 {emp['sector']} &nbsp;·&nbsp; 📅 {emp['fecha']}</small>",
-                unsafe_allow_html=True,
-            )
-        with col_btn:
-            btn_enviar = st.button("📧 Enviar portafolio", key=f"enviar_port_{emp['id']}", type="primary")
-            btn_marcar = st.button("✅ Ya enviado", key=f"marcar_port_{emp['id']}")
-
-            if btn_enviar:
-                try:
-                    from src.modules.outreach.sequence_orchestrator import SequenceOrchestrator
-                    _orch = SequenceOrchestrator()
-                    _emp_dom = _orch._cargar_dominio(emp["id"])
-                    _orch._email.enviar(_emp_dom, "ENVIO_PORTAFOLIO", creado_por="Portafolio")
+                if btn_marcar:
                     with get_session() as session:
                         e = session.get(EmpresaProspecto, emp["id"])
                         if e:
                             e.estado_prospecto = "COTIZACION_ENVIADA"
-                    st.success(f"📧 Portafolio enviado a **{emp['email']}** — la empresa pasó a Cotización enviada.")
-                except Exception as _e:
-                    st.error(f"Error al enviar: {_e}")
+                    st.success(f"✅ {emp['nombre']} marcada como portafolio enviado.")
+                    st.cache_data.clear()
+                    st.rerun()
+            st.divider()
 
-            if btn_marcar:
-                with get_session() as session:
-                    e = session.get(EmpresaProspecto, emp["id"])
-                    if e:
-                        e.estado_prospecto = "COTIZACION_ENVIADA"
-                st.success(f"✅ {emp['nombre']} marcada como portafolio enviado.")
-                st.rerun()
+    # ── Sección 2: Portafolio ya enviado ─────────────────────────────────────
+    separador_seccion("Portafolio ya enviado")
+    st.caption("Empresas a las que ya se les envió el portafolio — en espera de respuesta.")
+
+    with get_session() as session:
+        from src.database.models import HistorialInteracciones as _Hist
+        ids_enviados = (
+            session.query(_Hist.id_empresa, _Hist.fecha_interaccion)
+            .filter(_Hist.notas_seguimiento.like("Plantilla: ENVIO_PORTAFOLIO%"))
+            .order_by(_Hist.fecha_interaccion.desc())
+            .all()
+        )
+        # un registro por empresa (el más reciente)
+        vistos = set()
+        ids_con_fecha = []
+        for r in ids_enviados:
+            if r.id_empresa not in vistos:
+                vistos.add(r.id_empresa)
+                ids_con_fecha.append((r.id_empresa, str(r.fecha_interaccion)[:10]))
+
+        enviados = []
+        for id_e, fecha_envio in ids_con_fecha:
+            emp_orm = session.get(EmpresaProspecto, id_e)
+            if emp_orm:
+                enviados.append({
+                    "id":          emp_orm.id_empresa,
+                    "nombre":      emp_orm.razon_social,
+                    "email":       emp_orm.email_contacto or "—",
+                    "ciudad":      emp_orm.ciudad or "—",
+                    "sector":      emp_orm.sector_economico or "—",
+                    "fecha_envio": fecha_envio,
+                    "estado":      emp_orm.estado_prospecto,
+                })
+
+    if not enviados:
+        st.info("Aún no se ha enviado el portafolio a ninguna empresa.")
+    else:
+        tarjeta_kpi("Portafolio enviado", str(len(enviados)), icono="✅", color="#10B981")
         st.divider()
+        _COLOR_ESTADO = {
+            "COTIZACION_ENVIADA": "#3B82F6",
+            "NEGOCIACION":        "#EA580C",
+            "CERRADO_GANADO":     "#10B981",
+            "CERRADO_PERDIDO":    "#EF4444",
+        }
+        for emp in enviados:
+            col_info, col_estado = st.columns([5, 2])
+            with col_info:
+                st.markdown(f"**{emp['nombre']}**")
+                st.markdown(
+                    f"<small style='color:#6B7280;'>📧 {emp['email']} &nbsp;·&nbsp; 📍 {emp['ciudad']} "
+                    f"&nbsp;·&nbsp; 📅 Enviado: {emp['fecha_envio']}</small>",
+                    unsafe_allow_html=True,
+                )
+            with col_estado:
+                color = _COLOR_ESTADO.get(emp["estado"], "#6B7280")
+                st.markdown(
+                    f"<span style='background:{color};color:white;padding:3px 10px;"
+                    f"border-radius:12px;font-size:12px;font-weight:600;'>{emp['estado']}</span>",
+                    unsafe_allow_html=True,
+                )
+            st.divider()
 
 
 def _render_clientes_firmados() -> None:
