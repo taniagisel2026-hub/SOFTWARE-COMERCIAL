@@ -176,6 +176,58 @@ def _registrar_optout(id_empresa: int, motivo: str) -> tuple[bool, str]:
         return False, str(exc)
 
 
+@st.cache_data(ttl=60)
+def _cargar_estado_cadencia() -> dict:
+    """Retorna {id_empresa: {dia1: fecha|None, dia4: fecha|None, dia8: fecha|None}}"""
+    try:
+        from src.database.connection import get_session
+        from src.database.models import HistorialInteracciones
+        from src.modules.outreach.sequence_orchestrator import TAG_DIA_1, TAG_DIA_4, TAG_DIA_8
+
+        with get_session() as session:
+            rows = (
+                session.query(
+                    HistorialInteracciones.id_empresa,
+                    HistorialInteracciones.notas_seguimiento,
+                    HistorialInteracciones.fecha_interaccion,
+                )
+                .filter(HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA")
+                .all()
+            )
+
+        estado = {}
+        for r in rows:
+            notas = r.notas_seguimiento or ""
+            id_e = r.id_empresa
+            if id_e not in estado:
+                estado[id_e] = {"dia1": None, "dia4": None, "dia8": None}
+            fecha_str = str(r.fecha_interaccion)[:10]
+            if notas.startswith(TAG_DIA_1):
+                estado[id_e]["dia1"] = fecha_str
+            elif notas.startswith(TAG_DIA_4):
+                estado[id_e]["dia4"] = fecha_str
+            elif notas.startswith(TAG_DIA_8):
+                estado[id_e]["dia8"] = fecha_str
+
+        return {"ok": True, "data": estado}
+    except Exception:
+        return {"ok": False, "data": {}}
+
+
+def _badge_cadencia(fecha: str | None, dia: str) -> str:
+    if fecha:
+        return (
+            f"<span style='background:#10B981;color:white;padding:1px 8px;"
+            f"border-radius:8px;font-size:11px;margin-right:4px;' title='{fecha}'>"
+            f"{dia} ✓</span>"
+        )
+    return (
+        f"<span style='background:#E5E7EB;color:#9CA3AF;padding:1px 8px;"
+        f"border-radius:8px;font-size:11px;margin-right:4px;'>"
+        f"{dia} —</span>"
+    )
+
+
 @st.cache_data(ttl=15)
 def _cargar_clientes_firmados() -> dict:
     try:
@@ -1671,6 +1723,8 @@ def _render_prospectos() -> None:
     _ESTADOS_OPCIONES = ["NUEVO", "EN_SEGUIMIENTO", "PIDIO_PORTAFOLIO", "COTIZACION_ENVIADA", "NEGOCIACION", "CERRADO_GANADO", "CERRADO_PERDIDO"]
 
     # ── Tabla de prospectos ────────────────────────────────────────────────────
+    _cadencia = _cargar_estado_cadencia().get("data", {})
+
     for p in filtrados:
         col_info, col_badge, col_btn = st.columns([4, 2, 2])
 
@@ -1681,6 +1735,13 @@ def _render_prospectos() -> None:
                 f"📍 {p['Ciudad']} &nbsp;·&nbsp; 👥 {p['Empleados']} emp. &nbsp;·&nbsp; "
                 f"📧 {p['Email']} &nbsp;·&nbsp; 🔗 {p['Fuente']}"
                 f"</small>",
+                unsafe_allow_html=True,
+            )
+            cad = _cadencia.get(p["ID"], {})
+            st.markdown(
+                _badge_cadencia(cad.get("dia1"), "D1") +
+                _badge_cadencia(cad.get("dia4"), "D4") +
+                _badge_cadencia(cad.get("dia8"), "D8"),
                 unsafe_allow_html=True,
             )
 
