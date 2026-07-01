@@ -191,14 +191,14 @@ class SequenceOrchestrator:
 
         rate_limit_alcanzado = False
 
-        for id_emp in candidatos_dia_1:
+        # Orden de prioridad: Día 8 → Día 4 → Día 1.
+        # Los seguimientos a prospectos ya contactados tienen ventana de tiempo
+        # y son más urgentes que el contacto nuevo en frío, que puede esperar
+        # un día más si el cupo diario de envíos se agota antes de llegar a él.
+        for id_emp in candidatos_dia_8:
             if rate_limit_alcanzado:
                 break
-            try:
-                empresa = self._cargar_dominio(id_emp)
-                r = self.iniciar_secuencia(empresa, creado_por)
-            except Exception as exc:
-                r = ResultadoProcesamiento(id_empresa=id_emp, razon_social="?", accion="DIA_1", ok=False, mensaje=str(exc))
+            r = self._enviar_dia_8(id_emp, "", creado_por)
             resultados.append(r)
             if "Límite" in r.mensaje or "rate" in r.mensaje.lower():
                 rate_limit_alcanzado = True
@@ -211,10 +211,14 @@ class SequenceOrchestrator:
             if "Límite" in r.mensaje or "rate" in r.mensaje.lower():
                 rate_limit_alcanzado = True
 
-        for id_emp in candidatos_dia_8:
+        for id_emp in candidatos_dia_1:
             if rate_limit_alcanzado:
                 break
-            r = self._enviar_dia_8(id_emp, "", creado_por)
+            try:
+                empresa = self._cargar_dominio(id_emp)
+                r = self.iniciar_secuencia(empresa, creado_por)
+            except Exception as exc:
+                r = ResultadoProcesamiento(id_empresa=id_emp, razon_social="?", accion="DIA_1", ok=False, mensaje=str(exc))
             resultados.append(r)
             if "Límite" in r.mensaje or "rate" in r.mensaje.lower():
                 rate_limit_alcanzado = True
