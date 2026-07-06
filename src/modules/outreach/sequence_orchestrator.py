@@ -76,7 +76,7 @@ class EstadoSecuencia:
 class ResultadoProcesamiento:
     id_empresa: int
     razon_social: str
-    accion: str        # "DIA_1" | "DIA_4" | "DIA_8" | "EN_ESPERA" | "COMPLETA" | "ERROR"
+    accion: str        # "DIA_1" | "DIA_4" | "DIA_8" | "EN_ESPERA" | "COMPLETA" | "OMITIDO" | "ERROR"
     ok: bool
     mensaje: str
 
@@ -100,6 +100,13 @@ class SequenceOrchestrator:
     ) -> ResultadoProcesamiento:
         """Dispara el Día 1 (email de presentación) e inicia la cadencia."""
         try:
+            if self._ya_enviado(empresa.id_empresa, TAG_DIA_1):
+                return ResultadoProcesamiento(
+                    id_empresa=empresa.id_empresa,
+                    razon_social=empresa.razon_social,
+                    accion="OMITIDO", ok=True,
+                    mensaje="Día 1 ya había sido enviado — se omite para evitar duplicado.",
+                )
             self._habeas.verificar_opt_out(empresa.id_empresa)
             self._email.enviar(empresa, "PRIMER_CONTACTO", creado_por)
             self._log_secuencia(empresa.id_empresa, TAG_DIA_1,
@@ -266,6 +273,12 @@ class SequenceOrchestrator:
         self, id_empresa: int, razon_social: str, creado_por: str
     ) -> ResultadoProcesamiento:
         try:
+            if self._ya_enviado(id_empresa, TAG_DIA_4):
+                return ResultadoProcesamiento(
+                    id_empresa=id_empresa, razon_social=razon_social,
+                    accion="OMITIDO", ok=True,
+                    mensaje="Día 4 ya había sido enviado — se omite para evitar duplicado.",
+                )
             empresa = self._cargar_dominio(id_empresa)
             razon_social = razon_social or empresa.razon_social
             self._habeas.verificar_opt_out(id_empresa)
@@ -290,6 +303,12 @@ class SequenceOrchestrator:
         self, id_empresa: int, razon_social: str, creado_por: str
     ) -> ResultadoProcesamiento:
         try:
+            if self._ya_enviado(id_empresa, TAG_DIA_8):
+                return ResultadoProcesamiento(
+                    id_empresa=id_empresa, razon_social=razon_social,
+                    accion="OMITIDO", ok=True,
+                    mensaje="Día 8 ya había sido enviado — se omite para evitar duplicado.",
+                )
             empresa = self._cargar_dominio(id_empresa)
             razon_social = razon_social or empresa.razon_social
             self._habeas.verificar_opt_out(id_empresa)
@@ -406,6 +425,25 @@ class SequenceOrchestrator:
         return [r.id_empresa for r in rows]
 
     # ── Utilidades ────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _ya_enviado(id_empresa: int, tag: str) -> bool:
+        """
+        Revisa en el momento del envío (no con una lista de candidatos ya vieja)
+        si esta etapa ya fue registrada. Evita duplicados cuando dos disparadores
+        de la cadencia (scheduler, panel web, botón manual) corren cerca uno del otro.
+        """
+        with get_session() as session:
+            existe = (
+                session.query(HistorialInteracciones.id_interaccion)
+                .filter(
+                    HistorialInteracciones.id_empresa == id_empresa,
+                    HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
+                    HistorialInteracciones.notas_seguimiento.like(f"{tag}%"),
+                )
+                .first()
+            )
+            return existe is not None
 
     @staticmethod
     def _log_secuencia(id_empresa: int, tag: str, descripcion: str, responsable: str) -> None:
