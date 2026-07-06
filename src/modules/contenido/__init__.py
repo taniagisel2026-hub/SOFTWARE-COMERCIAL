@@ -2,6 +2,7 @@ from .content_generator import ArticuloGenerado, ContentGeneratorService
 from .image_generator import (
     DalleImageGenerator,
     ImageGeneratorService,
+    ImageResult,
     MockImageGenerator,
     PollinationsImageGenerator,
     ReplicateImageGenerator,
@@ -21,6 +22,7 @@ __all__ = [
     "ContentGeneratorService",
     "ArticuloGenerado",
     "ImageGeneratorService",
+    "ImageResult",
     "MockImageGenerator",
     "PollinationsImageGenerator",
     "DalleImageGenerator",

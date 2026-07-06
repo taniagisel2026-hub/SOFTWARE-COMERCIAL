@@ -184,6 +184,7 @@ def _render_generador() -> None:
         gen_tipo = st.selectbox(
             "Motor de imágenes",
             ["Pollinations IA (gratis, automático)",
+             "Manual (copiar prompt a ChatGPT y subir la imagen)",
              "Mock (solo guarda el prompt en texto)",
              "DALL-E 3 (requiere OPENAI_API_KEY)",
              "Stable Diffusion XL (requiere REPLICATE_API_TOKEN)"],
@@ -236,6 +237,7 @@ def _ejecutar_generacion(tema, gen_tipo: str, plataforma: str) -> None:
             ContentGeneratorService,
             DalleImageGenerator,
             ImageGeneratorService,
+            ImageResult,
             MockImageGenerator,
             PollinationsImageGenerator,
             ReplicateImageGenerator,
@@ -246,26 +248,41 @@ def _ejecutar_generacion(tema, gen_tipo: str, plataforma: str) -> None:
             svc = ContentGeneratorService()
             articulo = svc.generar(tema=tema)
 
-        # Seleccionar generador de imágenes
-        if "DALL-E" in gen_tipo and os.getenv("OPENAI_API_KEY"):
-            img_gen = ImageGeneratorService(DalleImageGenerator())
-            gen_label = "DALL-E 3"
-        elif "Stable Diffusion" in gen_tipo and os.getenv("REPLICATE_API_TOKEN"):
-            img_gen = ImageGeneratorService(ReplicateImageGenerator())
-            gen_label = "Stable Diffusion XL"
-        elif "Mock" in gen_tipo:
-            img_gen = ImageGeneratorService(MockImageGenerator())
-            gen_label = "Mock"
+        # Modo manual: no se llama a ningún generador — se guardan los
+        # prompts como PENDIENTE para copiarlos a ChatGPT y subir la imagen
+        # a mano (ver _mostrar_articulo).
+        if "Manual" in gen_tipo:
+            imagenes = [
+                ImageResult(
+                    indice=i,
+                    prompt_original=prompt,
+                    url_local="",
+                    proveedor="manual-chatgpt",
+                    estado="PENDIENTE",
+                )
+                for i, prompt in enumerate(articulo.prompts_imagenes, 1)
+            ]
         else:
-            img_gen = ImageGeneratorService(PollinationsImageGenerator())
-            gen_label = "Pollinations IA (Flux)"
+            # Seleccionar generador de imágenes
+            if "DALL-E" in gen_tipo and os.getenv("OPENAI_API_KEY"):
+                img_gen = ImageGeneratorService(DalleImageGenerator())
+                gen_label = "DALL-E 3"
+            elif "Stable Diffusion" in gen_tipo and os.getenv("REPLICATE_API_TOKEN"):
+                img_gen = ImageGeneratorService(ReplicateImageGenerator())
+                gen_label = "Stable Diffusion XL"
+            elif "Mock" in gen_tipo:
+                img_gen = ImageGeneratorService(MockImageGenerator())
+                gen_label = "Mock"
+            else:
+                img_gen = ImageGeneratorService(PollinationsImageGenerator())
+                gen_label = "Pollinations IA (Flux)"
 
-        with st.spinner(f"Generando 3 imágenes con {gen_label} — puede tardar ~30 seg..."):
-            imagenes = img_gen.generar_para_articulo(
-                articulo_titulo=articulo.titulo,
-                prompts=articulo.prompts_imagenes,
-                tema=articulo.tema,
-            )
+            with st.spinner(f"Generando 3 imágenes con {gen_label} — puede tardar ~30 seg..."):
+                imagenes = img_gen.generar_para_articulo(
+                    articulo_titulo=articulo.titulo,
+                    prompts=articulo.prompts_imagenes,
+                    tema=articulo.tema,
+                )
 
         st.session_state[_KEY_ARTICULO] = articulo
         st.session_state[_KEY_IMAGENES] = imagenes
@@ -280,6 +297,23 @@ def _ejecutar_generacion(tema, gen_tipo: str, plataforma: str) -> None:
 
     except Exception as exc:
         st.error(f"Error al generar: {exc}")
+
+
+def _guardar_imagen_manual(articulo, indice: int, archivo) -> str:
+    """Guarda una imagen subida a mano (generada en ChatGPT) en la misma
+    ubicación/convención que usan los generadores automáticos, para que el
+    resto del flujo (calendario, publicación) la trate igual."""
+    import re
+    from src.config import get_config
+
+    slug = re.sub(r"[^a-z0-9]+", "-", articulo.titulo.lower())[:40]
+    output_dir = get_config().output_dir / "contenido" / "imagenes" / f"{articulo.fecha_generacion}_{slug}"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    extension = Path(archivo.name).suffix or ".png"
+    ruta = output_dir / f"imagen_{indice}{extension}"
+    ruta.write_bytes(archivo.getvalue())
+    return str(ruta)
 
 
 def _mostrar_articulo(articulo, imagenes: list, plataforma: str) -> None:
@@ -323,6 +357,20 @@ def _mostrar_articulo(articulo, imagenes: list, plataforma: str) -> None:
                 )
                 if img.estado == "GENERADA" and Path(img.url_local).exists():
                     st.image(img.url_local, use_column_width=True)
+                elif img.proveedor == "manual-chatgpt":
+                    st.caption("👉 Copia este prompt en ChatGPT y sube la imagen que te genere:")
+                    st.code(img.prompt_original, language=None)
+                    archivo = st.file_uploader(
+                        "Subir imagen", type=["png", "jpg", "jpeg"],
+                        key=f"upload_img_{i}", label_visibility="collapsed",
+                    )
+                    if archivo is not None:
+                        ruta = _guardar_imagen_manual(articulo, i, archivo)
+                        imagenes_actuales = st.session_state[_KEY_IMAGENES]
+                        imagenes_actuales[i - 1].url_local = ruta
+                        imagenes_actuales[i - 1].estado = "GENERADA"
+                        st.session_state[_KEY_IMAGENES] = imagenes_actuales
+                        st.rerun()
                 else:
                     st.code(img.prompt_original[:200], language=None)
                     st.caption(f"Proveedor: {img.proveedor}")
