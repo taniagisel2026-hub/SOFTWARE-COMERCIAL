@@ -13,6 +13,32 @@ from typing import Optional
 from ...config import get_config
 from .topics import TemaSSTInfo, obtener_tema_del_dia
 
+# Estado persistido de qué imagen (1, 2 o 3) es la "infografía del día" — rota
+# para no ser siempre la misma posición. Solo tiene sentido con generación
+# manual (Canva/ChatGPT con texto real); con generadores automáticos como
+# Pollinations esa imagen tendría el mismo problema de texto ilegible que las
+# demás, porque siguen siendo modelos de IA sin control sobre el texto.
+_ESTADO_INFOGRAFIA_PATH = Path(__file__).parent.parent.parent.parent / "data" / "infografia_estado.json"
+
+
+def _slot_infografia_hoy(dia: date | None = None) -> int:
+    """Retorna 1, 2 o 3 — el número de imagen que hoy debe ser infografía.
+    Rota un puesto por día calendario (1 -> 2 -> 3 -> 1 -> ...)."""
+    target = dia or date.today()
+    try:
+        estado = json.loads(_ESTADO_INFOGRAFIA_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        estado = {"fecha": None, "slot": 1}
+
+    if estado.get("fecha") != target.isoformat():
+        if estado.get("fecha") is not None:
+            estado["slot"] = (estado.get("slot", 1) % 3) + 1
+        estado["fecha"] = target.isoformat()
+        _ESTADO_INFOGRAFIA_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _ESTADO_INFOGRAFIA_PATH.write_text(json.dumps(estado, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return estado["slot"]
+
 # ── System prompt (se cachea — no modificar sin evaluar impacto de costo) ────
 
 _SYSTEM_PROMPT = """Eres el redactor de contenido especializado de Medina SST Empresarial SAS, \
@@ -205,6 +231,7 @@ class ContentGeneratorService:
 
     def _construir_prompt_usuario(self, tema: TemaSSTInfo) -> str:
         cfg = get_config()
+        slot_info = _slot_infografia_hoy()
         return (
             f"Genera contenido completo sobre el siguiente tema SST:\n\n"
             f"**Categoría:** {tema.categoria}\n"
@@ -215,6 +242,16 @@ class ContentGeneratorService:
             f"**Empresa que publica:** {cfg.empresa_nombre}\n"
             f"**Email de contacto:** {cfg.empresa_email}\n"
             f"**Fecha de publicación:** {date.today().strftime('%d de %B de %Y')}\n\n"
+            f"**Instrucción especial para prompts_imagenes:** la imagen número "
+            f"{slot_info} de las 3 debe describirse como una INFOGRAFÍA (no una "
+            f"foto): incluye 2-4 cifras o datos concretos y reales de este tema "
+            f"(artículos de la normativa, porcentajes, montos en SMMLV, etc.) que "
+            f"deban aparecer como texto en la infografía, y describe un diseño "
+            f"visual claro con esos datos — esta se crea manualmente en Canva "
+            f"con texto real, no lo genera una IA de imágenes, así que SÍ puede "
+            f"pedir texto/cifras visibles. Las otras 2 imágenes (no la "
+            f"{slot_info}) deben seguir siendo fotográficas, sin texto y evitando "
+            f"primeros planos de manos, como siempre.\n\n"
             "Recuerda: responde ÚNICAMENTE con el objeto JSON, sin texto adicional."
         )
 
