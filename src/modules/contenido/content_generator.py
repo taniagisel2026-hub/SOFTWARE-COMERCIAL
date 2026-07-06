@@ -106,8 +106,10 @@ class ArticuloGenerado:
 class ContentGeneratorService:
 
     # Modelo separado del que usan los correos (gemini-2.5-flash en .env)
-    # gemini-1.5-flash: cuota gratuita independiente — 1500 req/día, 15 RPM
-    MODEL = "gemini-1.5-flash"
+    # gemini-1.5-flash fue retirado por Google (404) — se usa el alias "latest"
+    # de la familia lite para que Google lo mantenga apuntando a un modelo
+    # vigente sin que el código quede roto cuando retiren la versión actual.
+    MODEL = "gemini-flash-lite-latest"
     _BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
     def __init__(self, api_key: Optional[str] = None):
