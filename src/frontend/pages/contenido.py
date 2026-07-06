@@ -184,7 +184,7 @@ def _render_generador() -> None:
         gen_tipo = st.selectbox(
             "Motor de imágenes",
             ["Pollinations IA (gratis, automático)",
-             "Manual (copiar prompt a ChatGPT y subir la imagen)",
+             "Manual (copiar prompt a ChatGPT/Canva/etc. y subir la imagen)",
              "Mock (solo guarda el prompt en texto)",
              "DALL-E 3 (requiere OPENAI_API_KEY)",
              "Stable Diffusion XL (requiere REPLICATE_API_TOKEN)"],
@@ -358,7 +358,7 @@ def _mostrar_articulo(articulo, imagenes: list, plataforma: str) -> None:
                 if img.estado == "GENERADA" and Path(img.url_local).exists():
                     st.image(img.url_local, use_column_width=True)
                 elif img.proveedor == "manual-chatgpt":
-                    st.caption("👉 Copia este prompt en ChatGPT y sube la imagen que te genere:")
+                    st.caption("👉 Copia este prompt en ChatGPT, Canva (Magic Media) u otro generador y sube la imagen resultante:")
                     st.code(img.prompt_original, language=None)
                     archivo = st.file_uploader(
                         "Subir imagen", type=["png", "jpg", "jpeg"],
@@ -401,7 +401,11 @@ def _mostrar_articulo(articulo, imagenes: list, plataforma: str) -> None:
 
 # ── Panel publicación (manual / automático) ───────────────────────────────────
 
-_LIMITE_CHARS = {"LINKEDIN": 3000, "FACEBOOK": 63206, "INSTAGRAM": 2200}
+# LinkedIn: el copy ahora es un articulo largo (~1500 palabras / ~11,000
+# caracteres) por pedido del jefe. Eso NO cabe en una publicacion normal de
+# LinkedIn (limite real: 3,000 caracteres) — hay que pegarlo en "Escribir un
+# articulo" de LinkedIn, que sí admite hasta ~100,000 caracteres.
+_LIMITE_CHARS = {"LINKEDIN": 100000, "FACEBOOK": 63206, "INSTAGRAM": 2200}
 _COLOR_OK     = "#10B981"
 _COLOR_NO     = "#94A3B8"
 
@@ -450,6 +454,9 @@ def _render_panel_publicacion(articulo, imagenes: list) -> None:
             limite = _LIMITE_CHARS.get(plataforma, 3000)
             color  = _COLOR_OK if cfg else _COLOR_NO
             estado = "✅ Automático" if cfg else "📋 Manual"
+
+            if plataforma == "LINKEDIN":
+                st.caption("📰 Pegar en \"Escribir un artículo\" de LinkedIn — no en una publicación normal (no cabe).")
 
             st.markdown(
                 f"**{icono} {plataforma}**&nbsp;&nbsp;"
