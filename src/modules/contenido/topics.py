@@ -1,9 +1,17 @@
 """
 Catálogo de temas SST con rotación diaria automática.
-28 temas cubren un ciclo mensual completo sin repetición.
+56 temas cubren un ciclo de ~8 semanas sin repetición.
 """
+import json
 from datetime import date
+from pathlib import Path
 from typing import NamedTuple
+
+# Estado persistido de la rotación: {"fecha": "2026-07-06", "indice": 0}.
+# Avanza un tema por dia calendario, en el mismo orden del CATALOGO_TEMAS
+# (antes rotaba por dia del año, lo que hacia empezar a mitad de la lista
+# segun la fecha en que se usara por primera vez).
+_ESTADO_PATH = Path(__file__).parent.parent.parent.parent / "data" / "tema_contenido_estado.json"
 
 
 class TemaSSTInfo(NamedTuple):
@@ -223,14 +231,232 @@ CATALOGO_TEMAS: list[TemaSSTInfo] = [
         palabras_clave=["cultura de seguridad", "liderazgo SST", "comportamiento seguro", "compromiso gerencial"],
         angulo_narrativo="cambio_cultural",
     ),
+
+    # ── RIESGOS ESPECÍFICOS (6 temas) ────────────────────────────────────────
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Trabajo en alturas en Colombia: la certificación que su empresa no puede pasar por alto",
+        descripcion_brief="Resolución 4272 de 2021: quién debe certificarse, con qué frecuencia y qué pasa si no se cumple",
+        palabras_clave=["trabajo en alturas", "Resolución 4272", "certificación alturas", "riesgo de caída"],
+        angulo_narrativo="requisito_critico",
+    ),
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Espacios confinados: el riesgo silencioso que mata más rápido de lo que se piensa",
+        descripcion_brief="Protocolos de entrada segura, monitoreo de gases y por qué la mayoría de las muertes ocurren en el rescate",
+        palabras_clave=["espacios confinados", "riesgo asfixia", "monitoreo de gases", "rescate"],
+        angulo_narrativo="riesgo_critico",
+    ),
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Ergonomía en la oficina: por qué el dolor de espalda de su equipo también es un tema de SG-SST",
+        descripcion_brief="Desórdenes músculo-esqueléticos en trabajo de oficina, la enfermedad laboral que más silenciosamente crece",
+        palabras_clave=["ergonomía", "desórdenes músculo-esqueléticos", "puesto de trabajo", "oficina"],
+        angulo_narrativo="riesgo_subestimado",
+    ),
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Riesgo biológico en el trabajo: protocolos que toda empresa de salud y alimentos debe tener",
+        descripcion_brief="Bioseguridad, manejo de residuos peligrosos y exposición a agentes biológicos en sectores de alto contacto",
+        palabras_clave=["riesgo biológico", "bioseguridad", "residuos peligrosos", "sector salud"],
+        angulo_narrativo="riesgo_sectorial",
+    ),
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Bloqueo y etiquetado (LOTO): el paso que evita que un mantenimiento se convierta en tragedia",
+        descripcion_brief="Por qué liberar energía peligrosa sin control mata operarios de mantenimiento cada año en Colombia",
+        palabras_clave=["bloqueo y etiquetado", "LOTO", "mantenimiento seguro", "energía peligrosa"],
+        angulo_narrativo="procedimiento_critico",
+    ),
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Manejo manual de cargas: el riesgo que casi ninguna PYME controla y que más incapacidades genera",
+        descripcion_brief="Límites de peso, técnicas de levantamiento y cómo un mal hábito se vuelve enfermedad laboral crónica",
+        palabras_clave=["manejo de cargas", "levantamiento de peso", "lumbalgia", "incapacidad laboral"],
+        angulo_narrativo="habito_riesgoso",
+    ),
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Batería de Riesgo Psicosocial: el examen obligatorio que la mayoría de empresas colombianas aplica mal",
+        descripcion_brief="Resolución 2646 de 2008: quién debe aplicarla, cada cuánto, y por qué no es solo una encuesta de clima laboral",
+        palabras_clave=["batería de riesgo psicosocial", "Resolución 2646", "riesgo psicosocial", "clima laboral"],
+        angulo_narrativo="requisito_critico",
+    ),
+    TemaSSTInfo(
+        categoria="RIESGOS_ESPECIFICOS",
+        titulo_base="Acoso laboral y riesgo psicosocial: la línea que muchas empresas colombianas no saben dónde trazar",
+        descripcion_brief="Ley 1010 de 2006 y su relación con el SG-SST: cómo prevenir, documentar y actuar ante el acoso laboral",
+        palabras_clave=["acoso laboral", "Ley 1010", "riesgo psicosocial", "comité de convivencia"],
+        angulo_narrativo="aclaracion_legal",
+    ),
+
+    # ── SST POR SECTOR (6 temas) ─────────────────────────────────────────────
+    TemaSSTInfo(
+        categoria="SST_SECTOR",
+        titulo_base="SG-SST en construcción: los 5 riesgos que el Ministerio del Trabajo revisa primero",
+        descripcion_brief="Alturas, excavaciones, maquinaria pesada: por qué construcción es el sector más inspeccionado",
+        palabras_clave=["SST construcción", "riesgo IV", "obra civil", "inspección sector construcción"],
+        angulo_narrativo="riesgo_sectorial",
+    ),
+    TemaSSTInfo(
+        categoria="SST_SECTOR",
+        titulo_base="Transporte y logística: por qué la fatiga del conductor ya es un tema de SG-SST, no solo de tránsito",
+        descripcion_brief="Jornadas laborales, pausas obligatorias y la relación directa entre fatiga y accidentalidad vial laboral",
+        palabras_clave=["SST transporte", "fatiga del conductor", "jornada laboral", "accidentalidad vial"],
+        angulo_narrativo="riesgo_sectorial",
+    ),
+    TemaSSTInfo(
+        categoria="SST_SECTOR",
+        titulo_base="Comercio y retail: los riesgos invisibles detrás del mostrador que nadie reporta",
+        descripcion_brief="Caídas, estrés por atención al público y jornadas extendidas: el SG-SST que el retail suele ignorar",
+        palabras_clave=["SST retail", "SST comercio", "riesgo psicosocial retail", "caídas mismo nivel"],
+        angulo_narrativo="riesgo_subestimado",
+    ),
+    TemaSSTInfo(
+        categoria="SST_SECTOR",
+        titulo_base="Sector salud: cuando quienes cuidan la salud de otros descuidan la suya propia",
+        descripcion_brief="Riesgo biológico, turnos extendidos y violencia laboral en clínicas y hospitales colombianos",
+        palabras_clave=["SST sector salud", "riesgo biológico", "turnos extendidos", "violencia laboral"],
+        angulo_narrativo="riesgo_sectorial",
+    ),
+    TemaSSTInfo(
+        categoria="SST_SECTOR",
+        titulo_base="Manufactura e industria: cómo controlar el riesgo mecánico sin detener la producción",
+        descripcion_brief="Guardas de seguridad, mantenimiento preventivo y la relación entre productividad y prevención",
+        palabras_clave=["SST manufactura", "riesgo mecánico", "guardas de seguridad", "planta industrial"],
+        angulo_narrativo="riesgo_sectorial",
+    ),
+    TemaSSTInfo(
+        categoria="SST_SECTOR",
+        titulo_base="Seguridad privada: el sector con más accidentalidad laboral que casi nadie menciona",
+        descripcion_brief="Jornadas extensas, exposición a violencia y por qué el SG-SST en vigilancia es distinto al de otros sectores",
+        palabras_clave=["SST vigilancia", "seguridad privada", "riesgo público", "jornada extensa"],
+        angulo_narrativo="riesgo_sectorial",
+    ),
+
+    # ── PREGUNTAS FRECUENTES (6 temas) ───────────────────────────────────────
+    TemaSSTInfo(
+        categoria="PREGUNTAS_FRECUENTES",
+        titulo_base="¿Necesito un profesional en SST de tiempo completo o puedo contratarlo por horas?",
+        descripcion_brief="Requisitos según el número de trabajadores y nivel de riesgo — cuándo es obligatorio tiempo completo",
+        palabras_clave=["profesional SST", "responsable SG-SST", "tiempo completo", "outsourcing SST"],
+        angulo_narrativo="pregunta_practica",
+    ),
+    TemaSSTInfo(
+        categoria="PREGUNTAS_FRECUENTES",
+        titulo_base="¿Cuánto cuesta realmente implementar el SG-SST en una PYME colombiana?",
+        descripcion_brief="Desglose honesto de costos vs. el costo de no tenerlo — comparación con multas y demandas reales",
+        palabras_clave=["costo SG-SST", "inversión SST", "presupuesto PYME", "retorno de inversión"],
+        angulo_narrativo="comparacion_costos",
+    ),
+    TemaSSTInfo(
+        categoria="PREGUNTAS_FRECUENTES",
+        titulo_base="¿El SG-SST aplica si tengo trabajadores por prestación de servicios y no de nómina?",
+        descripcion_brief="Contratistas, independientes y la zona gris legal que muchas empresas colombianas malinterpretan",
+        palabras_clave=["contratistas SST", "prestación de servicios", "afiliación ARL independientes"],
+        angulo_narrativo="aclaracion_legal",
+    ),
+    TemaSSTInfo(
+        categoria="PREGUNTAS_FRECUENTES",
+        titulo_base="¿Qué pasa con el SG-SST si mi empresa trabaja 100% remoto o en modalidad híbrida?",
+        descripcion_brief="Teletrabajo en Colombia: la Ley 2088 y las obligaciones de SST que igual aplican fuera de la oficina",
+        palabras_clave=["teletrabajo", "trabajo remoto", "Ley 2088", "SST en casa"],
+        angulo_narrativo="aclaracion_legal",
+    ),
+    TemaSSTInfo(
+        categoria="PREGUNTAS_FRECUENTES",
+        titulo_base="¿Cada cuánto se debe actualizar la matriz de peligros de mi empresa?",
+        descripcion_brief="No es un documento único: cuándo la ley exige revisarla y qué eventos obligan a actualizarla antes",
+        palabras_clave=["actualización matriz de peligros", "GTC-45", "revisión periódica", "cambios en el proceso"],
+        angulo_narrativo="pregunta_practica",
+    ),
+    TemaSSTInfo(
+        categoria="PREGUNTAS_FRECUENTES",
+        titulo_base="¿Puede el COPASST reemplazar al profesional de SST de mi empresa?",
+        descripcion_brief="Roles distintos que se confunden seguido: qué hace el comité y qué exige la ley que haga un profesional",
+        palabras_clave=["COPASST", "comité paritario", "vigía SST", "roles SG-SST"],
+        angulo_narrativo="aclaracion_legal",
+    ),
+
+    # ── SERVICIOS COMPLEMENTARIOS (10 temas) ─────────────────────────────────
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Mediciones ambientales ocupacionales: la evidencia técnica que su matriz de peligros necesita",
+        descripcion_brief="Luxometría, sonometría, dosimetría y material particulado: cómo estas mediciones respaldan legalmente su SG-SST",
+        palabras_clave=["mediciones ambientales", "luxometría", "sonometría", "dosimetría", "higiene ocupacional"],
+        angulo_narrativo="requisito_tecnico",
+    ),
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Estrés térmico en el trabajo: el riesgo que ninguna empresa mide hasta que alguien se desmaya",
+        descripcion_brief="Exposición a calor o frío extremo en planta y campo, cómo medirla y los límites que exige la normativa",
+        palabras_clave=["estrés térmico", "medición higiénica", "riesgo físico", "exposición a calor"],
+        angulo_narrativo="riesgo_subestimado",
+    ),
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Investigación de accidentes de trabajo: por qué hacerla mal cuesta más que el accidente mismo",
+        descripcion_brief="Metodología del árbol de causas y por qué el Ministerio del Trabajo exige un informe técnico, no una versión informal",
+        palabras_clave=["investigación de accidentes", "árbol de causas", "informe accidente laboral", "FURAT"],
+        angulo_narrativo="metodologia_fundamental",
+    ),
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Profesiograma ocupacional: el documento que conecta cada cargo con sus exámenes médicos exactos",
+        descripcion_brief="Por qué un examen médico genérico no cumple la ley y cómo el profesiograma define qué evaluar por cargo",
+        palabras_clave=["profesiograma", "exámenes médicos ocupacionales", "perfil de cargo", "medicina laboral"],
+        angulo_narrativo="requisito_tecnico",
+    ),
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Planos de emergencia y señalización: el documento que su empresa necesita antes de cualquier inspección",
+        descripcion_brief="Rutas de evacuación, puntos de encuentro y señalización normativa: los errores más comunes en las PYMEs",
+        palabras_clave=["planos de emergencia", "señalización industrial", "rutas de evacuación", "punto de encuentro"],
+        angulo_narrativo="requisito_tecnico",
+    ),
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Red contra incendios: lo que la ley exige más allá de tener un extintor colgado en la pared",
+        descripcion_brief="Diseño, mantenimiento e inspección de sistemas contra incendios según el riesgo real de su instalación",
+        palabras_clave=["red contra incendios", "extintores", "sistema contra incendios", "mantenimiento preventivo"],
+        angulo_narrativo="requisito_tecnico",
+    ),
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Inspecciones de puesto de trabajo: la rutina de 15 minutos que previene la mayoría de accidentes",
+        descripcion_brief="Checklist práctico de inspección y por qué las empresas que las hacen mensualmente reducen su accidentalidad",
+        palabras_clave=["inspecciones de puesto de trabajo", "checklist SST", "prevención de accidentes", "rutina de seguridad"],
+        angulo_narrativo="habito_preventivo",
+    ),
+    TemaSSTInfo(
+        categoria="SERVICIOS_COMPLEMENTARIOS",
+        titulo_base="Bienestar laboral: la estrategia que reduce el ausentismo más que cualquier sanción lo previene",
+        descripcion_brief="Programas de bienestar, pausas activas y por qué invertir en el bienestar del equipo baja los indicadores de accidentalidad",
+        palabras_clave=["bienestar laboral", "pausas activas", "calidad de vida laboral", "clima organizacional"],
+        angulo_narrativo="valor_agregado",
+    ),
 ]
 
 
 def obtener_tema_del_dia(dia: date | None = None) -> TemaSSTInfo:
-    """Selecciona el tema del día usando rotación circular por día del año."""
+    """Selecciona el tema del día en orden secuencial desde el primero del
+    catálogo, avanzando un tema por día calendario (llamar varias veces el
+    mismo día devuelve siempre el mismo tema). Al llegar al final, reinicia
+    desde el primero."""
     target = dia or date.today()
-    indice = (target.timetuple().tm_yday - 1) % len(CATALOGO_TEMAS)
-    return CATALOGO_TEMAS[indice]
+    try:
+        estado = json.loads(_ESTADO_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        estado = {"fecha": None, "indice": 0}
+
+    if estado.get("fecha") != target.isoformat():
+        if estado.get("fecha") is not None:
+            estado["indice"] = (estado.get("indice", 0) + 1) % len(CATALOGO_TEMAS)
+        estado["fecha"] = target.isoformat()
+        _ESTADO_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _ESTADO_PATH.write_text(json.dumps(estado, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return CATALOGO_TEMAS[estado["indice"] % len(CATALOGO_TEMAS)]
 
 
 def obtener_tema_por_categoria(categoria: str) -> list[TemaSSTInfo]:
