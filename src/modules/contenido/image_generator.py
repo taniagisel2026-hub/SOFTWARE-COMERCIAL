@@ -134,7 +134,8 @@ class PollinationsImageGenerator(BaseImageGenerator):
     _BASE = "https://image.pollinations.ai/prompt/{prompt}"
     _SUFIJO = (
         ", professional corporate photography, seguridad salud trabajo Colombia, "
-        "clean modern style, high quality, 4k"
+        "clean modern style, high quality, 4k, no text, no letters, no words, "
+        "no readable typography, hands not in close-up focus"
     )
 
     def generate_one(self, prompt: str, indice: int, output_dir: Path) -> ImageResult:
@@ -145,7 +146,7 @@ class PollinationsImageGenerator(BaseImageGenerator):
             prompt_completo = prompt + self._SUFIJO
             url = (
                 f"https://image.pollinations.ai/prompt/{quote(prompt_completo)}"
-                f"?width=1024&height=1024&model=flux&nologo=true&seed={indice * 42}"
+                f"?width=1024&height=1024&model=flux&nologo=true&enhance=true&seed={indice * 42}"
             )
 
             respuesta = httpx.get(url, timeout=90, follow_redirects=True)

@@ -43,20 +43,25 @@ DIRECTRICES DE ESTILO:
 - Generar sentido de urgencia sin ser alarmista
 - Cada pieza cierra con un llamado a la acción claro hacia Medina SST
 - Usar emojis con moderación solo en copys de redes sociales
+- Enfoque SEO en las tres redes (LinkedIn, Facebook, Instagram): incluir de forma
+  natural las palabras clave del tema (ver "palabras_clave"), términos que un
+  gerente de PYME buscaría (ej. "SG-SST Colombia", "Resolución 0312"), y usar los
+  primeros renglones como gancho que resuma el tema para mejorar el posicionamiento
+  y la vista previa en cada plataforma
 
 RESPONDE ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes ni después:
 {
   "titulo": "Título SEO optimizado (60-70 caracteres)",
   "cuerpo": "Artículo completo en Markdown (500-700 palabras, usa ## para subtítulos)",
-  "copy_linkedin": "Copy para LinkedIn (150-200 palabras, profesional, con emoji moderado)",
-  "copy_facebook": "Copy para Facebook (100-130 palabras, más directo y emocional)",
-  "copy_instagram": "Copy para Instagram (80-100 palabras, impactante, visual en descripción)",
+  "copy_linkedin": "Borrador corto de LinkedIn (150-200 palabras) — se reemplaza después por la versión larga, solo sirve de referencia de tono",
+  "copy_facebook": "Copy para Facebook (100-130 palabras, más directo y emocional, enfoque SEO)",
+  "copy_instagram": "Copy para Instagram (80-100 palabras, impactante, visual en descripción, enfoque SEO)",
   "hashtags": ["#SST", "#SeguridadLaboral", "..."] (exactamente 8 hashtags relevantes),
   "cta": "Llamado a la acción único para Medina SST Empresarial SAS (1-2 oraciones)",
   "prompts_imagenes": [
-    "Prompt detallado en español para imagen 1 (entorno corporativo profesional, oficina colombiana)",
-    "Prompt detallado en español para imagen 2 (estilo infografía en español, visualización de datos de seguridad)",
-    "Prompt detallado en español para imagen 3 (personas trabajando, conciencia de seguridad, contexto latinoamericano)"
+    "Prompt detallado en español para imagen 1 (entorno corporativo profesional, oficina colombiana; plano medio o amplio con el rostro y la postura como foco principal, manos relajadas o fuera de primer plano — los modelos de IA generan manos y dedos deformes en primeros planos, evitarlos)",
+    "Prompt detallado en español para imagen 2 (escena o composición simbólica de seguridad industrial: cascos, chalecos, señalización, equipos de protección, entorno de trabajo; SIN texto, letras, números, pantallas, gráficos de datos, iconos de interfaz ni ningún tipo de escritura visible — los modelos de IA no pueden renderizar texto legible, usar solo imagen fotográfica o ilustrativa sin escritura)",
+    "Prompt detallado en español para imagen 3 (personas trabajando con elementos de protección personal, contexto latinoamericano; plano medio o amplio, evitar primeros planos de manos y dedos por la misma razón que la imagen 1)"
   ]
 }"""
 
@@ -128,9 +133,51 @@ class ContentGeneratorService:
         user_prompt = self._construir_prompt_usuario(tema_activo)
         raw_text = self._llamar_gemini(user_prompt)
         articulo = self._parsear_respuesta(raw_text, tema_activo)
+
+        # El copy de LinkedIn (1500-1800 palabras) se genera en una llamada
+        # aparte: pedirlo junto con el resto del JSON hacía que el modelo
+        # recortara la extensión para "repartir" su esfuerzo entre todos los
+        # campos. En una llamada dedicada sí respeta la extensión.
+        articulo.copy_linkedin = self._generar_linkedin_largo(tema_activo, articulo.titulo)
+
         articulo.modelo_usado = os.getenv("GEMINI_CONTENT_MODEL", self.MODEL)
         self._persistir_json(articulo)
         return articulo
+
+    def _generar_linkedin_largo(self, tema: TemaSSTInfo, titulo_articulo: str) -> str:
+        """Genera el artículo largo de LinkedIn (1500-1800 palabras) en una llamada dedicada."""
+        cfg = get_config()
+        prompt = (
+            f"Escribe un artículo largo de LinkedIn (formato 'LinkedIn Article') sobre:\n\n"
+            f"**Tema:** {tema.titulo_base}\n"
+            f"**Categoría:** {tema.categoria}\n"
+            f"**Ángulo narrativo:** {tema.angulo_narrativo}\n"
+            f"**Brief:** {tema.descripcion_brief}\n"
+            f"**Palabras clave SEO a incluir de forma natural:** {', '.join(tema.palabras_clave)}\n"
+            f"**Empresa que publica:** {cfg.empresa_nombre} (SST en Colombia)\n\n"
+            "REQUISITO ESTRICTO DE EXTENSIÓN: el artículo debe tener entre 1500 y 1800 "
+            "palabras. Desarrolla estas 6 secciones completas, cada una de 200-300 "
+            "palabras, cada una con su propio subtítulo en Markdown (##):\n"
+            "1. Gancho inicial y por qué el tema importa hoy para una PYME colombiana\n"
+            "2. Contexto normativo detallado (artículos exactos, decretos, sanciones)\n"
+            "3. Riesgos concretos de no actuar (ejemplos realistas del sector)\n"
+            "4. Cómo abordarlo paso a paso (metodología, sin vender todavía)\n"
+            "5. Un caso o escenario ilustrativo (hipotético, sin nombres reales)\n"
+            "6. Cierre con llamado a la acción hacia la empresa\n\n"
+            "Tono profesional y cercano, emojis con moderación. Responde ÚNICAMENTE "
+            "con el texto del artículo en Markdown — sin JSON, sin comillas envolventes, "
+            "sin texto adicional antes ni después."
+        )
+        model = os.getenv("GEMINI_CONTENT_MODEL", self.MODEL)
+        url = f"{self._BASE_URL}/{model}:generateContent?key={self._api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.8, "maxOutputTokens": 16000},
+        }
+        import requests as _req
+        r = _req.post(url, json=payload, timeout=90)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
 
     def _llamar_gemini(self, user_prompt: str) -> str:
         import time
@@ -143,7 +190,8 @@ class ContentGeneratorService:
         payload = {
             "system_instruction": {"parts": [{"text": _SYSTEM_PROMPT}]},
             "contents": [{"parts": [{"text": user_prompt}]}],
-            "generationConfig": {"temperature": 0.8, "maxOutputTokens": 8192},
+            # 8192 se quedaba corto con el copy de LinkedIn de ~1500 palabras
+            "generationConfig": {"temperature": 0.8, "maxOutputTokens": 16000},
         }
 
         esperas = [30, 60]  # segundos entre reintentos
