@@ -166,13 +166,17 @@ def _render_generador() -> None:
         unsafe_allow_html=True,
     )
 
-    # Selector de tema alternativo
+    # Selector de tema alternativo — el checkbox evita que el selectbox
+    # (que siempre tiene un valor, aunque no lo hayas tocado) reemplace en
+    # silencio al tema del día. Sin marcar el checkbox, se usa tema_hoy.
     tema_manual = None
     with st.expander("🔄 Cambiar tema manualmente"):
+        usar_manual = st.checkbox("Usar este tema en vez del tema del día", key="usar_tema_manual")
         from src.modules.contenido.topics import CATALOGO_TEMAS
         opciones = [f"{t.categoria} — {t.titulo_base}" for t in CATALOGO_TEMAS]
         seleccion = st.selectbox("Selecciona un tema", opciones, key="tema_manual")
-        tema_manual = CATALOGO_TEMAS[opciones.index(seleccion)]
+        if usar_manual:
+            tema_manual = CATALOGO_TEMAS[opciones.index(seleccion)]
 
     # Selección del generador de imágenes
     col_opt1, col_opt2 = st.columns(2)
