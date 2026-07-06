@@ -49,6 +49,13 @@ Escribe UNA sola oración de urgencia para una empresa de {sector} que aún no h
 Menciona algo concreto que puede pasarles (inspección, accidente, multa Decreto 472/2015).
 Riesgo del sector: {dolor}.
 Tono directo. Sin HTML. Solo la oración. Ángulo diferente a "¿está preparado?".""",
+
+    "ULTIMO_CONTACTO": """\
+Escribe UNA sola oración de cierre para el último correo de seguimiento a una empresa del sector {sector}.
+Debe sonar cordial y sin presión, dejando la puerta abierta sin insistir más.
+Puedes aludir sutilmente al riesgo real del sector sin sonar alarmista: {dolor}.
+NO empieces con "Estimado", "Hola", "Buenos días" ni el nombre de la empresa. NO digas literalmente "este es mi último correo".
+Tono: cordial, breve, sin presión. Sin HTML. Solo la oración.""",
 }
 
 
@@ -104,7 +111,14 @@ def generar_cuerpo_ia(
     )
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.85, "maxOutputTokens": 800},
+        "generationConfig": {
+            "temperature": 0.85,
+            "maxOutputTokens": 800,
+            # gemini-2.5-flash gasta tokens de "pensamiento" interno que se
+            # descuentan de maxOutputTokens; sin esto, el modelo consume casi
+            # todo el presupuesto pensando y la oración final sale cortada.
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
 
     for intento in range(2):
