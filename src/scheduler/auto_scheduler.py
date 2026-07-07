@@ -206,6 +206,10 @@ def tarea_scraping() -> None:
 
 
 def main() -> None:
+    from src.database.init_db import create_tables, migrate_dedup_cadencia
+    create_tables()
+    migrate_dedup_cadencia()
+
     log.info("=" * 55)
     log.info("  Medina SST — Scheduler Autónomo activo")
     log.info("  Cadencia de correos: lunes a viernes 08:30")

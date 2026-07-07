@@ -107,9 +107,41 @@ def migrate_add_whatsapp() -> None:
             print("[MIGRACIÓN] Columna 'whatsapp' añadida a empresa_prospecto.")
 
 
+def migrate_dedup_cadencia() -> None:
+    """
+    Elimina duplicados históricos de la cadencia de correos (mismo id_empresa +
+    mismo paso ya registrado dos veces) y crea un índice único que impide que
+    dos disparadores (scheduler automático, panel web, botón manual) registren
+    el mismo paso al mismo tiempo. Sin este índice, dos procesos podían leer
+    "aún no enviado" simultáneamente y ambos disparar el mismo correo antes de
+    que cualquiera alcanzara a registrarlo — causa del envío duplicado.
+    """
+    if not inspect(engine).has_table("historial_interacciones"):
+        return
+    with engine.connect() as conn:
+        conn.execute(text("""
+            DELETE FROM historial_interacciones
+            WHERE tipo_interaccion = 'SECUENCIA_CADENCIA'
+              AND id_interaccion NOT IN (
+                  SELECT MIN(id_interaccion)
+                  FROM historial_interacciones
+                  WHERE tipo_interaccion = 'SECUENCIA_CADENCIA'
+                  GROUP BY id_empresa, notas_seguimiento
+              )
+        """))
+        conn.execute(text("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_cadencia_sin_duplicados
+            ON historial_interacciones (id_empresa, notas_seguimiento)
+            WHERE tipo_interaccion = 'SECUENCIA_CADENCIA'
+        """))
+        conn.commit()
+        print("[MIGRACIÓN] Índice único anti-duplicados de cadencia creado.")
+
+
 if __name__ == "__main__":
     create_tables()
     migrate_add_opt_out()
     migrate_add_referido_compecer()
     migrate_add_whatsapp()
+    migrate_dedup_cadencia()
     seed_demo_data()

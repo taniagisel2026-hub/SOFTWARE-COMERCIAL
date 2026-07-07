@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 
 from ...database.connection import get_session
 from ...database.models import EmpresaProspecto as EmpresaORM
@@ -99,18 +100,17 @@ class SequenceOrchestrator:
         self, empresa: EmpresaDominio, creado_por: str = "Pipeline"
     ) -> ResultadoProcesamiento:
         """Dispara el Día 1 (email de presentación) e inicia la cadencia."""
+        descripcion = "Día 1: Email de presentación enviado"
+        if not self._reservar(empresa.id_empresa, TAG_DIA_1, descripcion, creado_por):
+            return ResultadoProcesamiento(
+                id_empresa=empresa.id_empresa,
+                razon_social=empresa.razon_social,
+                accion="OMITIDO", ok=True,
+                mensaje="Día 1 ya había sido enviado — se omite para evitar duplicado.",
+            )
         try:
-            if self._ya_enviado(empresa.id_empresa, TAG_DIA_1):
-                return ResultadoProcesamiento(
-                    id_empresa=empresa.id_empresa,
-                    razon_social=empresa.razon_social,
-                    accion="OMITIDO", ok=True,
-                    mensaje="Día 1 ya había sido enviado — se omite para evitar duplicado.",
-                )
             self._habeas.verificar_opt_out(empresa.id_empresa)
             self._email.enviar(empresa, "PRIMER_CONTACTO", creado_por)
-            self._log_secuencia(empresa.id_empresa, TAG_DIA_1,
-                                "Día 1: Email de presentación enviado", creado_por)
             return ResultadoProcesamiento(
                 id_empresa=empresa.id_empresa,
                 razon_social=empresa.razon_social,
@@ -118,12 +118,14 @@ class SequenceOrchestrator:
                 mensaje="Email de presentación enviado correctamente.",
             )
         except (HabeasDataError, RateLimitExceededError) as exc:
+            self._liberar_reserva(empresa.id_empresa, TAG_DIA_1, descripcion)
             return ResultadoProcesamiento(
                 id_empresa=empresa.id_empresa,
                 razon_social=empresa.razon_social,
                 accion="DIA_1", ok=False, mensaje=str(exc),
             )
         except Exception as exc:
+            self._liberar_reserva(empresa.id_empresa, TAG_DIA_1, descripcion)
             return ResultadoProcesamiento(
                 id_empresa=empresa.id_empresa,
                 razon_social=empresa.razon_social,
@@ -272,28 +274,25 @@ class SequenceOrchestrator:
     def _enviar_dia_4(
         self, id_empresa: int, razon_social: str, creado_por: str
     ) -> ResultadoProcesamiento:
+        descripcion = "Día 4: Email de seguimiento enviado"
+        if not self._reservar(id_empresa, TAG_DIA_4, descripcion, creado_por):
+            return ResultadoProcesamiento(
+                id_empresa=id_empresa, razon_social=razon_social,
+                accion="OMITIDO", ok=True,
+                mensaje="Día 4 ya había sido enviado — se omite para evitar duplicado.",
+            )
         try:
-            if self._ya_enviado(id_empresa, TAG_DIA_4):
-                return ResultadoProcesamiento(
-                    id_empresa=id_empresa, razon_social=razon_social,
-                    accion="OMITIDO", ok=True,
-                    mensaje="Día 4 ya había sido enviado — se omite para evitar duplicado.",
-                )
             empresa = self._cargar_dominio(id_empresa)
             razon_social = razon_social or empresa.razon_social
             self._habeas.verificar_opt_out(id_empresa)
             self._email.enviar(empresa, "RECORDATORIO_VENCIMIENTO", creado_por)
-            self._log_secuencia(
-                id_empresa, TAG_DIA_4,
-                "Día 4: Email de seguimiento enviado",
-                creado_por,
-            )
             return ResultadoProcesamiento(
                 id_empresa=id_empresa, razon_social=razon_social,
                 accion="DIA_4", ok=True,
                 mensaje=f"Email Día 4 enviado a {empresa.email_contacto}.",
             )
         except Exception as exc:
+            self._liberar_reserva(id_empresa, TAG_DIA_4, descripcion)
             return ResultadoProcesamiento(
                 id_empresa=id_empresa, razon_social=razon_social,
                 accion="DIA_4", ok=False, mensaje=str(exc),
@@ -302,28 +301,25 @@ class SequenceOrchestrator:
     def _enviar_dia_8(
         self, id_empresa: int, razon_social: str, creado_por: str
     ) -> ResultadoProcesamiento:
+        descripcion = "Día 8: Email último seguimiento enviado"
+        if not self._reservar(id_empresa, TAG_DIA_8, descripcion, creado_por):
+            return ResultadoProcesamiento(
+                id_empresa=id_empresa, razon_social=razon_social,
+                accion="OMITIDO", ok=True,
+                mensaje="Día 8 ya había sido enviado — se omite para evitar duplicado.",
+            )
         try:
-            if self._ya_enviado(id_empresa, TAG_DIA_8):
-                return ResultadoProcesamiento(
-                    id_empresa=id_empresa, razon_social=razon_social,
-                    accion="OMITIDO", ok=True,
-                    mensaje="Día 8 ya había sido enviado — se omite para evitar duplicado.",
-                )
             empresa = self._cargar_dominio(id_empresa)
             razon_social = razon_social or empresa.razon_social
             self._habeas.verificar_opt_out(id_empresa)
             self._email.enviar(empresa, "ULTIMO_CONTACTO", creado_por)
-            self._log_secuencia(
-                id_empresa, TAG_DIA_8,
-                "Día 8: Email último seguimiento enviado",
-                creado_por,
-            )
             return ResultadoProcesamiento(
                 id_empresa=id_empresa, razon_social=razon_social,
                 accion="DIA_8", ok=True,
                 mensaje=f"Email último seguimiento Día 8 enviado a {empresa.email_contacto}.",
             )
         except Exception as exc:
+            self._liberar_reserva(id_empresa, TAG_DIA_8, descripcion)
             return ResultadoProcesamiento(
                 id_empresa=id_empresa, razon_social=razon_social,
                 accion="DIA_8", ok=False, mensaje=str(exc),
@@ -427,37 +423,41 @@ class SequenceOrchestrator:
     # ── Utilidades ────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _ya_enviado(id_empresa: int, tag: str) -> bool:
+    def _reservar(id_empresa: int, tag: str, descripcion: str, responsable: str) -> bool:
         """
-        Revisa en el momento del envío (no con una lista de candidatos ya vieja)
-        si esta etapa ya fue registrada. Evita duplicados cuando dos disparadores
-        de la cadencia (scheduler, panel web, botón manual) corren cerca uno del otro.
+        Inserta el registro de la etapa ANTES de enviar el correo (no después),
+        apoyándose en el índice único `idx_cadencia_sin_duplicados` de la BD
+        (ver `migrate_dedup_cadencia`). Si dos disparadores de la cadencia
+        (scheduler automático, panel web, botón manual) intentan reservar la
+        misma etapa casi al mismo tiempo, la BD serializa las dos transacciones
+        y solo una de las dos inserciones tiene éxito — la otra recibe
+        IntegrityError y se omite, evitando el envío duplicado del correo.
         """
-        with get_session() as session:
-            existe = (
-                session.query(HistorialInteracciones.id_interaccion)
-                .filter(
-                    HistorialInteracciones.id_empresa == id_empresa,
-                    HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
-                    HistorialInteracciones.notas_seguimiento.like(f"{tag}%"),
-                )
-                .first()
-            )
-            return existe is not None
+        try:
+            with get_session() as session:
+                session.add(HistorialInteracciones(
+                    id_empresa=id_empresa,
+                    tipo_interaccion="SECUENCIA_CADENCIA",
+                    canal="EMAIL",
+                    asunto=descripcion,
+                    estado_respuesta="REGISTRADO",
+                    fecha_interaccion=datetime.now(),
+                    responsable=responsable,
+                    notas_seguimiento=f"{tag} | {descripcion}",
+                ))
+            return True
+        except IntegrityError:
+            return False
 
     @staticmethod
-    def _log_secuencia(id_empresa: int, tag: str, descripcion: str, responsable: str) -> None:
+    def _liberar_reserva(id_empresa: int, tag: str, descripcion: str) -> None:
+        """Deshace la reserva si el envío falló después de reservar, para que se reintente."""
         with get_session() as session:
-            session.add(HistorialInteracciones(
-                id_empresa=id_empresa,
-                tipo_interaccion="SECUENCIA_CADENCIA",
-                canal="EMAIL",
-                asunto=descripcion,
-                estado_respuesta="REGISTRADO",
-                fecha_interaccion=datetime.now(),
-                responsable=responsable,
-                notas_seguimiento=f"{tag} | {descripcion}",
-            ))
+            session.query(HistorialInteracciones).filter(
+                HistorialInteracciones.id_empresa == id_empresa,
+                HistorialInteracciones.tipo_interaccion == "SECUENCIA_CADENCIA",
+                HistorialInteracciones.notas_seguimiento == f"{tag} | {descripcion}",
+            ).delete()
 
     @staticmethod
     def _cargar_dominio(id_empresa: int) -> EmpresaDominio:
