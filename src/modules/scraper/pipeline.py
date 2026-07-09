@@ -131,7 +131,10 @@ class ProspectionPipeline:
 
         if not engine_result.prospectos:
             resultado.fin = datetime.now()
-            resultado.errores.append("No se encontraron prospectos.")
+            if engine_result.errores:
+                resultado.errores.extend(engine_result.errores)
+            else:
+                resultado.errores.append("No se encontraron prospectos.")
             return resultado
 
         # ── Paso 2: Inyección en CRM ──────────────────────────────────────────

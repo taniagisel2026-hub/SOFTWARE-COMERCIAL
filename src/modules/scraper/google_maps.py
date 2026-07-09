@@ -11,6 +11,7 @@ Estrategias implementadas (según análisis del equipo):
 Modo mock: activo automáticamente si Playwright no está instalado.
 """
 import random
+import re
 import time
 from urllib.parse import quote
 
@@ -231,25 +232,32 @@ class GoogleMapsScraper(BaseScraperAdapter):
             )
             page = ctx.new_page()
 
-            for termino in terminos:
-                if len(todos) >= max_resultados:
-                    break
-                print(f"  [GoogleMaps] Buscando: '{termino}' en {ciudad}")
-                parcial = self._buscar_en_maps_directo(page, ciudad, termino, depto, por_termino)
-                nuevas = 0
-                for p in parcial:
-                    clave = p.razon_social.lower().strip()[:30]
-                    if clave not in vistos:
-                        vistos.add(clave)
-                        todos.append(p)
-                        nuevas += 1
-                print(f"    → {nuevas} nuevas (total: {len(todos)})")
-                if len(todos) >= max_resultados:
-                    break
-                # Pausa entre búsquedas para no levantar sospechas
-                time.sleep(random.uniform(1.5, 3.0))
+            try:
+                for termino in terminos:
+                    if len(todos) >= max_resultados:
+                        break
+                    print(f"  [GoogleMaps] Buscando: '{termino}' en {ciudad}")
+                    parcial = self._buscar_en_maps_directo(page, ciudad, termino, depto, por_termino)
+                    nuevas = 0
+                    for p in parcial:
+                        clave = p.razon_social.lower().strip()[:30]
+                        if clave not in vistos:
+                            vistos.add(clave)
+                            todos.append(p)
+                            nuevas += 1
+                    print(f"    → {nuevas} nuevas (total: {len(todos)})")
+                    if len(todos) >= max_resultados:
+                        break
+                    # Pausa entre búsquedas para no levantar sospechas
+                    time.sleep(random.uniform(1.5, 3.0))
+            except Exception as exc:
+                # No perder lo ya extraído si el navegador se cae a mitad de camino.
+                print(f"  [GoogleMaps] ⚠ Interrumpido ({exc}); se conservan {len(todos)} ya extraídos")
 
-            browser.close()
+            try:
+                browser.close()
+            except Exception:
+                pass  # el navegador ya pudo haberse cerrado/caído por su cuenta
 
         print(f"  [GoogleMaps] Total combinado: {len(todos)} empresas únicas")
         return todos[:max_resultados]

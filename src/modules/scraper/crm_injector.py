@@ -96,11 +96,11 @@ class CRMInjectorService:
             if por_email:
                 return por_email
 
-        # 3. Nombre normalizado + ciudad — solo si el prospecto no tiene email
-        # Si tiene email y no coincidió en paso 2, es un contacto distinto de la misma empresa
-        if p.email:
-            return None
-
+        # 3. Nombre normalizado + ciudad — cubre la misma empresa reaparecida (otro
+        # sector/día) con un email distinto al ya guardado. El NIT temporal se genera
+        # solo a partir de nombre+ciudad, así que sin este paso el insert choca contra
+        # el NIT temporal ya existente (UNIQUE) y ese contacto se pierde en vez de
+        # fusionarse con el registro existente.
         nombre_norm = _normalizar_nombre_empresa(p.razon_social)
         ciudad_norm = _normalizar_texto(p.ciudad)
 
