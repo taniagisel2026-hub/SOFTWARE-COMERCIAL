@@ -17,18 +17,25 @@ _CIUDADES = [
     # Cundinamarca / Clúster Bogotá
     "Chía", "Cota", "Facatativá", "Fusagasugá", "Zipaquirá",
     "Villeta", "Girardot", "Mosquera", "La Vega", "Cajicá",
-    "Sopó", "La Calera", "Guaduas", "Flandes", "Tocancipá",
-    "Madrid", "Sibaté",
+    "Sopó", "La Calera", "Guaduas", "Tocancipá",
+    "Madrid", "Sibaté", "Funza", "Tausa", "Ricaurte",
+    "Cogua", "Gachancipá", "Nemocón", "Tabio", "Tenjo",
+    "Bojacá", "El Rosal", "Subachoque", "Zipacón",
+    "Agua de Dios", "Nilo", "Tocaima",
+    "Silvania", "Arbeláez", "Granada",
     # Otras ciudades de cobertura
     "Cúcuta", "Pereira", "Manizales", "Valledupar", "Floridablanca",
-    "Barrancabermeja", "Lebrija", "Melgar",
+    "Barrancabermeja", "Lebrija", "Melgar", "Flandes",
 ]
 
 _REGIONES: dict[str, list[str]] = {
     "Bogotá + Cundinamarca": [
         "Bogotá D.C.", "Soacha", "Chía", "Cota", "Facatativá", "Fusagasugá",
         "Zipaquirá", "Villeta", "Girardot", "Mosquera", "La Vega", "Cajicá",
-        "Sopó", "La Calera", "Guaduas", "Flandes", "Tocancipá", "Madrid", "Sibaté",
+        "Sopó", "La Calera", "Guaduas", "Tocancipá", "Madrid", "Sibaté",
+        "Funza", "Tausa", "Ricaurte", "Cogua", "Gachancipá", "Nemocón",
+        "Tabio", "Tenjo", "Bojacá", "El Rosal", "Subachoque", "Zipacón",
+        "Agua de Dios", "Nilo", "Tocaima", "Silvania", "Arbeláez", "Granada",
     ],
     "Antioquia": ["Medellín"],
     "Valle del Cauca": ["Cali"],
@@ -116,7 +123,10 @@ def render() -> None:
         separador_seccion("Resultado de la sesión")
 
         if iniciar:
-            _ejecutar_pipeline(ciudad, sector, max_empresas, disparar_emails, usar_gmaps, usar_li, usar_web)
+            _ejecutar_pipeline(
+                ciudad, sector, max_empresas, disparar_emails, usar_gmaps, usar_li, usar_web,
+                ciudades_permitidas=ciudades_region,
+            )
 
         # Mostrar último resultado almacenado en session_state
         if _CLAVE_RESULTADO in st.session_state:
@@ -150,7 +160,7 @@ def render() -> None:
     )
 
     if iniciar_lote and sectores_lote:
-        _ejecutar_lote(ciudad_lote, sectores_lote, max_lote)
+        _ejecutar_lote(ciudad_lote, sectores_lote, max_lote, ciudades_region)
 
     if "_lote_resultado" in st.session_state:
         r = st.session_state["_lote_resultado"]
@@ -162,7 +172,8 @@ def render() -> None:
 
 
 def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_emails: bool,
-                       usar_gmaps: bool = True, usar_li: bool = True, usar_web: bool = True) -> None:
+                       usar_gmaps: bool = True, usar_li: bool = True, usar_web: bool = True,
+                       ciudades_permitidas: list[str] | None = None) -> None:
     """
     Llama a ProspectionPipeline.ejecutar() con st.spinner().
     Almacena el resultado en session_state para persistencia entre reruns.
@@ -191,6 +202,7 @@ def _ejecutar_pipeline(ciudad: str, sector: str, max_por_fuente: int, disparar_e
                 usar_gmaps=usar_gmaps,
                 usar_linkedin=usar_li,
                 usar_webscraper=usar_web,
+                ciudades_permitidas=ciudades_permitidas,
             )
 
         # Serializar para session_state (solo primitivos)
@@ -392,7 +404,8 @@ def _mostrar_historial() -> None:
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
-def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> None:
+def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int,
+                    ciudades_permitidas: list[str] | None = None) -> None:
     """Corre el pipeline para cada sector de forma secuencial mostrando progreso."""
     total_nuevas = 0
     with st.status(f"Extrayendo {len(sectores)} sectores en {ciudad}...", expanded=True) as status:
@@ -408,9 +421,11 @@ def _ejecutar_lote(ciudad: str, sectores: list[str], max_por_sector: int) -> Non
                     usar_gmaps=True,
                     usar_linkedin=False,
                     usar_webscraper=True,
+                    ciudades_permitidas=ciudades_permitidas,
                 )
                 total_nuevas += resultado.empresas_nuevas
-                st.write(f"  ✅ {resultado.empresas_nuevas} nuevas · {resultado.empresas_existentes} ya existían")
+                descarte_txt = f" · {resultado.descartadas_fuera_zona} fuera de zona" if resultado.descartadas_fuera_zona else ""
+                st.write(f"  ✅ {resultado.empresas_nuevas} nuevas · {resultado.empresas_existentes} ya existían{descarte_txt}")
             except Exception as exc:
                 st.write(f"  ⚠️ Error: {exc}")
 

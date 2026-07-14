@@ -2,6 +2,9 @@
 title Medina SST — Panel Comercial
 cd /d "%~dp0"
 
+REM Evita que el proceso se caiga al imprimir emojis/acentos en la consola
+set PYTHONUTF8=1
+
 echo.
 echo  ============================================
 echo   Medina SST Empresarial SAS

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from .base import BaseScraperAdapter, ExtractionResult, ProspectoExtraido
+from .base import BaseScraperAdapter, ExtractionResult, ProspectoExtraido, _normalizar_texto
 from .paginas_amarillas import PaginasAmarillasScraper
 from .linkedin_auto import LinkedInAutoScraper, LinkedInSinSesionError
 from .linkedin import LinkedInScraper
@@ -23,6 +23,7 @@ class EngineResult:
     por_fuente: dict[str, int] = field(default_factory=dict)
     prospectos: list[ProspectoExtraido] = field(default_factory=list)
     duplicados_removidos: int = 0
+    descartados_fuera_zona: int = 0
     errores: list[str] = field(default_factory=list)
 
     @property
@@ -43,6 +44,8 @@ class EngineResult:
             lineas.append(f"  · {fuente}: {cantidad}")
         if self.duplicados_removidos:
             lineas.append(f"Duplicados removidos: {self.duplicados_removidos}")
+        if self.descartados_fuera_zona:
+            lineas.append(f"Descartados fuera de zona: {self.descartados_fuera_zona}")
         if self.errores:
             for e in self.errores:
                 lineas.append(f"  ⚠ {e}")
@@ -72,10 +75,16 @@ class ScraperEngineService:
         ciudad: str,
         sector: str,
         max_por_fuente: int = 30,
+        ciudades_permitidas: Optional[list[str]] = None,
     ) -> EngineResult:
         """
         Ejecuta todos los adaptadores para una ciudad y sector,
         desduplicar el resultado cruzado y opcionalmente enriquecer emails.
+
+        ciudades_permitidas: si se indica, cualquier prospecto cuya ciudad real
+        (detectada desde la ficha de Maps) no esté en esta lista se descarta.
+        Evita que negocios ubicados en municipios vecinos fuera de la zona de
+        cobertura configurada terminen guardados en el CRM.
         """
         inicio = datetime.now()
         todos_prospectos: list[ProspectoExtraido] = []
@@ -94,6 +103,25 @@ class ScraperEngineService:
                 f"en {resultado.duracion_s:.1f}s"
             )
 
+        # Descartar prospectos cuya ciudad real quede fuera de la zona permitida
+        descartados = 0
+        if ciudades_permitidas:
+            permitidas_norm: set[str] = set()
+            for c in ciudades_permitidas:
+                norm = _normalizar_texto(c)
+                permitidas_norm.add(norm)
+                # Google Maps suele devolver "Bogotá" sin el sufijo "D.C."
+                if norm.endswith(" d.c."):
+                    permitidas_norm.add(norm[: -len(" d.c.")])
+            en_zona = []
+            for p in todos_prospectos:
+                if _normalizar_texto(p.ciudad) in permitidas_norm:
+                    en_zona.append(p)
+                else:
+                    descartados += 1
+                    print(f"  ⛔ Descartado fuera de zona: {p.razon_social} ({p.ciudad})")
+            todos_prospectos = en_zona
+
         # Deduplicación cruzada por clave normalizada
         unicos, dup_count = self._deduplicar(todos_prospectos)
 
@@ -111,6 +139,7 @@ class ScraperEngineService:
             por_fuente=por_fuente,
             prospectos=unicos,
             duplicados_removidos=dup_count,
+            descartados_fuera_zona=descartados,
             errores=errores,
         )
 

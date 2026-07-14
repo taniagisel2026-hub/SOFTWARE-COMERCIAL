@@ -34,6 +34,7 @@ class PipelineResult:
     empresas_encontradas: int = 0
     empresas_nuevas: int = 0
     empresas_existentes: int = 0
+    descartadas_fuera_zona: int = 0
     emails_enviados: int = 0
     emails_sin_contacto: int = 0
     emails_fallidos: int = 0
@@ -56,6 +57,7 @@ class PipelineResult:
             f" Empresas totales:  {self.empresas_encontradas}\n"
             f" Nuevas en CRM:     {self.empresas_nuevas}\n"
             f" Ya existían:       {self.empresas_existentes}\n"
+            f" Fuera de zona:     {self.descartadas_fuera_zona}\n"
             f" Emails enviados:   {self.emails_enviados}\n"
             f" Sin email/contacto:{self.emails_sin_contacto}\n"
             f" Emails fallidos:   {self.emails_fallidos}\n"
@@ -90,14 +92,17 @@ class ProspectionPipeline:
         usar_gmaps: bool = True,
         usar_linkedin: bool = True,
         usar_webscraper: bool = True,
+        ciudades_permitidas: Optional[list[str]] = None,
     ) -> PipelineResult:
         """
         Parámetros:
-          ciudad          — ciudad colombiana objetivo
-          sector          — sector económico ("Construcción", "Manufactura", etc.)
-          max_por_fuente  — máximo de empresas por scraper
-          disparar_emails — conectar con EmailService al finalizar
-          solo_nuevas     — solo enviar correos a empresas recién insertadas
+          ciudad               — ciudad colombiana objetivo
+          sector                — sector económico ("Construcción", "Manufactura", etc.)
+          max_por_fuente        — máximo de empresas por scraper
+          disparar_emails       — conectar con EmailService al finalizar
+          solo_nuevas           — solo enviar correos a empresas recién insertadas
+          ciudades_permitidas   — si se indica, descarta prospectos cuya ciudad real
+                                   quede fuera de esta lista (zona de cobertura)
         """
         inicio = datetime.now()
         resultado = PipelineResult(ciudad=ciudad, sector=sector, inicio=inicio, fin=inicio)
@@ -125,8 +130,11 @@ class ProspectionPipeline:
 
         # ── Paso 1: Extracción ────────────────────────────────────────────────
         print("[Pipeline] Paso 1/3: Extracción de prospectos...")
-        engine_result: EngineResult = engine.extraer_ciudad(ciudad, sector, max_por_fuente)
+        engine_result: EngineResult = engine.extraer_ciudad(
+            ciudad, sector, max_por_fuente, ciudades_permitidas=ciudades_permitidas
+        )
         resultado.empresas_encontradas = engine_result.total
+        resultado.descartadas_fuera_zona = engine_result.descartados_fuera_zona
         print(engine_result.resumen())
 
         if not engine_result.prospectos:

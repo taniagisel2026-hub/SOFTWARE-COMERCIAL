@@ -156,9 +156,23 @@ _CAPTCHA_SIGNALS = [
     "nuestros sistemas han detectado",
 ]
 
+# Nombres de departamento (normalizados) — usados para detectar si el último
+# segmento de una dirección de Maps es un departamento o ya es la ciudad.
+_DEPARTAMENTOS_COLOMBIA: set[str] = {
+    _normalizar_texto(d) for d in [
+        "Amazonas", "Antioquia", "Arauca", "Atlántico", "Bogotá D.C.", "Bogota D.C.",
+        "Bolívar", "Boyacá", "Caldas", "Caquetá", "Casanare", "Cauca", "Cesar",
+        "Chocó", "Córdoba", "Cundinamarca", "Guainía", "Guaviare", "Huila",
+        "La Guajira", "Magdalena", "Meta", "Nariño", "Norte de Santander",
+        "Putumayo", "Quindío", "Risaralda", "San Andrés y Providencia",
+        "Santander", "Sucre", "Tolima", "Valle del Cauca", "Vaupés", "Vichada",
+    ]
+}
+
 # Mapa ciudad → departamento
 _CIUDAD_DEPARTAMENTO: dict[str, str] = {
     "bogotá": "Cundinamarca",    "bogota": "Cundinamarca",
+    "bogotá d.c.": "Cundinamarca", "bogota d.c.": "Cundinamarca",
     "medellín": "Antioquia",     "medellin": "Antioquia",
     "cali": "Valle del Cauca",
     "barranquilla": "Atlántico",
@@ -171,6 +185,19 @@ _CIUDAD_DEPARTAMENTO: dict[str, str] = {
     "santa marta": "Magdalena",
     "villavicencio": "Meta",
     "pasto": "Nariño",
+    # Municipios del clúster Bogotá + Cundinamarca
+    "soacha": "Cundinamarca", "chia": "Cundinamarca", "cota": "Cundinamarca",
+    "facatativa": "Cundinamarca", "fusagasuga": "Cundinamarca", "zipaquira": "Cundinamarca",
+    "villeta": "Cundinamarca", "girardot": "Cundinamarca", "mosquera": "Cundinamarca",
+    "la vega": "Cundinamarca", "cajica": "Cundinamarca", "sopo": "Cundinamarca",
+    "la calera": "Cundinamarca", "guaduas": "Cundinamarca", "tocancipa": "Cundinamarca",
+    "madrid": "Cundinamarca", "sibate": "Cundinamarca", "funza": "Cundinamarca",
+    "tausa": "Cundinamarca", "ricaurte": "Cundinamarca", "cogua": "Cundinamarca",
+    "gachancipa": "Cundinamarca", "nemocon": "Cundinamarca", "tabio": "Cundinamarca",
+    "tenjo": "Cundinamarca", "bojaca": "Cundinamarca", "el rosal": "Cundinamarca",
+    "subachoque": "Cundinamarca", "zipacon": "Cundinamarca", "agua de dios": "Cundinamarca",
+    "nilo": "Cundinamarca", "tocaima": "Cundinamarca", "silvania": "Cundinamarca",
+    "arbelaez": "Cundinamarca", "granada": "Cundinamarca",
 }
 
 _MOCK_EMPRESAS: list[dict] = [
@@ -534,8 +561,10 @@ class GoogleMapsScraper(BaseScraperAdapter):
     def _parsear_ciudad_de_direccion(direccion: str, ciudad_default: str, depto_default: str) -> tuple[str, str]:
         """
         Extrae la ciudad real de una dirección de Google Maps.
-        Formato típico: "Calle 80 #47-21, Medellín, Antioquia, Colombia"
-        o solo: "Dirección: Calle 80 #47-21, Medellín, Antioquia"
+        Google Maps normalmente devuelve solo 2 segmentos: "Calle 80 #47-21, Medellín"
+        (sin departamento). A veces sí incluye 3: "Calle 80 #47-21, Medellín, Antioquia".
+        Se distingue mirando si el último segmento es un nombre de departamento conocido;
+        si no lo es, el último segmento ES la ciudad (no la calle).
         """
         # Limpiar prefijos como "Dirección: "
         texto = re.sub(r"^[Dd]irección[:\s]+", "", direccion).strip()
@@ -544,12 +573,23 @@ class GoogleMapsScraper(BaseScraperAdapter):
         # Quitar "Colombia" al final y el código postal si hay
         partes = [p for p in partes if p.lower() not in ("colombia", "") and not p.strip().isdigit()]
 
-        if len(partes) >= 2:
-            ciudad_real = partes[-2] if len(partes) >= 2 else partes[-1]
-            depto_real = partes[-1] if len(partes) >= 2 else depto_default
-            # Validar que no sea un número o código postal
-            if ciudad_real and not ciudad_real.strip().isdigit() and len(ciudad_real.strip()) > 2:
-                return ciudad_real.strip(), depto_real.strip()
+        if len(partes) < 2:
+            return ciudad_default, depto_default
+
+        ultimo = partes[-1].strip()
+        if len(partes) >= 3 and _normalizar_texto(ultimo) in _DEPARTAMENTOS_COLOMBIA:
+            # Formato de 3 segmentos: "calle, ciudad, departamento"
+            ciudad_real = partes[-2].strip()
+            depto_real = ultimo
+        else:
+            # Formato de 2 segmentos (el más común): "calle, ciudad"
+            ciudad_real = ultimo
+            depto_real = GoogleMapsScraper._inferir_departamento(ciudad_real)
+            if depto_real == "Colombia":
+                depto_real = depto_default
+
+        if ciudad_real and not ciudad_real.isdigit() and len(ciudad_real) > 2:
+            return ciudad_real, depto_real
 
         return ciudad_default, depto_default
 
