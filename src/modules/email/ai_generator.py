@@ -5,8 +5,25 @@ para despertar interés real y evitar filtros de spam semántico.
 Retorna None si Gemini falla tras 2 intentos — el llamador usa el fallback.
 """
 import os
+import threading
 import time
 from typing import Optional
+
+# Espaciado mínimo entre llamadas a Gemini para no chocar con el límite de
+# solicitudes por minuto de la capa gratuita (429 Too Many Requests) cuando
+# se envían varios correos seguidos (cadencia, envío masivo).
+_INTERVALO_MIN_S = 4.5
+_ultima_llamada_ts = 0.0
+_lock = threading.Lock()
+
+
+def _esperar_turno() -> None:
+    global _ultima_llamada_ts
+    with _lock:
+        espera = _INTERVALO_MIN_S - (time.monotonic() - _ultima_llamada_ts)
+        if espera > 0:
+            time.sleep(espera)
+        _ultima_llamada_ts = time.monotonic()
 
 _DOLORES_SECTOR: dict[str, str] = {
     "Construcción":             "accidentes en alturas, derrumbes y maquinaria pesada que cada año generan las multas más altas del sector",
@@ -122,6 +139,7 @@ def generar_cuerpo_ia(
     }
 
     for intento in range(2):
+        _esperar_turno()
         try:
             import requests as _req
             r = _req.post(url, json=payload, timeout=60)
