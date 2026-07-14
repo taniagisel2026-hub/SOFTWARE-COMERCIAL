@@ -10,51 +10,7 @@ _ROOT = Path(__file__).parent.parent.parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-_CIUDADES = [
-    # Principales
-    "Bogotá D.C.", "Medellín", "Cali", "Barranquilla", "Bucaramanga",
-    "Cartagena", "Soacha", "Tunja", "Ibagué", "Santa Marta",
-    # Cundinamarca / Clúster Bogotá
-    "Chía", "Cota", "Facatativá", "Fusagasugá", "Zipaquirá",
-    "Villeta", "Girardot", "Mosquera", "La Vega", "Cajicá",
-    "Sopó", "La Calera", "Guaduas", "Tocancipá",
-    "Madrid", "Sibaté", "Funza", "Tausa", "Ricaurte",
-    "Cogua", "Gachancipá", "Nemocón", "Tabio", "Tenjo",
-    "Bojacá", "El Rosal", "Subachoque", "Zipacón",
-    "Agua de Dios", "Nilo", "Tocaima",
-    "Silvania", "Arbeláez", "Granada",
-    # Otras ciudades de cobertura
-    "Cúcuta", "Pereira", "Manizales", "Valledupar", "Floridablanca",
-    "Barrancabermeja", "Lebrija", "Melgar", "Flandes",
-]
-
-_REGIONES: dict[str, list[str]] = {
-    "Bogotá + Cundinamarca": [
-        "Bogotá D.C.", "Soacha", "Chía", "Cota", "Facatativá", "Fusagasugá",
-        "Zipaquirá", "Villeta", "Girardot", "Mosquera", "La Vega", "Cajicá",
-        "Sopó", "La Calera", "Guaduas", "Tocancipá", "Madrid", "Sibaté",
-        "Funza", "Tausa", "Ricaurte", "Cogua", "Gachancipá", "Nemocón",
-        "Tabio", "Tenjo", "Bojacá", "El Rosal", "Subachoque", "Zipacón",
-        "Agua de Dios", "Nilo", "Tocaima", "Silvania", "Arbeláez", "Granada",
-    ],
-    "Antioquia": ["Medellín"],
-    "Valle del Cauca": ["Cali"],
-    "Costa Caribe": ["Barranquilla", "Cartagena", "Valledupar", "Santa Marta"],
-    "Santander": ["Bucaramanga", "Floridablanca", "Lebrija", "Barrancabermeja"],
-    "Eje Cafetero": ["Pereira", "Manizales"],
-    "Boyacá / Tolima": ["Tunja", "Ibagué", "Melgar", "Flandes"],
-    "Norte de Santander": ["Cúcuta"],
-    "Todo el país": _CIUDADES,
-}
-
-_SECTORES = [
-    "Construcción", "Manufactura / Industria", "Transporte y Logística",
-    "Comercio y Retail", "Servicios Empresariales", "Salud y Clínicas",
-    "Minería y Energía", "Tecnología y Software", "Alimentos y Bebidas",
-    "Seguridad Privada", "Hotelería y Turismo", "Petróleo y Gas",
-    "Ingeniería y Consultoría", "Farmacéutico y Químico", "Telecomunicaciones",
-    "Entretenimiento y Eventos",
-]
+from src.modules.scraper.cobertura import CIUDADES as _CIUDADES, REGIONES as _REGIONES, SECTORES as _SECTORES
 
 _CLAVE_RESULTADO = "scraper_ultimo_resultado"
 

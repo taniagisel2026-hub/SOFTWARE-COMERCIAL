@@ -18,31 +18,16 @@ if str(_ROOT) not in sys.path:
 
 import schedule
 
+from src.modules.scraper.cobertura import REGIONES as _REGIONES, SECTORES as _SECTORES_SCRAPING
+
 _LOG_PATH    = _ROOT / "data" / "scheduler_log.json"
 _CONFIG_PATH = _ROOT / "data" / "scheduler_config.json"
 _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # ── Extracción de prospectos: rotación 1 municipio/día ───────────────────────
-# Mismo orden que _REGIONES["Bogotá + Cundinamarca"] en src/frontend/pages/scraper.py.
-# Los primeros 5 ya se extrajeron manualmente antes de automatizar esto (2026-07-06);
-# se dejan primero en la lista para que, al completar el ciclo, se retomen en el
-# mismo orden en que se hicieron.
-_MUNICIPIOS_SCRAPING = [
-    "Bogotá D.C.", "Soacha", "Chía", "Cota", "Facatativá",
-    "Fusagasugá", "Zipaquirá", "Villeta", "Girardot", "Mosquera",
-    "La Vega", "Cajicá", "Sopó", "La Calera", "Guaduas",
-    "Flandes", "Tocancipá", "Madrid", "Sibaté",
-]
-
-# Mismos 16 sectores que _SECTORES en src/frontend/pages/scraper.py.
-_SECTORES_SCRAPING = [
-    "Construcción", "Manufactura / Industria", "Transporte y Logística",
-    "Comercio y Retail", "Servicios Empresariales", "Salud y Clínicas",
-    "Minería y Energía", "Tecnología y Software", "Alimentos y Bebidas",
-    "Seguridad Privada", "Hotelería y Turismo", "Petróleo y Gas",
-    "Ingeniería y Consultoría", "Farmacéutico y Químico", "Telecomunicaciones",
-    "Entretenimiento y Eventos",
-]
+# Se toma de la misma lista que usa el panel manual (src/modules/scraper/cobertura.py)
+# para que ambos flujos busquen siempre en los mismos municipios.
+_MUNICIPIOS_SCRAPING = _REGIONES["Bogotá + Cundinamarca"]
 
 _MAX_POR_FUENTE_SCRAPING = 30
 
@@ -177,6 +162,7 @@ def tarea_scraping() -> None:
                     usar_gmaps=True,
                     usar_linkedin=False,
                     usar_webscraper=True,
+                    ciudades_permitidas=_MUNICIPIOS_SCRAPING,
                 )
                 total_nuevas += r.empresas_nuevas
                 total_existentes += r.empresas_existentes
