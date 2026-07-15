@@ -25,6 +25,44 @@ def _generar_nit_temporal(razon_social: str, ciudad: str) -> str:
     return f"TEMP-{abs(hash(clave)):012d}"
 
 
+# ── Filtro: colegios/escuelas no son prospectos ──────────────────────────────
+# El scraper busca por palabra clave de sector (ej. "logística", "servicios
+# empresariales") y Google Maps a veces devuelve instituciones educativas como
+# falso positivo (ej. "Escuela de Logística del Ejército" al buscar "logística").
+# "Educación" ya no está en la lista de sectores que se scrapean (cobertura.py),
+# pero eso no filtra estos falsos positivos que llegan bajo OTRO sector.
+_PATRON_GREMIO_PROFESIONAL = re.compile(
+    r"\bcolegio\s+(nacional\s+de|colombiano\s+de|profesional\s+de|"
+    r"de\s+(abogados|medicos|contadores|ingenieros|quimicos|farmaceuticos|"
+    r"enfermeras|enfermeros|psicologos|arquitectos))\b"
+)
+
+_PATRONES_EDUCATIVOS = [
+    re.compile(r"\bcolegio\b"),
+    re.compile(r"\bescuela\b"),
+    re.compile(r"\bliceo\b"),
+    re.compile(r"\bgimnasio\b"),
+    re.compile(r"\bjardin infantil\b"),
+    re.compile(r"\bpreescolar\b"),
+    re.compile(r"\buniversidad\b"),
+    re.compile(r"\binstitucion educativa\b"),
+    re.compile(r"\binstituto\b.*\b(educativo|aprendizaje|formacion|educacion)\b"),
+]
+
+
+def es_institucion_educativa(razon_social: str) -> bool:
+    """
+    True si el nombre corresponde a un colegio/escuela/instituto educativo
+    (no son prospectos de SG-SST empresarial). Excluye gremios profesionales
+    que usan "Colegio de ..." en su nombre (ej. "Colegio Nacional de Químicos
+    Farmacéuticos"), que sí son organizaciones válidas como prospecto.
+    """
+    texto = _normalizar_texto(razon_social)
+    if _PATRON_GREMIO_PROFESIONAL.search(texto):
+        return False
+    return any(patron.search(texto) for patron in _PATRONES_EDUCATIVOS)
+
+
 @dataclass
 class InyeccionLoteResult:
     insertadas: int = 0
@@ -64,6 +102,11 @@ class CRMInjectorService:
             if not prospecto.email and not prospecto.whatsapp:
                 resultado.omitidas += 1
                 print(f"  [CRM] Omitido (sin email ni WhatsApp): {prospecto.razon_social[:50]}")
+                continue
+
+            if es_institucion_educativa(prospecto.razon_social):
+                resultado.omitidas += 1
+                print(f"  [CRM] Omitido (colegio/institución educativa, no es prospecto): {prospecto.razon_social[:50]}")
                 continue
 
             try:
