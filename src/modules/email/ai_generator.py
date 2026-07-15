@@ -12,7 +12,10 @@ from typing import Optional
 # Espaciado mínimo entre llamadas a Gemini para no chocar con el límite de
 # solicitudes por minuto de la capa gratuita (429 Too Many Requests) cuando
 # se envían varios correos seguidos (cadencia, envío masivo).
-_INTERVALO_MIN_S = 4.5
+# 4.5s (~13/min) seguía superando el límite real de 10-15 RPM de la capa
+# gratuita de gemini-2.5-flash y el 429 volvía a aparecer; 6.5s deja margen
+# incluso en el escenario más estricto (10 RPM = 6s).
+_INTERVALO_MIN_S = 6.5
 _ultima_llamada_ts = 0.0
 _lock = threading.Lock()
 
@@ -153,6 +156,12 @@ def generar_cuerpo_ia(
             print(f"[AI_GENERATOR] Respuesta incompleta: '{texto[-30:]}' — reintentando...")
         except Exception as e:
             print(f"[AI_GENERATOR] Intento {intento+1} fallido ({tipo}): {e}")
+            if intento == 0:
+                # Un 429 significa que ya se agotó la cuota de la ventana actual;
+                # reintentar a los 2s de un error normal solo lo vuelve a chocar.
+                es_429 = getattr(getattr(e, "response", None), "status_code", None) == 429
+                time.sleep(15 if es_429 else 2)
+                continue
         if intento == 0:
             time.sleep(2)
 
