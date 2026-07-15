@@ -5,6 +5,22 @@ cd /d "%~dp0"
 REM Evita que el proceso se caiga al imprimir emojis/acentos en la consola
 set PYTHONUTF8=1
 
+REM Usa el Python del entorno virtual del proyecto (venv\) en vez del Python
+REM global de Windows, para que otros programas de la PC no puedan romper
+REM las librerías de este software al instalar/actualizar las suyas.
+set "PY=%~dp0venv\Scripts\python.exe"
+set "STREAMLIT=%~dp0venv\Scripts\streamlit.exe"
+
+if not exist "%PY%" (
+    echo.
+    echo  ERROR: No se encontro el entorno virtual en venv\
+    echo  Ejecuta primero: python -m venv venv
+    echo  y luego: venv\Scripts\python -m pip install -r requirements.txt
+    echo.
+    pause
+    exit /b 1
+)
+
 echo.
 echo  ============================================
 echo   Medina SST Empresarial SAS
@@ -12,7 +28,7 @@ echo   Panel Comercial v1.0.0
 echo  ============================================
 echo.
 echo  Iniciando scheduler automatico (correos)...
-start "Medina SST Scheduler" /min python src\scheduler\auto_scheduler.py
+start "Medina SST Scheduler" /min "%PY%" src\scheduler\auto_scheduler.py
 
 echo  Iniciando panel web...
 echo  El navegador se abrira automaticamente en:
@@ -23,7 +39,7 @@ echo  Para cerrar el software cierre esta ventana.
 echo.
 
 :loop
-streamlit run app.py --server.port 8501
+"%STREAMLIT%" run app.py --server.port 8501
 echo.
 echo  El panel se cerro inesperadamente.
 echo  Reiniciando en 5 segundos... (Ctrl+C para cancelar)
