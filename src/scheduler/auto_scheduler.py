@@ -2,6 +2,7 @@
 Scheduler autónomo — ejecuta tareas programadas sin intervención manual.
 
 Tareas programadas:
+  - 08:15 lunes a viernes → limpieza de rebotes (excluye emails inválidos antes de enviar)
   - 08:30 lunes a viernes → cadencia de correos (Día 1 + Día 4 + Día 8)
   - 14:00 lunes a viernes → extracción de prospectos (1 municipio/día, rotativo)
 """
@@ -23,6 +24,8 @@ from src.modules.scraper.cobertura import REGIONES as _REGIONES, SECTORES as _SE
 _LOG_PATH    = _ROOT / "data" / "scheduler_log.json"
 _CONFIG_PATH = _ROOT / "data" / "scheduler_config.json"
 _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+_LOG_REBOTES_PATH = _ROOT / "data" / "scheduler_rebotes_log.json"
 
 # ── Extracción de prospectos: rotación 1 municipio/día ───────────────────────
 # Se toma de la misma lista que usa el panel manual (src/modules/scraper/cobertura.py)
@@ -69,6 +72,42 @@ def _guardar_indice_municipio(indice: int) -> None:
 
 def _guardar_log_scraping(datos: dict) -> None:
     _LOG_SCRAPING_PATH.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def tarea_limpieza_rebotes() -> None:
+    """
+    Escanea Gmail por rebotes (mailer-daemon/postmaster) y marca como opt-out
+    a las empresas con email inválido, para que la cadencia de las 08:30 ya no
+    les reenvíe. Corre 15 minutos antes de tarea_cadencia().
+    """
+    inicio = datetime.now()
+    log.info("Iniciando limpieza automática de rebotes...")
+
+    resultado = {
+        "ultima_ejecucion": inicio.strftime("%Y-%m-%d %H:%M:%S"),
+        "empresas_excluidas": 0,
+        "mensaje": "",
+        "estado": "en_progreso",
+    }
+    _LOG_REBOTES_PATH.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    try:
+        from src.modules.tracking.bounce_detector import detectar_y_marcar_rebotes
+
+        count, msg = detectar_y_marcar_rebotes(desde_dias=30)
+        resultado.update({
+            "empresas_excluidas": count,
+            "mensaje": msg,
+            "estado": "completado",
+            "duracion_s": round((datetime.now() - inicio).total_seconds(), 1),
+        })
+        log.info(f"Limpieza de rebotes completada — {msg}")
+
+    except Exception as exc:
+        resultado.update({"estado": "error", "mensaje": str(exc)})
+        log.error(f"Error en limpieza de rebotes: {exc}")
+
+    _LOG_REBOTES_PATH.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def tarea_cadencia() -> None:
@@ -198,9 +237,16 @@ def main() -> None:
 
     log.info("=" * 55)
     log.info("  Medina SST — Scheduler Autónomo activo")
+    log.info("  Limpieza de rebotes: lunes a viernes 08:15")
     log.info("  Cadencia de correos: lunes a viernes 08:30")
     log.info("  Extracción de prospectos: lunes a viernes 14:00")
     log.info("=" * 55)
+
+    schedule.every().monday.at("08:15").do(tarea_limpieza_rebotes)
+    schedule.every().tuesday.at("08:15").do(tarea_limpieza_rebotes)
+    schedule.every().wednesday.at("08:15").do(tarea_limpieza_rebotes)
+    schedule.every().thursday.at("08:15").do(tarea_limpieza_rebotes)
+    schedule.every().friday.at("08:15").do(tarea_limpieza_rebotes)
 
     schedule.every().monday.at("08:30").do(tarea_cadencia)
     schedule.every().tuesday.at("08:30").do(tarea_cadencia)

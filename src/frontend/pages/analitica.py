@@ -462,6 +462,32 @@ def _render_respuestas() -> None:
             st.info(f"ℹ️ {msg}")
 
     st.divider()
+    separador_seccion("Limpieza automática de rebotes (emails inválidos)")
+    st.markdown(
+        "Escanea la bandeja por notificaciones de rebote (mailer-daemon / postmaster) "
+        "y excluye automáticamente de la cadencia a las empresas cuyo correo no existe, "
+        "para dejar de reenviarles y no dañar la reputación del dominio."
+    )
+
+    col_btn2, col_res2 = st.columns([2, 3])
+    with col_btn2:
+        detectar_rebotes = st.button(
+            "🚫 Detectar y Excluir Rebotes",
+            type="secondary",
+            use_container_width=True,
+        )
+
+    if detectar_rebotes:
+        with st.spinner("Escaneando rebotes en la bandeja de entrada..."):
+            from src.modules.tracking.bounce_detector import detectar_y_marcar_rebotes
+            count, msg = detectar_y_marcar_rebotes()
+        if count > 0:
+            st.success(f"✅ {msg}")
+            st.cache_data.clear()
+        else:
+            st.info(f"ℹ️ {msg}")
+
+    st.divider()
     separador_seccion("Últimas respuestas registradas en el CRM")
     _mostrar_ultimas_respuestas()
 
