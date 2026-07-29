@@ -51,5 +51,5 @@ SECTORES: list[str] = [
     "Minería y Energía", "Tecnología y Software", "Alimentos y Bebidas",
     "Seguridad Privada", "Hotelería y Turismo", "Petróleo y Gas",
     "Ingeniería y Consultoría", "Farmacéutico y Químico", "Telecomunicaciones",
-    "Entretenimiento y Eventos",
+    "Entretenimiento y Eventos", "Droguerías",
 ]

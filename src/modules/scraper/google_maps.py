@@ -105,6 +105,10 @@ _VARIACIONES_SECTOR: dict[str, list[str]] = {
         "empresa de escoltas", "vigilancia industrial", "control de acceso",
         "empresa de seguridad física",
     ],
+    "Droguerías": [
+        "droguería", "farmacia", "botica", "droguería de barrio",
+        "cadena de droguerías", "farmacia droguería",
+    ],
 }
 
 # ── Selectores con fallback múltiple (Estrategia 3) ──────────────────────────
@@ -366,9 +370,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
                 return None
 
             # Teléfono con múltiples selectores (Estrategia 3)
-            telefono = self._obtener_atributo_con_fallback(page, _SELS_PHONE, ["data-value", "href", "innerText"])
-            if telefono.startswith("tel:"):
-                telefono = telefono[4:]
+            telefono = self._extraer_telefono_panel(page)
 
             # Sitio web con múltiples selectores (Estrategia 3)
             web = self._obtener_atributo_con_fallback(page, _SELS_WEB, ["href"])
@@ -453,12 +455,10 @@ class GoogleMapsScraper(BaseScraperAdapter):
                 # Enriquecer con clic en la ficha (Estrategia 2)
                 try:
                     card.click(timeout=3000)
-                    time.sleep(random.uniform(0.5, 1.0))
-                    telefono = self._obtener_atributo_con_fallback(page, _SELS_PHONE, ["data-value", "href"])
+                    self._esperar_panel_actualizado(page, nombre)
+                    telefono = self._extraer_telefono_panel(page)
                     web = self._obtener_atributo_con_fallback(page, _SELS_WEB, ["href"])
                     direccion_raw = self._obtener_atributo_con_fallback(page, _SELS_ADDR, ["aria-label", "data-value"])
-                    if telefono.startswith("tel:"):
-                        telefono = telefono[4:]
                     if web and "google.com" not in web:
                         p.sitio_web = web
                     if telefono:
@@ -539,6 +539,53 @@ class GoogleMapsScraper(BaseScraperAdapter):
             except Exception:
                 pass
         return ""
+
+    def _extraer_telefono_panel(self, page) -> str:
+        """
+        Extrae el teléfono del panel de ficha abierto, priorizando el atributo
+        'data-item-id' (formato 'phone:tel:+57...'), que es donde Google Maps
+        realmente guarda el número. 'data-value'/'href' suelen venir vacíos en
+        el botón de teléfono, y el fallback anterior a innerText devolvía el
+        texto del botón ("Llamar al número de teléfono") en vez de un número.
+        """
+        for sel in _SELS_PHONE:
+            try:
+                el = page.locator(sel).first
+                if el.count() == 0 or not el.is_visible(timeout=1000):
+                    continue
+                item_id = (el.get_attribute("data-item-id") or "").strip()
+                m = re.search(r"tel:([+\d][\d\s\-()]*)", item_id)
+                if m:
+                    return m.group(1).strip()
+                for attr in ("data-value", "href"):
+                    valor = (el.get_attribute(attr) or "").strip()
+                    if valor.startswith("tel:"):
+                        valor = valor[4:]
+                    if valor and re.search(r"\d{7}", valor):
+                        return valor
+            except Exception:
+                pass
+        return ""
+
+    def _esperar_panel_actualizado(self, page, nombre_esperado: str, timeout_ms: int = 4000) -> None:
+        """
+        Espera a que el panel lateral muestre el nombre del lugar recién clicado
+        antes de leer teléfono/sitio web/dirección. Sin esto, un click seguido de
+        un sleep corto puede leer datos del panel ANTERIOR (aún visible) mientras
+        Maps todavía no termina de renderizar el lugar nuevo — eso produce el
+        mismo teléfono/sitio web repetido en varias empresas seguidas.
+        """
+        esperado_norm = _normalizar_texto(nombre_esperado)[:20]
+        deadline = time.time() + (timeout_ms / 1000)
+        while time.time() < deadline:
+            try:
+                actual = self._obtener_texto_con_fallback(page, _SELS_NOMBRE)
+                if actual and esperado_norm and esperado_norm[:12] in _normalizar_texto(actual):
+                    break
+            except Exception:
+                pass
+            time.sleep(0.15)
+        time.sleep(random.uniform(0.4, 0.8))
 
     def _scroll_gradual(self, page, max_resultados: int) -> None:
         """Estrategia 5: scroll con pasos y tiempos aleatorios, imita comportamiento humano."""
