@@ -16,6 +16,11 @@ _PATRON_TELEFONO = re.compile(
     r'\b(?:\+57[\s\-]?)?(?:60[1-9]|3[0-9]{2})[\s\-]?\d{3}[\s\-]?\d{4}\b'
 )
 
+
+def _parece_telefono_valido(valor: str) -> bool:
+    """Descarta texto basura (ej. 'Llamar al número de teléfono') que no es un número real."""
+    return bool(re.search(r"\d{7}", valor or ""))
+
 # Páginas de contacto típicas en sitios colombianos
 _RUTAS_CONTACTO = [
     "/contacto", "/contactenos", "/contactenos.html",
@@ -126,7 +131,7 @@ class WebScraper:
                     continue
                 if not p.tiene_email and emails:
                     p.email = emails[0]
-                if not p.telefono and tel:
+                if (not p.telefono or not _parece_telefono_valido(p.telefono)) and tel:
                     p.telefono = tel
                 if not p.whatsapp and wa:
                     p.whatsapp = wa

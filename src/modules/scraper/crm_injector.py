@@ -25,6 +25,11 @@ def _generar_nit_temporal(razon_social: str, ciudad: str) -> str:
     return f"TEMP-{abs(hash(clave)):012d}"
 
 
+def _parece_telefono_valido(valor: str | None) -> bool:
+    """Descarta texto basura (ej. 'Llamar al número de teléfono') que no es un número real."""
+    return bool(re.search(r"\d{7}", valor or ""))
+
+
 # ── Filtro: colegios/escuelas no son prospectos ──────────────────────────────
 # El scraper busca por palabra clave de sector (ej. "logística", "servicios
 # empresariales") y Google Maps a veces devuelve instituciones educativas como
@@ -165,7 +170,7 @@ class CRMInjectorService:
     @staticmethod
     def _actualizar_campos_vacios(existente: EmpresaProspecto, p: ProspectoExtraido) -> None:
         """Enriquece el registro existente con datos nuevos sin sobreescribir datos previos."""
-        if p.telefono and not existente.telefono:
+        if p.telefono and (not existente.telefono or not _parece_telefono_valido(existente.telefono)):
             existente.telefono = p.telefono
         if p.whatsapp and not existente.whatsapp:
             existente.whatsapp = p.whatsapp

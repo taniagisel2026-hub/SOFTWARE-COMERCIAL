@@ -735,6 +735,207 @@ def _render_whatsapp() -> None:
     )
 
 
+# ── Campaña Droguerías SG-SST (WhatsApp semi-manual) ──────────────────────────
+
+_VIGENCIA_DROGUERIAS = date(2026, 8, 31)
+_TAG_CAMPANA_DROGUERIAS = "CAMPANA_DROGUERIAS_WA"
+_IMAGEN_CAMPANA_DROGUERIAS = Path(__file__).parent.parent.parent.parent / "assets" / "campana_droguerias_sgsst.png"
+
+
+def _mensaje_campana_droguerias(razon_social: str, nombre_contacto: str) -> str:
+    from src.config import get_config
+    cfg = get_config()
+    saludo = nombre_contacto or f"equipo de {razon_social}"
+    return (
+        f"Hola {saludo}, soy {cfg.asesora_nombre} de {cfg.empresa_nombre}. "
+        f"Le comparto una promoción exclusiva para droguerías — SG-SST completo con "
+        f"52% de descuento, válida solo hasta el 31 de agosto. ¿Le interesa conocer más?"
+    )
+
+
+def _wa_link(numero: str, mensaje: str) -> str:
+    import urllib.parse
+    digits = "".join(c for c in (numero or "") if c.isdigit())
+    if len(digits) <= 10:
+        digits = f"57{digits}"
+    return f"https://wa.me/{digits}?text={urllib.parse.quote(mensaje)}"
+
+
+@st.cache_data(ttl=15)
+def _cargar_droguerias_campana() -> dict:
+    """Droguerías con WhatsApp válido y sin opt-out, separadas en pendientes/ya contactadas."""
+    try:
+        from src.database.connection import get_session
+        from src.database.models import EmpresaProspecto, HistorialInteracciones
+
+        with get_session() as session:
+            ya_contactadas = {
+                r[0] for r in session.query(HistorialInteracciones.id_empresa)
+                .filter(HistorialInteracciones.tipo_interaccion == _TAG_CAMPANA_DROGUERIAS)
+                .all()
+            }
+            rows = (
+                session.query(EmpresaProspecto)
+                .filter(
+                    EmpresaProspecto.sector_economico.ilike("%rogu%"),
+                    EmpresaProspecto.opt_out == False,
+                    EmpresaProspecto.whatsapp.isnot(None),
+                    EmpresaProspecto.whatsapp != "",
+                )
+                .order_by(EmpresaProspecto.razon_social)
+                .all()
+            )
+            pendientes, enviados = [], []
+            for r in rows:
+                if not _wa_valido(r.whatsapp):
+                    continue
+                item = {
+                    "id":       r.id_empresa,
+                    "nombre":   r.razon_social,
+                    "ciudad":   r.ciudad or "—",
+                    "whatsapp": r.whatsapp,
+                    "contacto": r.nombre_contacto or "",
+                }
+                (enviados if r.id_empresa in ya_contactadas else pendientes).append(item)
+            return {"ok": True, "pendientes": pendientes, "enviados": enviados}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "pendientes": [], "enviados": []}
+
+
+def _marcar_campana_droguerias_enviada(id_empresa: int, mensaje: str) -> None:
+    from datetime import datetime
+    from src.database.connection import get_session
+    from src.database.models import HistorialInteracciones
+    with get_session() as session:
+        session.add(HistorialInteracciones(
+            id_empresa=id_empresa,
+            tipo_interaccion=_TAG_CAMPANA_DROGUERIAS,
+            canal="WHATSAPP",
+            asunto="Campaña SG-SST Droguerías — $480.000 / 52% dto.",
+            cuerpo_mensaje=mensaje,
+            estado_respuesta="ENVIADO",
+            fecha_interaccion=datetime.now(),
+            responsable="Panel Web",
+            notas_seguimiento="Envío manual vía enlace wa.me",
+        ))
+    st.cache_data.clear()
+
+
+def _render_campana_droguerias() -> None:
+    hoy = date.today()
+    dias_restantes = (_VIGENCIA_DROGUERIAS - hoy).days
+
+    if dias_restantes < 0:
+        st.error(
+            f"🚫 La promoción venció el {_VIGENCIA_DROGUERIAS.strftime('%d/%m/%Y')}. "
+            "No enviar más mensajes de esta campaña."
+        )
+        return
+    elif dias_restantes <= 7:
+        st.warning(
+            f"⏳ La promoción vence en **{dias_restantes} días** "
+            f"({_VIGENCIA_DROGUERIAS.strftime('%d/%m/%Y')})."
+        )
+    else:
+        st.info(
+            f"📅 Promoción vigente hasta el **{_VIGENCIA_DROGUERIAS.strftime('%d/%m/%Y')}** "
+            f"({dias_restantes} días restantes)."
+        )
+
+    resultado = _cargar_droguerias_campana()
+    if not resultado["ok"]:
+        st.error(f"Error al cargar droguerías: {resultado['error']}")
+        return
+
+    pendientes = resultado["pendientes"]
+    enviados = resultado["enviados"]
+
+    c1, c2, c3 = st.columns(3)
+    with c1: tarjeta_kpi("Total droguerías", str(len(pendientes) + len(enviados)), icono="🏪", color="#1B3A6B")
+    with c2: tarjeta_kpi("Pendientes", str(len(pendientes)), icono="📤", color="#F59E0B")
+    with c3: tarjeta_kpi("Ya contactadas", str(len(enviados)), icono="✅", color="#10B981")
+
+    st.divider()
+
+    # ── Imagen de la promoción ────────────────────────────────────────────────
+    if _IMAGEN_CAMPANA_DROGUERIAS.exists():
+        col_img, col_ins = st.columns([1, 2])
+        with col_img:
+            st.image(str(_IMAGEN_CAMPANA_DROGUERIAS), use_container_width=True)
+        with col_ins:
+            st.markdown("**Cómo enviar cada mensaje:**")
+            st.markdown(
+                "1. Da clic en **Abrir WhatsApp** — se abre el chat con el mensaje corto ya escrito.\n"
+                "2. Adjunta esta imagen manualmente antes de enviar "
+                "(WhatsApp no permite precargar imágenes desde un enlace).\n"
+                "3. Presiona enviar desde tu WhatsApp Business.\n"
+                "4. Vuelve aquí y marca **Marcar enviado** para no repetir el contacto."
+            )
+            with open(_IMAGEN_CAMPANA_DROGUERIAS, "rb") as _f:
+                st.download_button(
+                    "⬇️ Descargar imagen de la promoción",
+                    data=_f.read(),
+                    file_name="Promocion_SGSST_Droguerias.png",
+                    mime="image/png",
+                )
+    else:
+        st.warning(
+            "No se encontró la imagen de la promoción en `assets/campana_droguerias_sgsst.png`. "
+            "Súbela ahí para que aparezca aquí."
+        )
+
+    st.divider()
+
+    if not pendientes:
+        st.success("✅ Ya se contactó a todas las droguerías disponibles.")
+    else:
+        busqueda = st.text_input("🔍 Buscar por nombre o ciudad", key="buscar_droguerias")
+        filtradas = (
+            [
+                p for p in pendientes
+                if busqueda.lower() in p["nombre"].lower() or busqueda.lower() in p["ciudad"].lower()
+            ]
+            if busqueda else pendientes
+        )
+
+        POR_PAGINA = 15
+        total_paginas = max(1, (len(filtradas) + POR_PAGINA - 1) // POR_PAGINA)
+        pagina = st.number_input(
+            "Página", min_value=1, max_value=total_paginas, value=1, key="pagina_droguerias"
+        )
+        inicio = (pagina - 1) * POR_PAGINA
+        lote = filtradas[inicio:inicio + POR_PAGINA]
+
+        st.caption(f"Mostrando {len(lote)} de {len(filtradas)} pendientes (página {pagina}/{total_paginas})")
+
+        for emp in lote:
+            mensaje = _mensaje_campana_droguerias(emp["nombre"], emp["contacto"])
+            link = _wa_link(emp["whatsapp"], mensaje)
+
+            col_info, col_link, col_btn = st.columns([4, 2, 2])
+            with col_info:
+                st.markdown(f"**{emp['nombre']}**")
+                st.markdown(
+                    f"<small style='color:#6B7280;'>📍 {emp['ciudad']} &nbsp;·&nbsp; 📱 {emp['whatsapp']}</small>",
+                    unsafe_allow_html=True,
+                )
+            with col_link:
+                st.link_button("💬 Abrir WhatsApp", link, use_container_width=True)
+            with col_btn:
+                if st.button("✅ Marcar enviado", key=f"marcar_wa_drog_{emp['id']}", use_container_width=True):
+                    _marcar_campana_droguerias_enviada(emp["id"], mensaje)
+                    st.success(f"{emp['nombre']} marcada como contactada.")
+                    st.rerun()
+            st.divider()
+
+    if enviados:
+        with st.expander(f"✅ Ya contactadas ({len(enviados)})"):
+            df_env = pd.DataFrame(enviados)[["nombre", "ciudad", "whatsapp"]].rename(
+                columns={"nombre": "Empresa", "ciudad": "Ciudad", "whatsapp": "WhatsApp"}
+            )
+            st.dataframe(df_env, use_container_width=True, hide_index=True)
+
+
 # ── Alertas de respuestas Gmail ───────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
@@ -1238,10 +1439,11 @@ def render() -> None:
     _render_alertas_respuestas()
     _render_resumen_cadencia()
 
-    tab_prospectos, tab_portafolio, tab_whatsapp, tab_firmados, tab_optout = st.tabs([
+    tab_prospectos, tab_portafolio, tab_whatsapp, tab_droguerias, tab_firmados, tab_optout = st.tabs([
         "📋 Prospectos en CRM",
         "📁 Pidieron Portafolio",
         "💬 Campaña WhatsApp",
+        "🏪 Droguerías SG-SST",
         "✅ Clientes Firmados",
         "🚫 Lista Negra (Opt-Out)",
     ])
@@ -1254,6 +1456,9 @@ def render() -> None:
 
     with tab_whatsapp:
         _render_whatsapp()
+
+    with tab_droguerias:
+        _render_campana_droguerias()
 
     with tab_firmados:
         _render_clientes_firmados()

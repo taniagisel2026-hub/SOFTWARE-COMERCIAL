@@ -457,7 +457,7 @@ class GoogleMapsScraper(BaseScraperAdapter):
                     card.click(timeout=3000)
                     self._esperar_panel_actualizado(page, nombre)
                     telefono = self._extraer_telefono_panel(page)
-                    web = self._obtener_atributo_con_fallback(page, _SELS_WEB, ["href"])
+                    web = self._esperar_atributo_estable(page, _SELS_WEB, "href")
                     direccion_raw = self._obtener_atributo_con_fallback(page, _SELS_ADDR, ["aria-label", "data-value"])
                     if web and "google.com" not in web:
                         p.sitio_web = web
@@ -522,6 +522,28 @@ class GoogleMapsScraper(BaseScraperAdapter):
             except Exception:
                 pass
         return ""
+
+    def _esperar_atributo_estable(
+        self, page, selectores: list[str], atributo: str, timeout_ms: int = 1500
+    ) -> str:
+        """
+        Relee el atributo hasta que dos lecturas seguidas coinciden, en vez de
+        confiar en un solo sleep fijo. El nombre del panel (h1) suele actualizarse
+        antes que los botones de acción (sitio web, teléfono) tras un clic en el
+        feed — leer justo después de que el nombre coincide puede devolver todavía
+        el sitio web/WhatsApp del negocio anterior. Este método evita ese hueco de
+        tiempo confirmando que el valor ya se estabilizó antes de aceptarlo.
+        """
+        anterior = None
+        deadline = time.time() + (timeout_ms / 1000)
+        valor = ""
+        while time.time() < deadline:
+            valor = self._obtener_atributo_con_fallback(page, selectores, [atributo])
+            if valor == anterior:
+                return valor
+            anterior = valor
+            time.sleep(0.2)
+        return valor
 
     def _obtener_atributo_con_fallback(self, page, selectores: list[str], atributos: list[str]) -> str:
         """Estrategia 3: prueba cada selector y atributo hasta obtener un valor."""
