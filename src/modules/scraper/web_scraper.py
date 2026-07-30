@@ -21,6 +21,39 @@ def _parece_telefono_valido(valor: str) -> bool:
     """Descarta texto basura (ej. 'Llamar al número de teléfono') que no es un número real."""
     return bool(re.search(r"\d{7}", valor or ""))
 
+
+def _numero_co_valido(numero: str) -> str:
+    """
+    Normaliza a +57XXXXXXXXXX si 'numero' (solo dígitos) es un celular colombiano
+    real; retorna "" en cualquier otro caso. Sin esto, un enlace wa.me mal armado
+    (ej. api.whatsapp.com/send con el número en un parámetro que no es 'phone', o
+    un negocio con WhatsApp de otro país) produce basura como "+52", "+621" o un
+    número colombiano al que se le perdió el "57".
+    """
+    solo_digitos = re.sub(r"\D", "", numero or "")
+    if solo_digitos.startswith("57") and len(solo_digitos) == 12 and solo_digitos[2] == "3":
+        return f"+{solo_digitos}"
+    if len(solo_digitos) == 10 and solo_digitos[0] == "3":
+        return f"+57{solo_digitos}"
+    return ""
+
+
+def _extraer_numero_de_enlace_wa(href: str) -> str:
+    """
+    Extrae el número crudo (solo dígitos) de un enlace de WhatsApp. wa.me/<num>
+    lleva el número en la ruta; api.whatsapp.com/send lo lleva en el query param
+    'phone' — tomar dígitos de todo el href en ese segundo caso mezcla el número
+    con otros parámetros (texto, utm, etc.) y produce basura.
+    """
+    from urllib.parse import parse_qs, urlparse as _urlparse
+
+    if "wa.me/" in href:
+        return re.sub(r"\D", "", href.split("wa.me/")[-1].split("?")[0])
+    if "whatsapp.com/send" in href:
+        qs = parse_qs(_urlparse(href).query)
+        return re.sub(r"\D", "", (qs.get("phone", [""])[0]))
+    return ""
+
 # Páginas de contacto típicas en sitios colombianos
 _RUTAS_CONTACTO = [
     "/contacto", "/contactenos", "/contactenos.html",
@@ -199,10 +232,10 @@ class WebScraper:
                 if not wa_encontrado:
                     for tag in soup.find_all("a", href=True):
                         href = tag["href"]
-                        if "wa.me/" in href or "api.whatsapp.com/send" in href:
-                            num = re.sub(r"[^\d+]", "", href.split("wa.me/")[-1].split("?")[0])
-                            if num:
-                                wa_encontrado = f"+{num.lstrip('+')}"
+                        if "wa.me/" in href or "whatsapp.com/send" in href:
+                            numero_valido = _numero_co_valido(_extraer_numero_de_enlace_wa(href))
+                            if numero_valido:
+                                wa_encontrado = numero_valido
                                 break
 
                 # ── Teléfono ──────────────────────────────────────────────

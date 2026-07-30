@@ -742,15 +742,75 @@ _TAG_CAMPANA_DROGUERIAS = "CAMPANA_DROGUERIAS_WA"
 _IMAGEN_CAMPANA_DROGUERIAS = Path(__file__).parent.parent.parent.parent / "assets" / "campana_droguerias_sgsst.png"
 
 
-def _mensaje_campana_droguerias(razon_social: str, nombre_contacto: str) -> str:
+# Variaciones fijas (sin IA) — rotan por empresa para que no llegue el mismo
+# texto exacto a las ~140 droguerías. El id_empresa fija la variante para que
+# no cambie entre recargas de la página (misma empresa = mismo mensaje siempre).
+_MENSAJES_CAMPANA_DROGUERIAS = [
+    "Hola {saludo}, soy {asesora} de {empresa}. Le comparto una promoción "
+    "exclusiva para droguerías — SG-SST completo con 52% de descuento, "
+    "válida solo hasta el 31 de agosto. ¿Le interesa conocer más?",
+
+    "Hola {saludo}, le escribe {asesora} de {empresa}. Tenemos una promoción "
+    "especial para droguerías: SG-SST completo con 52% de descuento, vigente "
+    "hasta el 31 de agosto. ¿Le cuento los detalles?",
+
+    "Buen día {saludo}, soy {asesora} de {empresa}. Estamos ofreciendo a "
+    "droguerías el SG-SST completo con 52% de descuento por tiempo limitado "
+    "(hasta el 31 de agosto). ¿Le gustaría más información?",
+
+    "Hola {saludo}, {asesora} de {empresa}. Aprovechando que aplica para "
+    "droguerías, tenemos el SG-SST completo con 52% de descuento hasta el "
+    "31 de agosto. ¿Le interesa que se lo explique?",
+]
+
+
+def _mensaje_campana_droguerias(id_empresa: int, razon_social: str, nombre_contacto: str) -> str:
     from src.config import get_config
     cfg = get_config()
     saludo = nombre_contacto or f"equipo de {razon_social}"
-    return (
-        f"Hola {saludo}, soy {cfg.asesora_nombre} de {cfg.empresa_nombre}. "
-        f"Le comparto una promoción exclusiva para droguerías — SG-SST completo con "
-        f"52% de descuento, válida solo hasta el 31 de agosto. ¿Le interesa conocer más?"
-    )
+    plantilla = _MENSAJES_CAMPANA_DROGUERIAS[id_empresa % len(_MENSAJES_CAMPANA_DROGUERIAS)]
+    return plantilla.format(saludo=saludo, asesora=cfg.asesora_nombre, empresa=cfg.empresa_nombre)
+
+
+def _boton_copiar_imagen_clipboard() -> None:
+    """
+    Copia la imagen de la promoción directamente al portapapeles del sistema
+    con un clic (Clipboard API del navegador). WhatsApp no permite precargar
+    imágenes desde un enlace wa.me, así que esto deja la imagen lista para
+    pegar con Ctrl+V dentro del chat — un solo clic sirve para todos los envíos
+    de la sesión, no hay que repetirlo por cada droguería.
+    """
+    import base64
+    import streamlit.components.v1 as components
+
+    b64 = base64.b64encode(_IMAGEN_CAMPANA_DROGUERIAS.read_bytes()).decode()
+    html = f"""
+    <div style="font-family:sans-serif;">
+      <button id="btn-copiar-img-drog" style="
+          background-color:#1B3A6B;color:white;border:none;border-radius:6px;
+          padding:10px 18px;font-size:14px;cursor:pointer;">
+        📋 Copiar imagen al portapapeles
+      </button>
+      <span id="estado-copiar-drog" style="margin-left:12px;font-size:13px;"></span>
+    </div>
+    <script>
+      const b64Img = "{b64}";
+      document.getElementById('btn-copiar-img-drog').addEventListener('click', async () => {{
+        const estado = document.getElementById('estado-copiar-drog');
+        try {{
+          const res = await fetch("data:image/png;base64," + b64Img);
+          const blob = await res.blob();
+          await navigator.clipboard.write([new ClipboardItem({{ [blob.type]: blob }})]);
+          estado.textContent = "✅ Imagen copiada — pégala con Ctrl+V en el chat de WhatsApp";
+          estado.style.color = "#10B981";
+        }} catch (e) {{
+          estado.textContent = "⚠️ No se pudo copiar automáticamente. Usa el botón de descarga.";
+          estado.style.color = "#F59E0B";
+        }}
+      }});
+    </script>
+    """
+    components.html(html, height=55)
 
 
 def _wa_link(numero: str, mensaje: str) -> str:
@@ -865,15 +925,15 @@ def _render_campana_droguerias() -> None:
         with col_ins:
             st.markdown("**Cómo enviar cada mensaje:**")
             st.markdown(
-                "1. Da clic en **Abrir WhatsApp** — se abre el chat con el mensaje corto ya escrito.\n"
-                "2. Adjunta esta imagen manualmente antes de enviar "
-                "(WhatsApp no permite precargar imágenes desde un enlace).\n"
-                "3. Presiona enviar desde tu WhatsApp Business.\n"
+                "1. Da clic en **Copiar imagen al portapapeles** (una sola vez, sirve para todos los envíos).\n"
+                "2. Da clic en **Abrir WhatsApp** — se abre el chat con el mensaje corto ya escrito.\n"
+                "3. Pega la imagen con **Ctrl+V** y presiona enviar.\n"
                 "4. Vuelve aquí y marca **Marcar enviado** para no repetir el contacto."
             )
+            _boton_copiar_imagen_clipboard()
             with open(_IMAGEN_CAMPANA_DROGUERIAS, "rb") as _f:
                 st.download_button(
-                    "⬇️ Descargar imagen de la promoción",
+                    "⬇️ Descargar imagen (alternativa si no copia)",
                     data=_f.read(),
                     file_name="Promocion_SGSST_Droguerias.png",
                     mime="image/png",
@@ -909,7 +969,7 @@ def _render_campana_droguerias() -> None:
         st.caption(f"Mostrando {len(lote)} de {len(filtradas)} pendientes (página {pagina}/{total_paginas})")
 
         for emp in lote:
-            mensaje = _mensaje_campana_droguerias(emp["nombre"], emp["contacto"])
+            mensaje = _mensaje_campana_droguerias(emp["id"], emp["nombre"], emp["contacto"])
             link = _wa_link(emp["whatsapp"], mensaje)
 
             col_info, col_link, col_btn = st.columns([4, 2, 2])

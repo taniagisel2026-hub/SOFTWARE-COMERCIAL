@@ -454,9 +454,11 @@ class GoogleMapsScraper(BaseScraperAdapter):
 
                 # Enriquecer con clic en la ficha (Estrategia 2)
                 try:
+                    url_antes = page.url
                     card.click(timeout=3000)
                     self._esperar_panel_actualizado(page, nombre)
-                    telefono = self._extraer_telefono_panel(page)
+                    self._esperar_cambio_url(page, url_antes)
+                    telefono = self._esperar_telefono_estable(page)
                     web = self._esperar_atributo_estable(page, _SELS_WEB, "href")
                     direccion_raw = self._obtener_atributo_con_fallback(page, _SELS_ADDR, ["aria-label", "data-value"])
                     if web and "google.com" not in web:
@@ -543,6 +545,40 @@ class GoogleMapsScraper(BaseScraperAdapter):
                 return valor
             anterior = valor
             time.sleep(0.2)
+        return valor
+
+    def _esperar_cambio_url(self, page, url_antes: str, timeout_ms: int = 3000) -> None:
+        """
+        Espera a que la URL cambie tras el clic (Maps actualiza la URL con el
+        place-id del negocio nuevo vía pushState). Es una señal más confiable
+        que el nombre del panel: si la URL no cambió, muy probablemente el
+        clic no abrió una ficha nueva y cualquier lectura posterior sería del
+        negocio anterior.
+        """
+        deadline = time.time() + (timeout_ms / 1000)
+        while time.time() < deadline:
+            if page.url != url_antes:
+                return
+            time.sleep(0.15)
+
+    def _esperar_telefono_estable(self, page, timeout_ms: int = 2500) -> str:
+        """
+        Relee el teléfono hasta que dos lecturas seguidas coinciden — mismo
+        problema que _esperar_atributo_estable pero para _extraer_telefono_panel,
+        que hace su propia lógica de selectores/atributos y no puede reusar ese
+        método directamente. Sin esto, el teléfono (y por extensión el WhatsApp
+        cuando se deriva de él) quedaba con el dato del negocio anterior si el
+        panel tardaba más de lo esperado en refrescar los botones de acción.
+        """
+        anterior = None
+        deadline = time.time() + (timeout_ms / 1000)
+        valor = ""
+        while time.time() < deadline:
+            valor = self._extraer_telefono_panel(page)
+            if valor == anterior:
+                return valor
+            anterior = valor
+            time.sleep(0.25)
         return valor
 
     def _obtener_atributo_con_fallback(self, page, selectores: list[str], atributos: list[str]) -> str:

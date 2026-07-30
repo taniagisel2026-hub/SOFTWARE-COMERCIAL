@@ -30,6 +30,26 @@ def _parece_telefono_valido(valor: str | None) -> bool:
     return bool(re.search(r"\d{7}", valor or ""))
 
 
+def _wa_formato_valido(numero: str | None) -> bool:
+    """Celular colombiano real: +57 seguido de 10 dígitos que empiezan en 3."""
+    return bool(re.fullmatch(r"\+573\d{9}", numero or ""))
+
+
+def _wa_pertenece_a_otra_empresa(session, whatsapp: str, razon_social: str) -> bool:
+    """
+    True si 'whatsapp' ya está guardado en otra empresa de nombre distinto —
+    señal de que el dato quedó cruzado entre negocios (bug de lectura del panel
+    de Google Maps, o un sitio web de terceros que reutiliza el mismo widget de
+    WhatsApp para varios clientes). Un mismo celular no debería aparecer en dos
+    empresas con nombres completamente distintos.
+    """
+    if not whatsapp:
+        return False
+    nombre_norm = _normalizar_nombre_empresa(razon_social)[:25]
+    existentes = session.query(EmpresaProspecto).filter(EmpresaProspecto.whatsapp == whatsapp).all()
+    return any(_normalizar_nombre_empresa(e.razon_social)[:25] != nombre_norm for e in existentes)
+
+
 # ── Filtro: colegios/escuelas no son prospectos ──────────────────────────────
 # El scraper busca por palabra clave de sector (ej. "logística", "servicios
 # empresariales") y Google Maps a veces devuelve instituciones educativas como
@@ -104,6 +124,17 @@ class CRMInjectorService:
         resultado = InyeccionLoteResult()
 
         for prospecto in prospectos:
+            if prospecto.whatsapp:
+                with get_session() as session:
+                    if not _wa_formato_valido(prospecto.whatsapp) or _wa_pertenece_a_otra_empresa(
+                        session, prospecto.whatsapp, prospecto.razon_social
+                    ):
+                        print(
+                            f"  [CRM] WhatsApp descartado (formato inválido o ya asignado "
+                            f"a otra empresa): {prospecto.razon_social[:50]}"
+                        )
+                        prospecto.whatsapp = None
+
             if not prospecto.email and not prospecto.whatsapp:
                 resultado.omitidas += 1
                 print(f"  [CRM] Omitido (sin email ni WhatsApp): {prospecto.razon_social[:50]}")
