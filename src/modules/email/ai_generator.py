@@ -70,10 +70,12 @@ La frase debe mencionar que ya les escribiste antes y conectar con su riesgo: {d
 Tono: humano y cercano. Sin presión. Sin HTML. Solo la oración.""",
 
     "RECORDATORIO_VENCIMIENTO": """\
-Escribe UNA sola oración de urgencia para una empresa de {sector} que aún no ha implementado su SG-SST.
-Menciona algo concreto que puede pasarles (inspección, accidente, multa Decreto 472/2015).
+Escribe UNA sola oración de seguimiento con algo de urgencia para una empresa de {sector} que aún
+no ha implementado su SG-SST y no respondió al primer correo. Puede aludir a que el tiempo pasa o a
+que conviene resolverlo pronto, sin mencionar multas, decretos ni cifras legales específicas —
+eso ya se explicó en el primer correo, este es de seguimiento, no de amenaza.
 Riesgo del sector: {dolor}.
-Tono directo. Sin HTML. Solo la oración. Ángulo diferente a "¿está preparado?".""",
+Tono directo pero cordial. Sin HTML. Solo la oración. Ángulo diferente a "¿está preparado?".""",
 
     "ULTIMO_CONTACTO": """\
 Escribe UNA sola oración de cierre para el último correo de seguimiento a una empresa del sector {sector}.
