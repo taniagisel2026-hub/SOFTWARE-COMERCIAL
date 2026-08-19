@@ -170,11 +170,11 @@ _PARRAFO_CTA_PRIMER = """\
 
 _PARRAFO_CTA_RECORDATORIO = """\
 <p style="margin:14px 0;font-size:15px;color:#222;line-height:1.75;">
-  En <strong>{{ empresa_remitente }}</strong> ya hemos ayudado a varias empresas en
-  {{ ciudad }} a cumplir los estándares del SG-SST en tiempo récord.
-  Adicionalmente, a través de nuestra alianza con <strong>COMPECER</strong> podemos
-  acompañarlos en procesos de certificación ISO (9001, 45001, 14001, entre otras).
-  Estamos disponibles para resolver sus dudas cuando guste.
+  Sé que implementar el SG-SST puede sonar como un proceso largo o costoso —
+  por eso en <strong>{{ empresa_remitente }}</strong> lo hacemos por etapas,
+  adaptado al tamaño y al presupuesto de <strong>{{ razon_social }}</strong>,
+  sin que su equipo tenga que dedicarle tiempo que no tiene.
+  Si esa fue la duda que lo detuvo, cuénteme y lo resolvemos juntos.
 </p>
 <p style="margin:20px 0;text-align:center;">
   <a href="https://wa.me/573125580713"
@@ -254,7 +254,7 @@ _PARRAFO_PORTAFOLIO = """\
 
 _GANCHO_FALLBACK = {
     "PRIMER_CONTACTO":          "Muchas empresas creen que ya cumplen su SG-SST, pero les falta justo el estándar que más revisan los auditores.",
-    "RECORDATORIO_VENCIMIENTO": "{razon_social}: el Ministerio del Trabajo no avisa antes de inspeccionar.",
+    "RECORDATORIO_VENCIMIENTO": "Las bandejas de entrada se llenan rápido, así que quería asegurarme de que mi mensaje anterior sí le llegó a {razon_social}.",
     "SEGUIMIENTO_COTIZACION":   "Quiero asegurarme de que {razon_social} esté protegida antes de la próxima inspección.",
     "ULTIMO_CONTACTO":          "Este es nuestro último contacto — quedamos atentos si {razon_social} necesita apoyo en SST.",
 }
