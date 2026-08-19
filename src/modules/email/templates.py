@@ -39,10 +39,10 @@ class EmailContext:
 
 _ASUNTOS = {
     "PRIMER_CONTACTO": [
-        "📋 {{ razon_social }}: lo que exige la Res. 0312 este año",
-        "⚠️ ¿Está {{ razon_social }} lista para una visita del Mintrabajo?",
-        "🔔 Estándares SST para empresas en {{ ciudad }}",
-        "📌 Lo que el Mintrabajo revisa primero en {{ sector_economico or 'su sector' }}",
+        "{{ razon_social }}: checklist gratis de los estándares SST 2026",
+        "¿{{ razon_social }} ya cumple con la Resolución 0312 de 2019?",
+        "SG-SST para empresas de {{ ciudad }} — le comparto una guía rápida",
+        "Una pregunta rápida sobre el SG-SST de {{ razon_social }}",
     ],
     "RECORDATORIO_VENCIMIENTO": [
         "📌 {{ razon_social }} — ¿pudieron revisar mi mensaje?",
@@ -142,10 +142,9 @@ _SEPARADOR = '<br>'
 _PARRAFO_LEGAL = """\
 <p style="margin:14px 0;font-size:15px;color:#222;line-height:1.75;">
   Como empresa del sector <strong>{{ sector_economico or "su sector" }}</strong>,
-  a <strong>{{ razon_social }}</strong> le aplican estándares mínimos del SG-SST
-  ({{ articulo_resolucion }} — Res. 0312/2019). El Decreto 472 de 2015 establece multas
-  de hasta <strong>500 SMMLV</strong> por incumplimiento, y el Ministerio del Trabajo
-  no anuncia sus visitas de inspección con anticipación.
+  a <strong>{{ razon_social }}</strong> le aplican los estándares mínimos del SG-SST
+  ({{ articulo_resolucion }} — Res. 0312/2019). Cumplirlos a tiempo no solo evita
+  sanciones — protege directamente a sus colaboradores.
 </p>"""
 
 _PARRAFO_CTA_PRIMER = """\
@@ -155,8 +154,18 @@ _PARRAFO_CTA_PRIMER = """\
   rápida, sin complicaciones y con acompañamiento continuo.
   Adicionalmente, a través de nuestra alianza con <strong>COMPECER</strong> podemos
   acompañarlos en procesos de certificación ISO (9001, 45001, 14001, entre otras).
-  Contáctenos — con gusto le explicamos cómo podemos ayudar a
-  <strong>{{ razon_social }}</strong>.
+</p>
+<p style="margin:14px 0;font-size:15px;color:#222;line-height:1.75;">
+  Si quiere, le envío gratis nuestro portafolio completo — solo responda este
+  correo con <strong>"SI"</strong> o escríbame directo por WhatsApp.
+</p>
+<p style="margin:20px 0;text-align:center;">
+  <a href="https://wa.me/573125580713"
+     style="background-color:#1a7a4a;color:#ffffff;padding:12px 28px;border-radius:4px;
+            text-decoration:none;font-family:Georgia,serif;font-size:15px;font-weight:bold;
+            display:inline-block;">
+    Escribir por WhatsApp
+  </a>
 </p>"""
 
 _PARRAFO_CTA_RECORDATORIO = """\
@@ -197,7 +206,7 @@ _PARRAFO_ULTIMO_CONTACTO = """\
 </p>"""
 
 _PREHEADER = {
-    "PRIMER_CONTACTO":          "El Mintrabajo no avisa antes de inspeccionar — le explicamos cómo estar preparados.",
+    "PRIMER_CONTACTO":          "Le compartimos una guía rápida sobre los estándares SST que le aplican a {razon_social}.",
     "RECORDATORIO_VENCIMIENTO": "Le escribimos de nuevo porque queremos asegurarnos de que {razon_social} esté protegida.",
     "SEGUIMIENTO_COTIZACION":   "¿Tiene dudas sobre la propuesta? Con gusto la ajustamos a sus necesidades.",
     "ULTIMO_CONTACTO":          "Quedamos disponibles para cuando {razon_social} lo necesite — sin presión.",
@@ -228,7 +237,7 @@ _PARRAFO_PORTAFOLIO = """\
 </p>"""
 
 _GANCHO_FALLBACK = {
-    "PRIMER_CONTACTO":          "¿Sabe cuánto puede costarle a {razon_social} no tener el SG-SST al día?",
+    "PRIMER_CONTACTO":          "Muchas empresas creen que ya cumplen su SG-SST, pero les falta justo el estándar que más revisan los auditores.",
     "RECORDATORIO_VENCIMIENTO": "{razon_social}: el Ministerio del Trabajo no avisa antes de inspeccionar.",
     "SEGUIMIENTO_COTIZACION":   "Quiero asegurarme de que {razon_social} esté protegida antes de la próxima inspección.",
     "ULTIMO_CONTACTO":          "Este es nuestro último contacto — quedamos atentos si {razon_social} necesita apoyo en SST.",

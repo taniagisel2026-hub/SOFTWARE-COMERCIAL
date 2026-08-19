@@ -52,11 +52,16 @@ _DOLORES_SECTOR: dict[str, str] = {
 _PROMPTS: dict[str, str] = {
 
     "PRIMER_CONTACTO": """\
-Escribe UNA sola oración de apertura impactante para un correo a una empresa del sector {sector} en {ciudad}.
-La frase debe despertar curiosidad o generar urgencia. Puede ser una pregunta o un dato sorprendente.
+Escribe UNA sola oración de apertura para un correo a una empresa del sector {sector} en {ciudad}.
+La frase debe despertar curiosidad genuina o aportar una idea útil. Puede ser una pregunta o una idea que
+haga pensar. NO uses tono de amenaza ni menciones multas, sanciones, muertes o accidentes graves —
+esto es un primer contacto, no un correo de urgencia.
+NO inventes estadísticas, porcentajes ni cifras específicas (nada de "el X% de...") — no hay forma de
+verificarlas y una cifra falsa en un primer correo es un riesgo real. Habla en términos generales.
 NO empieces con "Estimado", "Hola", "Buenos días" ni el nombre de la empresa.
-Ejemplos de tono: "¿Sabe cuántas empresas de {sector} reciben multas del Mintrabajo sin saberlo?"
-Riesgo real del sector: {dolor}.
+Ejemplo de tono: "Muchas empresas de {sector} creen que ya cumplen su SG-SST, pero les falta justo
+el estándar que más revisan los auditores."
+Contexto del sector (úsalo como trasfondo, no lo repitas literalmente ni en tono alarmista): {dolor}.
 Solo escribe la oración. Sin HTML. Sin introducción. Sin explicación.""",
 
     "SEGUIMIENTO_COTIZACION": """\
