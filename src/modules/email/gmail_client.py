@@ -144,6 +144,7 @@ class GmailClient:
                     "from_email": from_email,
                     "subject":    headers.get("Subject", ""),
                     "date":       headers.get("Date", ""),
+                    "snippet":    msg.get("snippet", ""),
                 })
             except HttpError:
                 continue

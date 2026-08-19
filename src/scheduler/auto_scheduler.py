@@ -3,6 +3,7 @@ Scheduler autónomo — ejecuta tareas programadas sin intervención manual.
 
 Tareas programadas:
   - 08:15 lunes a viernes → limpieza de rebotes (excluye emails inválidos antes de enviar)
+  - 08:20 lunes a viernes → detección de respuestas negativas (opt-out automático)
   - 08:30 lunes a viernes → cadencia de correos (Día 1 + Día 4 + Día 8)
   - 14:00 lunes a viernes → extracción de prospectos (1 municipio/día, rotativo)
 """
@@ -26,6 +27,7 @@ _CONFIG_PATH = _ROOT / "data" / "scheduler_config.json"
 _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 _LOG_REBOTES_PATH = _ROOT / "data" / "scheduler_rebotes_log.json"
+_LOG_RESPUESTAS_PATH = _ROOT / "data" / "scheduler_respuestas_log.json"
 
 # ── Extracción de prospectos: rotación 1 municipio/día ───────────────────────
 # Se toma de la misma lista que usa el panel manual (src/modules/scraper/cobertura.py)
@@ -108,6 +110,43 @@ def tarea_limpieza_rebotes() -> None:
         log.error(f"Error en limpieza de rebotes: {exc}")
 
     _LOG_REBOTES_PATH.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def tarea_detectar_respuestas_negativas() -> None:
+    """
+    Escanea Gmail por respuestas de prospectos. Si detecta intención negativa
+    ("no me interesa", "ya contamos con eso", etc.) activa el opt-out
+    automático para que la cadencia de las 08:30 ya no le reenvíe correo.
+    Corre 10 minutos antes de tarea_cadencia().
+    """
+    inicio = datetime.now()
+    log.info("Iniciando detección automática de respuestas negativas...")
+
+    resultado = {
+        "ultima_ejecucion": inicio.strftime("%Y-%m-%d %H:%M:%S"),
+        "respuestas_detectadas": 0,
+        "mensaje": "",
+        "estado": "en_progreso",
+    }
+    _LOG_RESPUESTAS_PATH.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    try:
+        from src.modules.tracking.reply_detector import detectar_y_registrar_respuestas
+
+        count, msg = detectar_y_registrar_respuestas()
+        resultado.update({
+            "respuestas_detectadas": count,
+            "mensaje": msg,
+            "estado": "completado",
+            "duracion_s": round((datetime.now() - inicio).total_seconds(), 1),
+        })
+        log.info(f"Detección de respuestas completada — {msg}")
+
+    except Exception as exc:
+        resultado.update({"estado": "error", "mensaje": str(exc)})
+        log.error(f"Error en detección de respuestas: {exc}")
+
+    _LOG_RESPUESTAS_PATH.write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def tarea_cadencia() -> None:
@@ -238,6 +277,7 @@ def main() -> None:
     log.info("=" * 55)
     log.info("  Medina SST — Scheduler Autónomo activo")
     log.info("  Limpieza de rebotes: lunes a viernes 08:15")
+    log.info("  Detección de respuestas negativas: lunes a viernes 08:20")
     log.info("  Cadencia de correos: lunes a viernes 08:30")
     log.info("  Extracción de prospectos: lunes a viernes 14:00")
     log.info("=" * 55)
@@ -247,6 +287,12 @@ def main() -> None:
     schedule.every().wednesday.at("08:15").do(tarea_limpieza_rebotes)
     schedule.every().thursday.at("08:15").do(tarea_limpieza_rebotes)
     schedule.every().friday.at("08:15").do(tarea_limpieza_rebotes)
+
+    schedule.every().monday.at("08:20").do(tarea_detectar_respuestas_negativas)
+    schedule.every().tuesday.at("08:20").do(tarea_detectar_respuestas_negativas)
+    schedule.every().wednesday.at("08:20").do(tarea_detectar_respuestas_negativas)
+    schedule.every().thursday.at("08:20").do(tarea_detectar_respuestas_negativas)
+    schedule.every().friday.at("08:20").do(tarea_detectar_respuestas_negativas)
 
     schedule.every().monday.at("08:30").do(tarea_cadencia)
     schedule.every().tuesday.at("08:30").do(tarea_cadencia)
