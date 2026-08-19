@@ -174,7 +174,15 @@ _PARRAFO_CTA_RECORDATORIO = """\
   {{ ciudad }} a cumplir los estándares del SG-SST en tiempo récord.
   Adicionalmente, a través de nuestra alianza con <strong>COMPECER</strong> podemos
   acompañarlos en procesos de certificación ISO (9001, 45001, 14001, entre otras).
-  Escríbanos por WhatsApp al <a href="https://wa.me/573125580713" style="color:#222;text-decoration:none;"><strong>312 558 0713</strong></a> cuando guste — estamos disponibles para resolver sus dudas.
+  Estamos disponibles para resolver sus dudas cuando guste.
+</p>
+<p style="margin:20px 0;text-align:center;">
+  <a href="https://wa.me/573125580713"
+     style="background-color:#1a7a4a;color:#ffffff;padding:12px 28px;border-radius:4px;
+            text-decoration:none;font-family:Georgia,serif;font-size:15px;font-weight:bold;
+            display:inline-block;">
+    Escribir por WhatsApp
+  </a>
 </p>"""
 
 _PARRAFO_SEGUIMIENTO_COTIZACION = """\
@@ -203,6 +211,14 @@ _PARRAFO_ULTIMO_CONTACTO = """\
   Si en algún momento <strong>{{ razon_social }}</strong> necesita apoyo con el SG-SST,
   mediciones ambientales o certificaciones ISO, con gusto los atendemos.
   Quedamos a su disposición.
+</p>
+<p style="margin:20px 0;text-align:center;">
+  <a href="https://wa.me/573125580713"
+     style="background-color:#1a7a4a;color:#ffffff;padding:12px 28px;border-radius:4px;
+            text-decoration:none;font-family:Georgia,serif;font-size:15px;font-weight:bold;
+            display:inline-block;">
+    Escribir por WhatsApp
+  </a>
 </p>"""
 
 _PREHEADER = {
