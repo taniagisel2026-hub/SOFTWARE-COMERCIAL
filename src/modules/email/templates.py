@@ -156,8 +156,8 @@ _PARRAFO_CTA_PRIMER = """\
   acompañarlos en procesos de certificación ISO (9001, 45001, 14001, entre otras).
 </p>
 <p style="margin:14px 0;font-size:15px;color:#222;line-height:1.75;">
-  Si quiere, le envío gratis nuestro portafolio completo — solo responda este
-  correo con <strong>"SI"</strong> o escríbame directo por WhatsApp.
+  Con gusto le compartimos nuestro portafolio completo. Basta con responder
+  este correo o escribirnos directo por WhatsApp.
 </p>
 <p style="margin:20px 0;text-align:center;">
   <a href="https://wa.me/573125580713"

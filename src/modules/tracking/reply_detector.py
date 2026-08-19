@@ -79,7 +79,7 @@ _FRASES_AFIRMATIVAS = [
 # textualmente "responda con SI". No se busca "si" como sub-cadena en todo
 # el texto porque es una palabra común en español como conjunción ("si tiene
 # tiempo...") y generaría falsos positivos.
-_PALABRAS_AFIRMATIVAS_INICIO = {"si", "sí", "ok", "dale", "claro", "listo"}
+_PALABRAS_AFIRMATIVAS_INICIO = {"si", "sí", "ok", "dale", "claro", "listo", "perfecto", "vale", "excelente"}
 
 
 def _normalizar(texto: str) -> str:
