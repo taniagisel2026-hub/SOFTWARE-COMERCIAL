@@ -252,11 +252,33 @@ _PARRAFO_PORTAFOLIO = """\
   y con gusto le explicamos cómo nos adaptamos a las necesidades de <strong>{{ razon_social }}</strong>.
 </p>"""
 
+# Varias variantes por tipo — cuando Gemini falla (cuota, timeout, etc.) se
+# elige una al azar, para que muchos correos del mismo día no queden con el
+# gancho exactamente igual (eso sí sería una señal real de contenido masivo).
 _GANCHO_FALLBACK = {
-    "PRIMER_CONTACTO":          "Muchas empresas creen que ya cumplen su SG-SST, pero les falta justo el estándar que más revisan los auditores.",
-    "RECORDATORIO_VENCIMIENTO": "Las bandejas de entrada se llenan rápido, así que quería asegurarme de que mi mensaje anterior sí le llegó a {razon_social}.",
-    "SEGUIMIENTO_COTIZACION":   "Quiero asegurarme de que {razon_social} esté protegida antes de la próxima inspección.",
-    "ULTIMO_CONTACTO":          "Este es nuestro último contacto — quedamos atentos si {razon_social} necesita apoyo en SST.",
+    "PRIMER_CONTACTO": [
+        "Muchas empresas creen que ya cumplen su SG-SST, pero les falta justo el estándar que más revisan los auditores.",
+        "Implementar el SG-SST no tiene que ser complicado ni tomar meses — depende de por dónde se empiece.",
+        "Hay un par de estándares del SG-SST que la mayoría de empresas pasa por alto sin darse cuenta.",
+        "El SG-SST cambia según el tamaño y el riesgo de cada empresa — vale la pena revisar cuáles aplican exactamente a la suya.",
+    ],
+    "RECORDATORIO_VENCIMIENTO": [
+        "Las bandejas de entrada se llenan rápido, así que quería asegurarme de que mi mensaje anterior sí le llegó a {razon_social}.",
+        "No sé si el correo anterior llegó a la persona indicada en {razon_social} — por eso le escribo de nuevo.",
+        "Quería retomar el tema del SG-SST con {razon_social}, por si el primer correo pasó desapercibido.",
+        "Le escribo de nuevo por si quedó alguna duda sobre el SG-SST de {razon_social} tras mi primer mensaje.",
+    ],
+    "SEGUIMIENTO_COTIZACION": [
+        "Quiero asegurarme de que {razon_social} esté protegida antes de la próxima inspección.",
+        "Quería saber si tuvieron oportunidad de revisar la propuesta que le enviamos a {razon_social}.",
+        "Sigo atenta por si {razon_social} tiene preguntas sobre la propuesta que compartimos.",
+    ],
+    "ULTIMO_CONTACTO": [
+        "Este es nuestro último contacto — quedamos atentos si {razon_social} necesita apoyo en SST.",
+        "No quiero saturar su bandeja, así que este será mi último mensaje por ahora sobre el SG-SST de {razon_social}.",
+        "Dejo la puerta abierta para cuando {razon_social} lo necesite — sin más correos de por medio.",
+        "Este es mi último mensaje al respecto; si en algún momento surge la necesidad, aquí estaré.",
+    ],
 }
 
 _jinja = Environment(undefined=StrictUndefined, autoescape=False)
@@ -298,11 +320,11 @@ class EmailTemplateEngine:
             nombre_asesora=ctx.nombre_asesora,
         )
 
-        # Fallback si Gemini no responde
+        # Fallback si Gemini no responde — variante al azar para no repetir
+        # el mismo texto exacto en varios correos del mismo día.
         if not gancho_texto:
-            gancho_texto = _GANCHO_FALLBACK.get(tipo, "").format(
-                razon_social=ctx.razon_social
-            )
+            variantes = _GANCHO_FALLBACK.get(tipo, [""])
+            gancho_texto = random.choice(variantes).format(razon_social=ctx.razon_social)
 
         gancho_html = (
             f'<p style="margin:0 0 12px;font-size:15px;color:#222;line-height:1.7;">'
