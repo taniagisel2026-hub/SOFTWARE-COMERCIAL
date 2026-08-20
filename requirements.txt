@@ -27,8 +27,12 @@ twilio>=8.5.0
 # ── Fase 2: Motor de plantillas ───────────────────────────────────
 jinja2>=3.1.0
 
-# ── Fase 3: Fábrica de contenido (Gemini API — gratuito) ──────────
-google-genai>=1.0.0
+# ── Fase 3: Fábrica de contenido y correos (Gemini API — gratuito, ────
+# ── vía REST directo, no requiere el SDK google-genai) ────────────
+# google-genai>=1.0.0   # SDK oficial — no se usa, las llamadas son REST directas
+
+# ── Analítica: optimización de asuntos con IA (Anthropic) ─────────
+anthropic>=0.40.0
 
 # ── Fase 3: Generadores de imágenes (opcionales, activar según proveedor) ──
 # openai>=1.30.0          # Para DalleImageGenerator (DALL-E 3)
