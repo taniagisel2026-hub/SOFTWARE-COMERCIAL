@@ -14,9 +14,10 @@
 7. [Campañas y Habeas Data](#7-campañas-y-habeas-data)
 8. [Analítica y Conversión](#8-analítica-y-conversión)
 9. [Fábrica de Contenido](#9-fábrica-de-contenido)
-10. [Flujo de trabajo diario recomendado](#10-flujo-de-trabajo-diario-recomendado)
-11. [Preguntas frecuentes](#11-preguntas-frecuentes)
-12. [Glosario](#12-glosario)
+10. [Alianza Compecer](#10-alianza-compecer)
+11. [Flujo de trabajo diario recomendado](#11-flujo-de-trabajo-diario-recomendado)
+12. [Preguntas frecuentes](#12-preguntas-frecuentes)
+13. [Glosario](#13-glosario)
 
 ---
 
@@ -56,7 +57,8 @@ EMPRESA_EMAIL=taniagisel2026@gmail.com
 ### Campos opcionales (puedes dejarlos vacíos por ahora):
 
 ```
-ANTHROPIC_API_KEY=    ← Para que los correos sean únicos con IA
+GEMINI_API_KEY=       ← Para que los correos y los artículos sean únicos con IA (gratis)
+ANTHROPIC_API_KEY=    ← Solo para "Optimizar con IA" en Analítica (sugerir mejores asuntos)
 OPENAI_API_KEY=       ← Para generar imágenes automáticas
 TRACKING_URL=         ← Para saber si los prospectos abrieron tus correos
 ```
@@ -75,17 +77,17 @@ Esto crea el archivo `comercial.db` donde se guardarán todos tus datos.
 
 ## 3. Cómo iniciar la aplicación
 
-Cada vez que quieras usar el software, abre una terminal en la carpeta `SOFTWARE COMERCIAL` y escribe:
+Cada vez que quieras usar el software, haz doble clic en **`start.bat`** (en la carpeta `SOFTWARE COMERCIAL`).
 
-```bash
-streamlit run app.py
-```
+Esto abre dos ventanas:
+- Una minimizada llamada **"Medina SST Scheduler"** — es el proceso que envía los correos automáticos todos los días de lunes a viernes a las 8:30 a.m. **No la cierres**, aunque no la vayas a usar directamente.
+- El **panel visual**, que se abre solo en tu navegador en **http://localhost:8501**
 
-Luego abre tu navegador en: **http://localhost:8501**
+Para apagar el software, cierra la ventana del panel (la del navegador se puede cerrar sin problema, pero la ventana de la consola detrás debe cerrarse para que todo se detenga).
 
-> **¿Ya está corriendo?** Si ves el mensaje `Uvicorn server started on 0.0.0.0:8501`, ya puedes abrir el navegador.
+> **¿El computador ya lo abre solo al encenderlo?** Si en algún momento se configuró el arranque automático (`setup_autostart.bat`), el scheduler y el panel ya aparecen solos al prender el equipo. En ese caso **no vuelvas a hacer doble clic en `start.bat`** — abriría una segunda copia del scheduler enviando correos en paralelo con la primera.
 
-La aplicación tiene un **menú lateral izquierdo** con 6 páginas. Haz clic en cualquiera para navegar.
+La aplicación tiene un **menú lateral izquierdo** con 7 páginas. Haz clic en cualquiera para navegar.
 
 ---
 
@@ -215,6 +217,8 @@ Cada empresa en la tabla tiene un botón **"📨 Enviar correo"** (solo aparece 
 
 Baja hasta **"Acciones masivas"** y haz clic en **"🚀 Enviar PRIMER CONTACTO"**. El sistema envía a todos los prospectos con estado "NUEVO" que tienen email.
 
+> **Esto también corre solo, todos los días.** No es obligatorio usar este botón manualmente: de lunes a viernes a las 8:30 a.m. el scheduler automático (`start.bat`) envía la cadencia completa — Día 1 a los nuevos, Día 4 a quien no respondió tras 4 días, y Día 8 como cierre — mientras el software esté abierto. El botón manual sirve para forzar un envío antes de esa hora o si el computador estuvo apagado ese día.
+
 #### Filtros
 
 Puedes filtrar por:
@@ -269,10 +273,13 @@ Si tienes `ANTHROPIC_API_KEY` en el `.env`:
 
 ### Pestaña: Detección de Respuestas
 
-Si tienes Gmail configurado:
+Si tienes Gmail configurado, esto corre **automáticamente todos los días a las 8:20 a.m.**, 10 minutos antes de que salga la cadencia de correos. También puedes forzarlo manualmente:
 1. Haz clic en **"📥 Detectar Respuestas Ahora"**
-2. El sistema escanea tu bandeja de entrada
-3. Si algún prospecto respondió tu correo, lo marca automáticamente como "RESPONDIDO" en el CRM
+2. El sistema escanea tu bandeja de entrada de los últimos 30 días
+3. Según lo que haya contestado el prospecto:
+   - **Respuesta negativa** ("no me interesa", "ya contamos con ese servicio", "quítenme de la lista", etc.) → lo registra automáticamente en la **lista negra (opt-out)** y el software deja de escribirle para siempre. Cumple la Ley 1581 sin que tengas que hacerlo a mano.
+   - **Respuesta afirmativa** ("sí", "me interesa", "cuéntenme más", etc.) → lo marca como **"pidió portafolio"**, y la empresa aparece lista en la pestaña de Portafolio para enviarle el PDF con un clic.
+   - Cualquier otra respuesta queda marcada como "RESPONDIDO" en el historial para que la revises tú misma.
 
 > **Nota:** La primera vez que uses esta función puede pedir que re-autorices Gmail porque necesita permiso de lectura adicional.
 
@@ -293,7 +300,7 @@ Haz clic en **"💾 Guardar como valores por defecto"** para que no tengas que v
 
 **¿Para qué sirve?** Genera automáticamente artículos técnicos sobre SST para publicar en redes sociales. Un artículo diario = 365 posts al año sin esfuerzo manual.
 
-> **Requiere:** `ANTHROPIC_API_KEY` en el `.env`
+> **Requiere:** `GEMINI_API_KEY` en el `.env` (la misma que usan los correos)
 
 ### Cómo generar el artículo del día:
 
@@ -308,7 +315,7 @@ Verás el **tema del día** seleccionado automáticamente (hay 28 temas en rotac
 
 **3. Haz clic en "⚡ Generar Artículo de Hoy"**
 
-En 10-20 segundos, Claude te genera:
+En 10-20 segundos, Gemini te genera:
 - Artículo completo en Markdown (500-700 palabras)
 - Copy listo para LinkedIn, Facebook e Instagram por separado
 - 8 hashtags relevantes
@@ -340,7 +347,7 @@ Abre el `.env` y llena la sección **"REDES SOCIALES"**:
 3. Genera Page Access Token
 4. Pega en: `META_PAGE_ACCESS_TOKEN=`, `META_FACEBOOK_PAGE_ID=`, `META_INSTAGRAM_ACCOUNT_ID=`
 
-Después de llenar los tokens, **reinicia el servidor** (`Ctrl+C` y vuelve a ejecutar `streamlit run app.py`).
+Después de llenar los tokens, **reinicia el software**: cierra la ventana del panel y la del scheduler, y vuelve a abrir `start.bat`.
 
 ### Pestaña: Calendario
 
@@ -353,7 +360,20 @@ Cuando publiques manualmente en una red social, haz clic en **"✅ Publicado"** 
 
 ---
 
-## 10. Flujo de trabajo diario recomendado
+## 10. Alianza Compecer
+
+**¿Para qué sirve?** Lleva el registro de las empresas que le refieres a Compecer para certificaciones ISO (9001, 45001, 14001, 27001, entre otras), y en qué punto va cada referido: enviado, en negociación, contrato firmado o bonificación cobrada.
+
+**Cómo funciona:**
+1. Registras el referido con su razón social, NIT, contacto y la norma ISO que le interesa
+2. Actualizas el estado a medida que avanza la negociación con Compecer
+3. Cuando se firma el contrato y se cobra la bonificación, lo marcas como "Bonificación cobrada"
+
+Esto te permite ver de un vistazo cuántos referidos tienes activos y cuánto representan en comisiones pendientes.
+
+---
+
+## 11. Flujo de trabajo diario recomendado
 
 ### Lunes — Prospección (20 min)
 
@@ -384,7 +404,7 @@ Cuando publiques manualmente en una red social, haz clic en **"✅ Publicado"** 
 
 ---
 
-## 11. Preguntas frecuentes
+## 12. Preguntas frecuentes
 
 **¿Por qué no puedo enviar correos?**
 
@@ -406,7 +426,7 @@ La base de datos está vacía. Primero debes:
 
 **¿Qué pasa si apago el computador?**
 
-Todos los datos están guardados en `comercial.db` (la base de datos local). Al volver a iniciar con `streamlit run app.py` todo estará exactamente como lo dejaste.
+Todos los datos están guardados en `comercial.db` (la base de datos local). Al volver a abrir `start.bat` todo estará exactamente como lo dejaste.
 
 **¿Se pueden perder los datos?**
 
@@ -416,7 +436,7 @@ Los datos solo se perderían si eliminas el archivo `comercial.db`. Se recomiend
 
 Sí, para: Cotizador, Panel de Control, ver el CRM, Analítica.
 
-No, para: Motor de Prospección (necesita buscar en internet), envío de correos (necesita Gmail), Fábrica de Contenido (necesita conectarse a Claude AI).
+No, para: Motor de Prospección (necesita buscar en internet), envío de correos (necesita Gmail), Fábrica de Contenido (necesita conectarse a Gemini).
 
 **¿Cómo sé si un correo fue recibido?**
 
@@ -432,7 +452,7 @@ Cambia `88_000` por el valor deseado (en pesos colombianos, sin puntos).
 
 ---
 
-## 12. Glosario
+## 13. Glosario
 
 | Término | Significado |
 |---|---|
@@ -449,11 +469,12 @@ Cambia `88_000` por el valor deseado (en pesos colombianos, sin puntos).
 | **`.env`** | Archivo de configuración con las claves y datos privados. Nunca se comparte públicamente. |
 | **BD / Base de datos** | Archivo `comercial.db` donde se guardan todos los prospectos, cotizaciones e interacciones. |
 | **Token** | Clave de acceso temporal o permanente para una API. Similar a una contraseña de sesión. |
-| **Claude** | El modelo de Inteligencia Artificial de Anthropic que usa el software para generar correos y artículos únicos. |
+| **Gemini** | El modelo de Inteligencia Artificial de Google que usa el software para redactar el gancho de cada correo y los artículos de la Fábrica de Contenido. Es el que le da variedad al texto según el sector de cada empresa. |
+| **Claude** | El modelo de Inteligencia Artificial de Anthropic. En este software se usa solo en Analítica, para sugerir mejores asuntos de correo según su rendimiento histórico. |
 | **Open Rate** | Porcentaje de correos enviados que los destinatarios abrieron. |
 | **ROI** | Retorno de Inversión. Cuánto ganaste en relación a lo que gastaste. |
 | **Break-even** | Punto de equilibrio: cuántos contratos necesitas cerrar para recuperar lo que costó el software. |
 
 ---
 
-*Manual generado el 01 de junio de 2026 · Medina SST Empresarial SAS · v1.0*
+*Manual actualizado el 20 de agosto de 2026 · Medina SST Empresarial SAS · v1.0*

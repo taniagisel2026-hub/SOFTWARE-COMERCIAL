@@ -22,13 +22,17 @@ Esas empresas son tus **leads** — clientes potenciales que todavía no saben q
 
 ## Paso 2 — Campañas y Habeas Data ✉️
 
-**Ahora les escribes.**
+**Ahora les escribes — y esto ya corre solo, todos los días.**
 
-Con las empresas ya guardadas, entras a este módulo y les envías un correo de presentación. Si tienes la API de inteligencia artificial configurada, cada correo es diferente y personalizado según el sector de la empresa (no es el mismo texto para todas). Si no, usa una plantilla estándar.
+Con las empresas ya guardadas, el sistema envía automáticamente de lunes a viernes a las 8:30 a.m. una secuencia de tres correos por empresa: **Día 1** (primer contacto), **Día 4** (recordatorio, si no respondió) y **Día 8** (último contacto, cierre cordial). Cada correo trae un gancho de apertura distinto generado con IA según el sector de la empresa, y un botón verde para escribir directo por WhatsApp. También puedes enviarlos manualmente desde el módulo si lo prefieres.
 
-El sistema respeta un límite diario de envíos para que los correos no lleguen a spam. Y si alguna empresa responde que no quiere ser contactada, la registras en la **lista negra** y el software la excluye automáticamente de todo envío futuro.
+El sistema respeta un límite diario de envíos para que los correos no lleguen a spam, y todos los días a las 8:15 revisa Gmail para excluir de la cadencia los correos que rebotan (direcciones inválidas).
 
-Esto cumple con la **Ley 1581 de 2012 (Habeas Data)** — protección de datos personales en Colombia.
+**A las 8:20, antes de enviar nada, el sistema también revisa si algún prospecto respondió:**
+- Si la respuesta es negativa ("no me interesa", "ya contamos con eso", etc.) → lo registra automáticamente en la **lista negra (opt-out)** y el software deja de escribirle para siempre.
+- Si la respuesta es afirmativa ("sí", "me interesa", etc.) → lo marca como **"pidió portafolio"**, y aparece listo en el panel para enviarle el portafolio con un clic.
+
+Esto cumple con la **Ley 1581 de 2012 (Habeas Data)** — protección de datos personales en Colombia. También puedes registrar una exclusión manual en cualquier momento desde la pestaña de Lista Negra.
 
 ---
 
@@ -110,9 +114,11 @@ Todo el proceso queda guardado. En cualquier momento se puede saber:
 
 ## Cómo abrir el software
 
-1. Abrir la terminal (PowerShell o símbolo del sistema)
-2. Ejecutar: `streamlit run app.py`
-3. Se abre automáticamente en el navegador
+1. Doble clic en **`start.bat`**
+2. Se abren dos ventanas: una minimizada con el nombre "Medina SST Scheduler" (es la que envía los correos automáticos todos los días a las horas de arriba — **no la cierres**) y el panel visual, que se abre solo en el navegador
+3. Para apagar el software, cierra la ventana del panel
+
+Si el computador tiene configurado el arranque automático (`setup_autostart.bat`), estas dos ventanas ya aparecen solas al encender el equipo — no hace falta darle doble clic a `start.bat` de nuevo, porque eso abriría una segunda copia del scheduler.
 
 El software corre en el computador local — solo lo ve quien lo abre. Los clientes no tienen acceso.
 

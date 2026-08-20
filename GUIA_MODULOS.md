@@ -6,10 +6,10 @@ Este software es una herramienta de uso **interno** para gestión comercial. Sol
 
 ## Cómo abrir el software
 
-1. Abrir la terminal (símbolo del sistema o PowerShell)
-2. Navegar a la carpeta del proyecto
-3. Ejecutar el comando: `streamlit run app.py`
-4. Se abre automáticamente en el navegador en `http://localhost:8501`
+1. Doble clic en **`start.bat`**, en la carpeta del proyecto
+2. Se abren dos ventanas: el scheduler automático (minimizado, envía los correos diarios — no cerrar) y el panel, que se abre solo en `http://localhost:8501`
+
+Si el computador tiene el arranque automático configurado (`setup_autostart.bat`), estas ventanas ya aparecen solas al encenderlo — no volver a abrir `start.bat` manualmente ese día, porque duplicaría el scheduler.
 
 ---
 
@@ -73,10 +73,10 @@ Gestiona el envío de correos y mensajes de WhatsApp a los prospectos, y control
 **Secciones:**
 
 - **Lista de prospectos:** tabla con todas las empresas en la base de datos, su estado, fuente y datos de contacto. Se puede filtrar por ciudad, sector y estado.
-- **Envío de campañas:** permite enviar correos personalizados a los prospectos seleccionados. Si la API de Claude está configurada, cada correo es redactado de forma única por inteligencia artificial. Si no, usa plantillas predefinidas.
+- **Envío de campañas:** permite enviar correos personalizados a los prospectos seleccionados. Si la API de Gemini está configurada, el gancho de apertura de cada correo es redactado de forma única por inteligencia artificial según el sector de la empresa. Si no, usa uno de los textos de respaldo (rotan varias opciones para no repetir siempre el mismo).
 - **Lista negra (Habeas Data):** registra las empresas que han pedido no ser contactadas. El sistema las excluye automáticamente de todos los envíos futuros.
 
-Los correos se envían respetando un límite diario para no ser marcados como spam.
+Los correos se envían respetando un límite diario para no ser marcados como spam, y **de lunes a viernes se envían solos a las 8:30 a.m.** vía el scheduler automático (`start.bat`) — no es necesario enviarlos manualmente cada día. Antes de eso, a las 8:15 se limpian los rebotes y a las 8:20 se revisan las respuestas de los prospectos: si alguien dice que no le interesa, se va automáticamente a la lista negra; si dice que sí, queda marcado como "pidió portafolio" listo para enviarle.
 
 ---
 
@@ -99,7 +99,7 @@ Sirve para que identifiquen qué está funcionando y qué se debe mejorar en el 
 ### 6. Fábrica de Contenido
 **Ícono:** 🎨
 
-Genera automáticamente contenido de redes sociales sobre temas de Seguridad y Salud en el Trabajo (SST) usando inteligencia artificial (API de Claude).
+Genera automáticamente contenido de redes sociales sobre temas de Seguridad y Salud en el Trabajo (SST) usando inteligencia artificial (API de Gemini).
 
 **Qué genera con un solo clic:**
 - Un **artículo completo** en Markdown (500–700 palabras) sobre un tema SST del día.
@@ -109,7 +109,14 @@ Genera automáticamente contenido de redes sociales sobre temas de Seguridad y S
 - **8 hashtags** relevantes para el sector.
 - **3 prompts de imágenes** listos para generar en herramientas como DALL-E o Midjourney.
 
-El sistema rota automáticamente los temas por día del año para que el contenido siempre sea diferente. Requiere que la clave `ANTHROPIC_API_KEY` esté configurada en el archivo `.env`.
+El sistema rota automáticamente los temas por día del año para que el contenido siempre sea diferente. Requiere que la clave `GEMINI_API_KEY` esté configurada en el archivo `.env` (la misma que usan los correos).
+
+---
+
+### 7. Alianza Compecer
+**Ícono:** 🤝
+
+Lleva el registro de las empresas referidas a Compecer para certificaciones ISO (9001, 45001, 14001, 27001, entre otras) y en qué etapa va cada referido: enviado, en negociación, contrato firmado o bonificación cobrada.
 
 ---
 
@@ -132,11 +139,13 @@ El software guarda toda la información en una base de datos local (`comercial.d
 | Interfaz visual | Streamlit (Python) |
 | Base de datos | SQLite (local) |
 | Generación de PDF | ReportLab |
-| Correos | Gmail API |
-| WhatsApp | Twilio |
-| Inteligencia Artificial | Claude API (Anthropic) |
+| Correos (envío y lectura) | Gmail API (OAuth2) |
+| Gancho de correos y artículos | Gemini API (Google, capa gratuita) |
+| Optimización de asuntos | Claude API (Anthropic) — solo en Analítica |
+| WhatsApp | Twilio — instalado en el código, aún sin activar (falta configurar credenciales) |
 | Scraping web | Playwright + BeautifulSoup |
+| Automatización diaria | Librería `schedule` (Python), corre en `src/scheduler/auto_scheduler.py` |
 
 ---
 
-*Panel Comercial · Medina SST Empresarial SAS · v1.0.0*
+*Panel Comercial · Medina SST Empresarial SAS · v1.0.0 · Actualizado 20 de agosto de 2026*
