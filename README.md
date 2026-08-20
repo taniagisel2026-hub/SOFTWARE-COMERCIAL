@@ -124,4 +124,4 @@ Email: proyectos1@medinaempresarial.com
 
 ---
 
-*Para el detalle técnico del diseño inicial ver [`./docs/arquitectura_y_diseno.md`](./docs/arquitectura_y_diseno.md) — algunos componentes descritos ahí (backend separado, frontend en React, PostgreSQL) fueron parte del plan original y no reflejan la implementación final, que es la descrita en este README.*
+*Para el detalle técnico completo (diagramas de componentes, modelo de datos, flujo diario) ver [`./docs/arquitectura_y_diseno.md`](./docs/arquitectura_y_diseno.md).*
