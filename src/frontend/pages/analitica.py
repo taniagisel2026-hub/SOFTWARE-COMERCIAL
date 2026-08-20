@@ -668,19 +668,19 @@ def _mostrar_ultimas_respuestas() -> None:
                 .all()
             )
 
-        if not rows:
-            st.info("Sin respuestas registradas aún.")
-            return
+            if not rows:
+                st.info("Sin respuestas registradas aún.")
+                return
 
-        filas = [
-            {
-                "Empresa":    rs,
-                "Asunto":     (h.asunto or "")[:60],
-                "Fecha":      h.fecha_interaccion.strftime("%d/%m/%Y %H:%M"),
-                "Canal":      h.canal or "—",
-            }
-            for h, rs in rows
-        ]
+            filas = [
+                {
+                    "Empresa":    rs,
+                    "Asunto":     (h.asunto or "")[:60],
+                    "Fecha":      h.fecha_interaccion.strftime("%d/%m/%Y %H:%M"),
+                    "Canal":      h.canal or "—",
+                }
+                for h, rs in rows
+            ]
         st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
     except Exception as exc:
