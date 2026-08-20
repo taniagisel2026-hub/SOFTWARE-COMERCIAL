@@ -58,6 +58,8 @@ logs/
 
 # ── Estado/log en tiempo de ejecución (se regeneran solos) ────────
 data/scheduler_log.json
+data/scheduler_rebotes_log.json
+data/scheduler_respuestas_log.json
 data/scraper_scheduler_estado.json
 data/scraper_scheduler_log.json
 data/tema_contenido_estado.json

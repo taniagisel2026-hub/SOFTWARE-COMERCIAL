@@ -444,7 +444,7 @@ Por ahora puedes ver en la **Ficha del Cliente** si el correo aparece como ENVIA
 
 **¿Cómo cambio el precio por hora de las cotizaciones?**
 
-En el archivo `src/modules/cotizador/calculator.py`, línea 14:
+En el archivo `src/modules/cotizador/calculator.py`, línea 48:
 ```python
 VALOR_HORA_COP = Decimal("88_000")
 ```
