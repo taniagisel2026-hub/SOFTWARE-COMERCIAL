@@ -537,12 +537,22 @@ def _render_ficha_cliente(id_empresa: int) -> None:
             "CERRADO_GANADO":     "#10B981",
             "CERRADO_PERDIDO":    "#EF4444",
         }
+        _LABEL_ESTADO = {
+            "NUEVO":              "Nuevo",
+            "EN_SEGUIMIENTO":     "En seguimiento",
+            "PIDIO_PORTAFOLIO":   "Pidió portafolio",
+            "COTIZACION_ENVIADA": "Cotización enviada",
+            "NEGOCIACION":        "En negociación",
+            "CERRADO_GANADO":     "Cerrado — ganado",
+            "CERRADO_PERDIDO":    "Cerrado — perdido",
+        }
         estado = emp["estado_prospecto"]
         color  = _COLOR_ESTADO.get(estado, "#6B7280")
+        etiqueta = _LABEL_ESTADO.get(estado, estado)
         st.markdown(
             f"**Estado en embudo:**&nbsp;"
             f"<span style='background:{color};color:white;padding:3px 10px;"
-            f"border-radius:12px;font-size:12px;font-weight:600;'>{estado}</span>",
+            f"border-radius:12px;font-size:12px;font-weight:600;'>{etiqueta}</span>",
             unsafe_allow_html=True,
         )
 
